@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Husky Degree Planner</title>
+<meta name="description" content="Quarter-by-quarter degree planner for UW Allen School Computer Science majors. Import your DARS, plan ahead, and see when you graduate.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: plan bar + projection on top; year rows of quarter columns on the left, requirement audit on the right (stacks on phones). */
+:root{
+  --bg:#f5f4f9; --surface:#ffffff; --sunk:#efedf5; --ink:#1d1a29; --muted:#66617c; --line:#e0dcea;
+  --accent:#5b3fd1; --accent-ink:#ffffff; --accent-soft:#ebe6fb; --gold:#a7790f; --gold-soft:#f8efd9;
+  --ok:#2c8656; --ok-soft:#e1f2e8; --warn:#a96b10; --warn-soft:#fbf0dc; --bad:#bf3c36; --bad-soft:#fbe5e3;
+  --f-display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --f-body:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#131118; --surface:#1c1a24; --sunk:#17151e; --ink:#ece9f5; --muted:#9c96b2; --line:#2f2b3c;
+  --accent:#a38dff; --accent-ink:#17131f; --accent-soft:#2a2343; --gold:#e3b84f; --gold-soft:#3a2f17;
+  --ok:#5cc28d; --ok-soft:#1b3326; --warn:#e2a54a; --warn-soft:#3a2b14; --bad:#ef6b64; --bad-soft:#3d1c1b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#131118; --surface:#1c1a24; --sunk:#17151e; --ink:#ece9f5; --muted:#9c96b2; --line:#2f2b3c;
+  --accent:#a38dff; --accent-ink:#17131f; --accent-soft:#2a2343; --gold:#e3b84f; --gold-soft:#3a2f17;
+  --ok:#5cc28d; --ok-soft:#1b3326; --warn:#e2a54a; --warn-soft:#3a2b14; --bad:#ef6b64; --bad-soft:#3d1c1b; color-scheme:dark}
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:20px 48px}
+[hidden]{display:none!important}
+.wrap{max-width:1360px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+a{color:var(--accent)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 11px;font-size:13px;font-weight:500}
+.btn:hover{border-color:var(--accent)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.danger{color:var(--bad)}
+.btn.danger.armed{background:var(--bad);color:#fff;border-color:var(--bad)}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.small{padding:3px 8px;font-size:12px}
+label.lbl{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;display:block;margin-bottom:4px}
+input[type=text],input[type=number],select,textarea{background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:6px 8px;min-width:0}
+
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-family:var(--f-display);font-weight:700;font-size:26px;letter-spacing:-.01em;margin:0;text-wrap:balance}
+.save{font-size:12px;color:var(--muted)}
+.hactions{display:flex;flex-wrap:wrap;gap:6px}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.tab{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 13px;font-weight:500;font-size:13px}
+.tab[aria-selected=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.newmenu{position:relative}
+.menu{position:absolute;top:calc(100% + 6px);left:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgb(0 0 0 / .15);padding:6px;z-index:20;min-width:210px;display:flex;flex-direction:column}
+.menu button{border:0;background:none;text-align:left;padding:7px 10px;border-radius:6px}
+.menu button:hover{background:var(--accent-soft)}
+
+.welcome{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:28px 24px;display:flex;flex-direction:column;gap:14px;max-width:760px}
+.welcome h2{font-family:var(--f-display);font-size:24px;margin:0;text-wrap:balance}
+.welcome p{margin:0;max-width:62ch}
+.welcome .acts{display:flex;flex-wrap:wrap;gap:8px}
+
+.proj{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,2fr);gap:18px}
+.proj .big{font-family:var(--f-display);font-size:30px;font-weight:700;line-height:1.1;letter-spacing:-.01em}
+.proj .big.gold{color:var(--gold)}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600}
+.pill.ok{background:var(--ok-soft);color:var(--ok)} .pill.warn{background:var(--warn-soft);color:var(--warn)} .pill.bad{background:var(--bad-soft);color:var(--bad)} .pill.neutral{background:var(--sunk);color:var(--muted)}
+.settings{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+.settings > div{display:flex;flex-direction:column}
+.stepper{display:flex;align-items:center;gap:4px}
+.stepper span{min-width:22px;text-align:center}
+.creditbar{height:10px;border-radius:999px;background:var(--sunk);overflow:hidden;display:flex;margin-top:10px}
+.creditbar i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted);margin-top:6px}
+.legend b{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+
+.main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start}
+.years{display:flex;flex-direction:column;gap:14px;min-width:0}
+.year{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.yhead{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:baseline;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--sunk)}
+.yhead h2{font-family:var(--f-display);font-size:17px;margin:0;font-weight:700}
+.qgrid{display:grid;grid-template-columns:repeat(var(--cols),minmax(0,1fr))}
+.q{padding:10px;border-right:1px solid var(--line);min-height:150px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.q:last-child{border-right:0}
+.q.after{background:repeating-linear-gradient(135deg,transparent 0 8px,var(--sunk) 8px 9px)}
+.q.grad{box-shadow:inset 0 0 0 2px var(--gold)}
+.q.drop{background:var(--accent-soft)}
+.qh{display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+.qh strong{font-size:13px}
+.load{font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px}
+.load.light{background:var(--warn-soft);color:var(--warn)} .load.norm{background:var(--sunk);color:var(--muted)} .load.heavy{background:var(--bad-soft);color:var(--bad)}
+.gradflag{font-size:11px;font-weight:700;color:var(--gold);letter-spacing:.04em;text-transform:uppercase}
+.course{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--surface);text-align:left;width:100%;display:flex;flex-direction:column;gap:3px;cursor:grab}
+.course.done{background:var(--ok-soft);border-color:transparent}
+.course.now{background:var(--accent-soft);border-color:transparent}
+.course.plan{border-style:dashed}
+.course:hover{border-color:var(--accent)}
+.course .r1{display:flex;justify-content:space-between;gap:6px;align-items:baseline}
+.course .code{font-family:var(--f-mono);font-weight:500;font-size:12.5px;overflow-wrap:anywhere}
+.course .cr{font-family:var(--f-mono);font-size:12px;color:var(--muted);white-space:nowrap}
+.course .ttl{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.tags{display:flex;flex-wrap:wrap;gap:3px}
+.tag{font-size:10.5px;font-weight:600;padding:0 5px;border-radius:4px;background:var(--sunk);color:var(--muted);letter-spacing:.02em}
+.add{border:1px dashed var(--line);background:transparent;border-radius:8px;padding:5px;color:var(--muted);font-size:12px;margin-top:auto}
+.add:hover{color:var(--accent);border-color:var(--accent)}
+.prior .qgrid{--cols:1}
+.prior .q{min-height:0}
+.prior .list{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px}
+
+aside{position:sticky;top:12px;display:flex;flex-direction:column;gap:12px}
+.grp{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.grp.off{opacity:.6}
+.grph{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+.grph h3{margin:0;font-family:var(--f-display);font-size:15px}
+.req{padding:6px 0;border-top:1px solid var(--line)}
+.req:first-of-type{border-top:0}
+.req .rl{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;align-items:baseline}
+.req .rl span:first-child{min-width:0}
+.req .met{color:var(--ok);font-weight:600}
+.bar{height:6px;border-radius:999px;background:var(--sunk);overflow:hidden;display:flex;margin-top:4px}
+.bar i{display:block;height:100%}
+.c-done{background:var(--ok)} .c-now{background:var(--accent)} .c-plan{background:color-mix(in srgb,var(--accent) 35%, var(--sunk))}
+.checks{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.chk{font-family:var(--f-mono);font-size:11px;padding:1px 6px;border-radius:4px;background:var(--sunk);color:var(--muted)}
+.chk.done{background:var(--ok-soft);color:var(--ok)} .chk.now{background:var(--accent-soft);color:var(--accent)} .chk.plan{outline:1px dashed var(--accent);color:var(--accent)}
+.needin{width:58px;padding:2px 5px;font-size:12px}
+.labelin{width:100%;padding:2px 5px;font-size:12px}
+.switch{appearance:none;width:32px;height:18px;border-radius:999px;background:var(--line);position:relative;cursor:pointer;flex:none;margin:0}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--surface);transition:left .15s}
+.switch:checked{background:var(--accent)} .switch:checked::after{left:16px}
+.note{font-size:12px;color:var(--muted)}
+
+.ov{position:fixed;inset:0;background:rgb(10 8 16 / .45);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px}
+.dlg{background:var(--surface);border:1px solid var(--line);border-radius:14px;width:min(560px,100%);max-height:90vh;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:12px}
+.dlg h3{margin:0;font-family:var(--f-display);font-size:19px}
+.dlg textarea{width:100%;min-height:200px;font-family:var(--f-mono);font-size:12px;resize:vertical}
+.dlg ol{margin:0;padding-left:20px}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.row > div{display:flex;flex-direction:column;min-width:0}
+.tagpick{display:flex;flex-wrap:wrap;gap:5px}
+.tagpick button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 10px;font-size:12px}
+.tagpick button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.dlgfoot{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.confirmbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--bad-soft);color:var(--bad);border-radius:10px;padding:8px 12px;font-size:13px}
+.toast{background:var(--ok-soft);color:var(--ok);border-radius:10px;padding:8px 12px;font-size:13px}
+.preview{background:var(--sunk);border-radius:10px;padding:10px 12px;font-size:13px}
+footer{font-size:12px;color:var(--muted);max-width:80ch}
+
+@media (max-width:1050px){.main{grid-template-columns:minmax(0,1fr)} aside{position:static}}
+@media (max-width:760px){.proj{grid-template-columns:minmax(0,1fr)} .qgrid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important} .q{border-bottom:1px solid var(--line)} .q:nth-child(2n){border-right:0}}
+@media (max-width:440px){.qgrid{grid-template-columns:minmax(0,1fr)!important} .q{border-right:0}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Husky Degree Planner</h1>
+      <div class="save" id="save">Plans are saved in this browser.</div>
+    </div>
+    <div class="hactions">
+      <button class="btn small" id="exportBtn">Export plans</button>
+      <button class="btn small" id="importBtn">Import file</button>
+      <input type="file" id="importFile" accept="application/json,.json" hidden>
+    </div>
+  </header>
+  <div class="tabs" id="tabs" role="tablist"></div>
+  <div id="confirm"></div>
+  <section class="welcome" id="welcome" hidden>
+    <h2>Plan your UW CS degree, quarter by quarter</h2>
+    <p>Start from your DARS audit so your AP, transfer and current courses are already in place. Then add the courses you plan to take, and the planner shows the first quarter where you meet every requirement.</p>
+    <div class="acts">
+      <button class="btn primary" data-start="dars">Import from DARS</button>
+      <button class="btn" data-start="blank">Start a blank plan</button>
+      <button class="btn" data-start="example">Open an example</button>
+    </div>
+    <p class="note">Everything stays in your browser. Nothing is uploaded. Use Export to back up your plans or move them to another device.</p>
+  </section>
+  <div id="planner">
+    <section class="proj" id="proj"></section>
+    <div class="main" style="margin-top:18px">
+      <div class="years" id="years"></div>
+      <aside id="audit"></aside>
+    </div>
+  </div>
+  <footer>
+    Requirement numbers follow the UW General Catalog for the BS in Computer Science (College of Arts &amp; Sciences gen-ed rules, catalog year AU 26). This is an unofficial student tool and is not affiliated with the University of Washington or the Allen School. Always confirm with your DARS audit and your adviser.
+  </footer>
+</div>
+<div id="overlay"></div>
+
+<script>
+/*PARSER-START*/
+/* Parses text copied from a UW DARS audit page into courses. */
+const DARS_TITLE_CODES = {
+  "CALC ANALYT GEOM I":"MATH 124","CALC ANALYT GEOM II":"MATH 125","CALC ANALYT GEOM III":"MATH 126",
+  "COMP PROGRAMMING I":"CSE 121","COMP PROGRAMMING II":"CSE 122","COMP PROGRAMMING III":"CSE 123",
+  "SOFTWARE TOOLS":"CSE 391","GENERAL CHEM I":"CHEM 142","GENERAL CHEM II":"CHEM 152","GENERAL CHEM III":"CHEM 162",
+  "INTRO MACROECON":"ECON 201","INTRO MICROECON":"ECON 200","INTRO TO PSYCH":"PSYCH 101",
+  "INTRO AMERICAN POL":"POL S 202","SURV HIST OF U S":"HSTAA 101","ETHICS/PSYCH PRSUASN":"PHIL 118"
+};
+const DARS_SECTIONS = [
+  [/^English Composition/i,["C"]],[/^Writing across the curriculum/i,["W"]],[/^Diversity Course/i,["DIV"]],
+  [/^Arts and Humanities$/i,["A&H"]],[/^Social Sciences$/i,["SSc"]],[/^Natural Sciences$/i,["NSc"]],
+  [/^Computer Science Requirement: Natural Science/i,["CS Sci"]],
+  [/Four CSE courses from the CSE Core/i,["Core"]],[/Two additional courses from the entire Core/i,["Core"]],
+  [/One additional core course or one course from the CSE Capstone/i,["Capstone"]],
+  [/Courses from the CSE Electives list/i,["CSE Elective"]],
+  [/^(Reasoning|Foreign Language|AREAS OF INQUIRY|DEPARTMENTAL REQUIREMENTS|OTHER COURSES|General Electives)/i,[]],
+  [/^Computer Science Requirement:/i,[]],[/^(UNIVERSITY REQUIREMENTS|GENERAL EDUCATION REQUIREMENTS)/i,[]]
+];
+function parseDars(text){
+  const lines = String(text||"").split(/\r?\n/).map(l=>l.replace(/\s+/g," ").trim()).filter(Boolean);
+  const out = {courses:[], catalogYear:null, earned:null, startYear:null};
+  const QRE = /^(AU|WI|SP|SU)(\d{2})$/, NUM = /^-?\d+(\.\d+)?$/, CODE = /^[A-Z][A-Z& ]{0,8} ?\d{3}[A-Z]?$/;
+  let tags = [], seenTotal = false;
+  const byKey = new Map();
+  for(let i=0;i<lines.length;i++){
+    const l = lines[i];
+    if(/^Catalog Year:?$/i.test(l) && lines[i+1]) { const m=lines[i+1].match(/(AU|WI|SP|SU)\s?(\d{2})/); if(m) out.catalogYear=m[1]+" "+m[2]; }
+    const cy = l.match(/^Catalog Year:?\s*(AU|WI|SP|SU)\s?(\d{2})/i); if(cy) out.catalogYear=cy[1].toUpperCase()+" "+cy[2];
+    if(/minimum of 180 academic credits/i.test(l)) seenTotal = true;
+    const em = l.match(/^Earned:\s*([\d.]+) credits/i);
+    if(em && seenTotal && out.earned===null) out.earned = parseFloat(em[1]);
+    const sec = DARS_SECTIONS.find(([re])=>re.test(l));
+    if(sec){ tags = sec[1]; continue; }
+    const qm = l.match(QRE);
+    if(!qm) continue;
+    // collect up to two text lines, then a credits line, then a grade line
+    const texts=[]; let j=i+1;
+    while(j<lines.length && texts.length<3 && !NUM.test(lines[j]) && !QRE.test(lines[j])) { texts.push(lines[j]); j++; }
+    if(j>=lines.length || !NUM.test(lines[j]) || !texts.length || texts.length>2) continue;
+    const credits = parseFloat(lines[j]); const grade = (lines[j+1]||"").toUpperCase();
+    let code, title;
+    if(texts.length===2){ code=texts[0]; title=texts[1]; }
+    else if(CODE.test(texts[0])){ code=texts[0]; title=""; }
+    else { title=texts[0]; code=DARS_TITLE_CODES[texts[0].toUpperCase()]||texts[0]; }
+    code = code.toUpperCase().replace(/\s+/g," ");
+    if(title.toUpperCase().replace(/\s+/g," ")===code) title = "";
+    const qtr = qm[1]+qm[2];
+    const key = qtr+"|"+code+"|"+title+"|"+credits;
+    let c = byKey.get(key);
+    if(!c){ c={qtr, q:["AU","WI","SP","SU"].indexOf(qm[1]), yy:+qm[2], code, title, credits, grade, tags:[]}; byKey.set(key,c); out.courses.push(c); }
+    tags.forEach(t=>{ if(!c.tags.includes(t)) c.tags.push(t); });
+    i = j;
+  }
+  if(out.catalogYear){ const m=out.catalogYear.match(/(AU|WI|SP|SU) (\d{2})/); const yy=+m[2]; out.startYear = 2000+yy-(m[1]==="AU"?0:1); }
+  else {
+    const uw = out.courses.filter(c=>!/^(AP|TR|IB|CR)$/.test(c.grade));
+    if(uw.length){ const f = uw.reduce((a,c)=>{const ay=2000+c.yy-(c.q===0?0:1);return Math.min(a,ay)},9999); out.startYear=f; }
+  }
+  return out;
+}
+/*PARSER-END*/
+
+(() => {
+const STORE = "husky-degree-planner-v1";
+const QN = ["Autumn","Winter","Spring","Summer"];
+const TAGS = ["C","W","A&H","SSc","NSc","DIV","CS Sci","Core","Capstone","CSE Elective","Ethics A","Ethics B","Minor"];
+const GROUPS = {gen:"General education", cs:"CS major", eth:"Ethics minor", minor:"Another minor"};
+const DEFAULT_REQS = [
+  {id:"total",group:"gen",label:"Total credits",type:"total",need:180},
+  {id:"res",group:"gen",label:"Credits taken at UW (residency)",type:"credits",all:true,uwOnly:true,tags:[],need:45},
+  {id:"comp",group:"gen",label:"English composition (C), 2.0+",type:"credits",tags:["C"],need:5},
+  {id:"w",group:"gen",label:"Writing (W) or more composition",type:"credits",tags:["W"],need:10},
+  {id:"div",group:"gen",label:"Diversity (DIV)",type:"credits",tags:["DIV"],need:5},
+  {id:"ah",group:"gen",label:"Arts & Humanities (A&H)",type:"credits",tags:["A&H"],need:20},
+  {id:"ssc",group:"gen",label:"Social Sciences (SSc)",type:"credits",tags:["SSc"],need:20},
+  {id:"nsc",group:"gen",label:"Natural Sciences (NSc)",type:"credits",tags:["NSc"],need:20},
+  {id:"aoi",group:"gen",label:"Areas of Inquiry total, max 35 per area",type:"credits",tags:["A&H","SSc","NSc"],need:75,capPerTag:35},
+  {id:"math",group:"cs",label:"Math",type:"courses",options:[[["MATH 124"],["MATH 125"],["MATH 126"],["MATH 208"]],[["MATH 134"],["MATH 135"],["MATH 136"]]]},
+  {id:"sci",group:"cs",label:"Approved natural science",type:"credits",tags:["CS Sci"],need:5},
+  {id:"fund",group:"cs",label:"Fundamentals",type:"courses",options:[[["CSE 123","CSE 143"],["CSE 311"],["CSE 312"],["CSE 331"],["CSE 332"],["CSE 351"]]]},
+  {id:"core",group:"cs",label:"Core courses, 4+ at 400-level",type:"count",tags:["Core"],need:6,need400:4},
+  {id:"core7",group:"cs",label:"One more core or a capstone",type:"count",tags:["Core","Capstone"],need:7},
+  {id:"elec",group:"cs",label:"Core + electives credits",type:"credits",tags:["Core","Capstone","CSE Elective"],need:33},
+  {id:"ethA",group:"eth",label:"List A, 1+ at 300-level",type:"credits",tags:["Ethics A"],need:15,need300:1},
+  {id:"ethB",group:"eth",label:"List B, 1+ at 300-level",type:"credits",tags:["Ethics B"],need:10,need300:1},
+  {id:"eth495",group:"eth",label:"Capstone",type:"courses",options:[[["ETHICS 495"]]]},
+  {id:"ethTot",group:"eth",label:"Minor total",type:"credits",tags:["Ethics A","Ethics B"],codes:["ETHICS 495"],need:27},
+  {id:"ethUD",group:"eth",label:"Minor credits at 300+",type:"credits",tags:["Ethics A","Ethics B"],codes:["ETHICS 495"],need:15,upperOnly:true},
+  {id:"minor",group:"minor",label:"Minor credits (rename me)",type:"credits",tags:["Minor"],need:25},
+];
+const clone = o => JSON.parse(JSON.stringify(o));
+const uid = () => Math.random().toString(36).slice(2,10);
+const C = (code,credits,tags,status,title) => ({id:uid(),code,credits,tags:tags||[],status:status||"plan",title:title||""});
+const norm = s => (s||"").toUpperCase().replace(/\s+/g," ").trim();
+const level = code => { const m = norm(code).match(/\b(\d{3})\b/); return m?+m[1]:0; };
+const esc = s => String(s??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+const fmt = n => Number.isInteger(n)?String(n):(+n).toFixed(1);
+const sumCr = list => list.reduce((s,c)=>s+(+c.credits||0),0);
+
+function basePlan(name){
+  const y=new Date().getFullYear(), m=new Date().getMonth();
+  const start = m>=8 ? y : y-1;
+  return {id:"p"+uid(),name,schema:2,createdAt:Date.now(),startYear:start,years:4,showSummer:false,target:"3-2",
+    groupsOn:{gen:true,cs:true,eth:false,minor:false},reqs:clone(DEFAULT_REQS),prior:[],quarters:{}};
+}
+function examplePlan(){
+  const p=basePlan("Example plan"); p.startYear=2026;
+  p.prior=[C("MATH 124",5,["NSc"],"done","Example · AP Calc"),C("MATH 125",5,["NSc"],"done","Example · AP Calc"),
+    C("CSE 121",4,["NSc"],"done","Example · AP CS A"),C("PSYCH 101",5,["SSc"],"done","Example · AP Psych"),C("ENGL 131",5,["C"],"done","Example · composition")];
+  p.quarters={"0-0":[C("CSE 122",4,[],"now","Example"),C("MATH 126",5,["NSc"],"now","Example"),C("CHEM 142",5,["NSc","CS Sci"],"now","Example")],
+    "0-1":[C("CSE 123",4,[],"plan"),C("MATH 208",3,["NSc"],"plan"),C("ART H 201",5,["A&H"],"plan")],
+    "0-2":[C("CSE 311",4,[],"plan"),C("CSE 351",4,[],"plan"),C("SOC 100",5,["SSc","DIV"],"plan")]};
+  return p;
+}
+/* Normalize plans from older versions or other files. */
+function normalizePlan(p){
+  if(!p||typeof p!=="object"||!Array.isArray(p.prior)||typeof p.quarters!=="object") return null;
+  p.id = p.id||("p"+uid()); p.name = p.name||"Imported plan"; p.years=p.years||4; p.startYear=p.startYear||2026;
+  p.groupsOn = Object.assign({gen:true,cs:true,eth:false,minor:false}, p.groupsOn||{});
+  if(p.groupsOn.bus!==undefined){ p.groupsOn.minor=p.groupsOn.bus; delete p.groupsOn.bus; }
+  const old = Object.fromEntries((p.reqs||[]).map(r=>[r.id==="bus"?"minor":r.id,r]));
+  p.reqs = clone(DEFAULT_REQS).map(r=>old[r.id]&&typeof old[r.id].need==="number"?{...r,need:old[r.id].need,label:r.group==="minor"&&old[r.id].label?old[r.id].label:r.label}:r);
+  const fixTags = c => { c.id=c.id||uid(); c.tags=(c.tags||[]).map(t=>t==="Business"?"Minor":t); c.status=["done","now","plan"].includes(c.status)?c.status:"plan"; return c; };
+  p.prior.forEach(fixTags); Object.values(p.quarters).forEach(l=>l.forEach(fixTags));
+  if(p.target===undefined) p.target=(p.years-1)+"-2";
+  p.schema=2; return p;
+}
+
+/* ---------- storage ---------- */
+let plans=[], cur=null, editing=false;
+const saveEl=document.getElementById("save");
+function load(){ try{ const d=JSON.parse(localStorage.getItem(STORE)||"null"); if(d&&Array.isArray(d.plans)){ plans=d.plans.map(normalizePlan).filter(Boolean); cur=d.current; } }catch(e){ saveEl.textContent="This browser is blocking storage. Export your plans to keep them."; } }
+function persist(){ try{ localStorage.setItem(STORE,JSON.stringify({plans,current:cur})); saveEl.textContent="Saved in this browser · "+new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"}); }catch(e){ saveEl.textContent="Could not save in this browser. Export your plans to keep them."; } }
+
+/* ---------- plan helpers ---------- */
+const plan = () => plans.find(p=>p.id===cur);
+function qLabel(p,key){ if(key==="prior") return "Before UW"; const [y,q]=key.split("-").map(Number); return QN[q]+" "+(p.startYear+y+(q===0?0:1)); }
+function orderedKeys(p){ const k=[]; for(let y=0;y<p.years;y++) for(let q=0;q<4;q++){ if(q===3&&!p.showSummer) continue; k.push(y+"-"+q);} return k; }
+function allKeys(p){ const k=[]; for(let y=0;y<p.years;y++) for(let q=0;q<4;q++) k.push(y+"-"+q); return k; }
+const listOf = (p,key) => key==="prior" ? p.prior : (p.quarters[key]||[]);
+const keyIndex=(p,k)=>k==="prior"?-1:allKeys(p).indexOf(k);
+function standing(cr){ return cr>=135?"Senior":cr>=90?"Junior":cr>=45?"Sophomore":"Freshman"; }
+let PRIOR=new Set();
+function coursesUpTo(p,stopKey){
+  PRIOR=new Set(p.prior.map(c=>c.id));
+  const out=[...p.prior]; if(stopKey==="prior") return out;
+  for(const k of orderedKeys(p)){ out.push(...(p.quarters[k]||[])); if(k===stopKey) break; }
+  return out;
+}
+const allCourses = p => coursesUpTo(p,null);
+
+function evalReq(r,courses){
+  const st={done:0,now:0,plan:0};
+  if(r.type==="total"){ courses.forEach(c=>st[c.status]+=(+c.credits||0)); const have=st.done+st.now+st.plan; return {have,need:r.need,met:have>=r.need,st}; }
+  if(r.type==="credits"||r.type==="count"){
+    const codes=(r.codes||[]).map(norm);
+    let hit=r.all?courses.slice():courses.filter(c=>(c.tags||[]).some(t=>r.tags.includes(t))||codes.includes(norm(c.code)));
+    if(r.uwOnly) hit=hit.filter(c=>!PRIOR.has(c.id));
+    const used=r.upperOnly?hit.filter(c=>level(c.code)>=300):hit;
+    if(r.capPerTag){
+      const per={};
+      used.forEach(c=>{const t=(c.tags||[]).find(t=>r.tags.includes(t));if(!t)return;per[t]=per[t]||{done:0,now:0,plan:0};per[t][c.status]+=(+c.credits||0)});
+      Object.values(per).forEach(s=>{const tot=s.done+s.now+s.plan,f=tot>r.capPerTag?r.capPerTag/tot:1;for(const k in s) st[k]+=s[k]*f});
+      const have=st.done+st.now+st.plan; return {have,need:r.need,met:have>=r.need,st};
+    }
+    if(r.type==="count"){
+      used.forEach(c=>st[c.status]+=1);
+      const have=used.length, n400=used.filter(c=>level(c.code)>=400).length;
+      return {have,need:r.need,met:have>=r.need&&(!r.need400||n400>=r.need400),st,extra:r.need400?`${n400}/${r.need400} at 400-level`:""};
+    }
+    used.forEach(c=>st[c.status]+=(+c.credits||0));
+    const have=st.done+st.now+st.plan, n300=used.filter(c=>level(c.code)>=300).length;
+    return {have,need:r.need,met:have>=r.need&&(!r.need300||n300>=r.need300),st,extra:r.need300?`${n300}/${r.need300} at 300-level`:""};
+  }
+  if(r.type==="courses"){
+    const opts=(r.options||[r.sets]).map(sets=>{
+      const items=sets.map(set=>{const c=courses.find(c=>set.map(norm).includes(norm(c.code)));return {label:set.join(" / "),status:c?c.status:null};});
+      const have=items.filter(i=>i.status).length; return {have,need:items.length,met:have===items.length,items};
+    });
+    return opts.find(o=>o.met) || opts.reduce((a,b)=>b.have/b.need>a.have/a.need?b:a);
+  }
+}
+const activeReqs = p => p.reqs.filter(r=>p.groupsOn[r.group]);
+function projection(p){
+  const reqs=activeReqs(p);
+  const check=key=>{const cs=coursesUpTo(p,key);return reqs.every(r=>evalReq(r,cs).met)};
+  if(check("prior")) return "prior";
+  for(const k of orderedKeys(p)) if(check(k)) return k;
+  return null;
+}
+function fixTarget(p){ const ks=allKeys(p).filter(k=>p.showSummer||!k.endsWith("-3")); if(!ks.includes(p.target)) p.target=ks[ks.length-1]; }
+function moveCourse(p,cid,from,to){
+  const src=listOf(p,from), i=src.findIndex(c=>c.id===cid); if(i<0) return;
+  const [c]=src.splice(i,1);
+  if(from!=="prior"&&!src.length) delete p.quarters[from];
+  if(to==="prior") p.prior.push(c); else (p.quarters[to]=p.quarters[to]||[]).push(c);
+}
+function addPlan(np){ plans.push(np); cur=np.id; persist(); render(); }
+
+/* ---------- DARS → plan ---------- */
+function planFromDars(parsed, startYear){
+  const p=basePlan("From DARS "+new Date().toLocaleDateString([], {month:"short",day:"numeric"}));
+  p.startYear=startYear;
+  let maxYear=3;
+  for(const c of parsed.courses){
+    const status = c.grade==="IP" ? "now" : "done";
+    const course = C(c.code,c.credits,c.tags,status,c.title);
+    const ay = 2000+c.yy-(c.q===0?0:1);          // academic year that quarter belongs to
+    const y = ay-startYear;
+    if(y<0 || /^(AP|IB)$/.test(c.grade)){ p.prior.push(course); continue; }
+    const key=y+"-"+c.q; (p.quarters[key]=p.quarters[key]||[]).push(course);
+    if(c.q===3) p.showSummer=true;
+    maxYear=Math.max(maxYear,y);
+  }
+  p.years=Math.max(4,maxYear+1);
+  const done=[...p.prior,...Object.values(p.quarters).flat()].filter(c=>c.status==="done");
+  const doneCr=sumCr(done);
+  if(parsed.earned!==null && doneCr>parsed.earned+0.01){
+    p.prior.push(C("TRANSFER CAP",-(Math.round((doneCr-parsed.earned)*10)/10),[],"done",`Outside credit over UW's limit. DARS earned: ${parsed.earned}`));
+  }
+  p.target=(p.years-1)+"-2";
+  return p;
+}
+
+/* ---------- render ---------- */
+function render(){
+  const p=plan();
+  document.getElementById("welcome").hidden=!!p;
+  document.getElementById("planner").hidden=!p;
+  renderTabs();
+  if(!p) return;
+  renderProj(p); renderYears(p); renderAudit(p);
+}
+function renderTabs(){
+  const el=document.getElementById("tabs");
+  el.hidden=!plans.length;
+  el.innerHTML=plans.map(p=>`<button class="tab" role="tab" aria-selected="${p.id===cur}" data-tab="${p.id}">${esc(p.name)}</button>`).join("")+
+   `<div class="newmenu"><button class="btn small" id="newbtn" aria-haspopup="true">+ New plan</button></div>`;
+  el.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{cur=b.dataset.tab;clearConfirm();persist();render()});
+  const nb=document.getElementById("newbtn"); if(!nb) return;
+  nb.onclick=e=>{
+    e.stopPropagation();
+    const host=nb.parentElement; const open=host.querySelector(".menu"); if(open){open.remove();return}
+    const m=document.createElement("div"); m.className="menu";
+    m.innerHTML=`${plan()?`<button data-n="copy">Copy of “${esc(plan().name)}”</button>`:""}<button data-n="dars">Import from DARS…</button><button data-n="blank">Blank plan</button><button data-n="example">Example plan</button>`;
+    host.appendChild(m);
+    m.querySelectorAll("button").forEach(b=>b.onclick=()=>{m.remove(); startAction(b.dataset.n)});
+    setTimeout(()=>document.addEventListener("click",function h(ev){if(!m.contains(ev.target)){m.remove();document.removeEventListener("click",h)}}),0);
+  };
+}
+function startAction(t){
+  if(t==="dars") return openDars();
+  if(t==="copy"){ const np=clone(plan()); np.id="p"+uid(); np.name=plan().name+" copy"; np.createdAt=Date.now(); return addPlan(np); }
+  if(t==="example") return addPlan(examplePlan());
+  addPlan(basePlan("My plan"));
+}
+document.querySelectorAll("[data-start]").forEach(b=>b.onclick=()=>startAction(b.dataset.start));
+
+function renderProj(p){
+  const g=projection(p), all=allCourses(p), tot=sumCr(all);
+  const st={done:0,now:0,plan:0}; all.forEach(c=>st[c.status]+=(+c.credits||0));
+  const totalNeed=(p.reqs.find(r=>r.id==="total")||{need:180}).need;
+  const tIdx=keyIndex(p,p.target), gIdx=g?keyIndex(p,g):Infinity;
+  const pill = !g?`<span class="pill bad">Not finished in this plan yet</span>`:gIdx<tIdx?`<span class="pill ok">Ahead of target</span>`:gIdx===tIdx?`<span class="pill ok">Right on target</span>`:`<span class="pill warn">Later than target</span>`;
+  const keys=orderedKeys(p).filter(k=>keyIndex(p,k)<=tIdx);
+  const lastFilled=Math.max(-1,...keys.map((k,i)=>(p.quarters[k]||[]).length?i:-1));
+  const open=keys.slice(lastFilled+1).filter(k=>!k.endsWith("-3")).length;
+  const missing=Math.max(0,totalNeed-sumCr(coursesUpTo(p,p.target)));
+  const pace=missing>0?(open?`To reach ${totalNeed} credits by your target, plan about <b class="mono">${fmt(Math.ceil(missing/open*10)/10)}</b> credits in each of the ${open} empty quarters before it.`:`You are ${fmt(missing)} credits short at your target quarter. Add courses or move the target.`):`You have enough total credits by your target quarter.`;
+  const years=g&&g!=="prior"?(()=>{const [y,q]=g.split("-").map(Number);return y+(q>=2?1:0.75)})():null;
+  const targetOpts=allKeys(p).filter(k=>p.showSummer||!k.endsWith("-3")).map(k=>`<option value="${k}" ${k===p.target?"selected":""}>${qLabel(p,k)}</option>`).join("");
+  const w=x=>Math.max(0,Math.min(100,x/Math.max(totalNeed,tot)*100));
+  document.getElementById("proj").innerHTML=`
+    <div>
+      <label class="lbl">Projected graduation</label>
+      <div class="big ${g?"gold":""}">${g?qLabel(p,g):"Requirements not met yet"}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center">${pill}${years?`<span class="pill neutral">${years%1?`about ${Math.ceil(years)}`:years} academic years at UW</span>`:""}</div>
+      <p class="note" style="margin:10px 0 0">${pace}</p>
+    </div>
+    <div>
+      <div class="settings">
+        <div><label class="lbl" for="pname">Plan name</label><input type="text" id="pname" value="${esc(p.name)}" style="width:170px"></div>
+        <div><label class="lbl" for="ptarget">Target graduation</label><select id="ptarget">${targetOpts}</select></div>
+        <div><label class="lbl" for="pstart">First autumn at UW</label><input type="number" id="pstart" value="${p.startYear}" style="width:90px"></div>
+        <div><label class="lbl">Years shown</label><div class="stepper"><button class="btn small" id="ym" aria-label="Remove a year">−</button><span class="mono">${p.years}</span><button class="btn small" id="yp" aria-label="Add a year">+</button></div></div>
+        <div><label class="lbl" for="psum">Summers</label><input type="checkbox" class="switch" id="psum" ${p.showSummer?"checked":""}></div>
+        <div style="margin-left:auto"><label class="lbl">&nbsp;</label><button class="btn danger small" id="pdel">Delete plan</button></div>
+      </div>
+      <div class="creditbar" role="img" aria-label="${fmt(st.done)} completed, ${fmt(st.now)} in progress, ${fmt(st.plan)} planned credits">
+        <i class="c-done" style="width:${w(st.done)}%"></i><i class="c-now" style="width:${w(st.now)}%"></i><i class="c-plan" style="width:${w(st.plan)}%"></i>
+      </div>
+      <div class="legend">
+        <span><b class="c-done"></b>Completed <span class="mono">${fmt(st.done)}</span></span>
+        <span><b class="c-now"></b>In progress <span class="mono">${fmt(st.now)}</span></span>
+        <span><b class="c-plan"></b>Planned <span class="mono">${fmt(st.plan)}</span></span>
+        <span>Total <span class="mono">${fmt(tot)} / ${totalNeed}</span></span>
+      </div>
+    </div>`;
+  const pn=document.getElementById("pname");
+  pn.oninput=()=>{p.name=pn.value||"Untitled plan";persist();renderTabs()};
+  document.getElementById("ptarget").onchange=e=>{p.target=e.target.value;persist();render()};
+  document.getElementById("pstart").onchange=e=>{const v=parseInt(e.target.value);if(v>1990&&v<2100){p.startYear=v;persist();render()}};
+  document.getElementById("yp").onclick=()=>{if(p.years<8){p.years++;persist();render()}};
+  document.getElementById("ym").onclick=()=>{
+    if(p.years<=1) return;
+    const last=p.years-1, has=[0,1,2,3].some(q=>(p.quarters[last+"-"+q]||[]).length);
+    const go=()=>{[0,1,2,3].forEach(q=>delete p.quarters[last+"-"+q]);p.years--;fixTarget(p);persist();render()};
+    if(has) showConfirm(`Year ${last+1} has courses. Remove the year and its courses?`,"Remove year",go); else go();
+  };
+  document.getElementById("psum").onchange=e=>{p.showSummer=e.target.checked;fixTarget(p);persist();render()};
+  document.getElementById("pdel").onclick=()=>showConfirm(`Delete “${p.name}”? Export first if you want a backup.`,"Delete plan",()=>{plans=plans.filter(x=>x!==p);cur=plans[0]?.id||null;persist();render()});
+}
+
+function courseHTML(c,key){
+  const label=c.status==="done"?"Completed":c.status==="now"?"In progress":"Planned";
+  return `<button class="course ${c.status}" draggable="true" data-c="${c.id}" data-k="${key}" aria-label="${esc((c.code||"Untitled")+", "+fmt(+c.credits||0)+" credits, "+label)}">
+    <span class="r1"><span class="code">${esc(c.code||"Untitled")}</span><span class="cr">${fmt(+c.credits||0)} cr</span></span>
+    ${c.title?`<span class="ttl">${esc(c.title)}</span>`:""}
+    ${(c.tags||[]).length?`<span class="tags">${c.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</span>`:""}
+  </button>`;
+}
+function renderYears(p){
+  const g=projection(p), tIdx=keyIndex(p,p.target), cols=p.showSummer?4:3;
+  let html=`<div class="year prior"><div class="yhead"><h2>Before UW</h2><span class="muted"><span class="mono">${fmt(sumCr(p.prior))}</span> cr · AP, IB, transfer, running start</span></div>
+    <div class="qgrid"><div class="q" data-k="prior"><div class="list">${p.prior.map(c=>courseHTML(c,"prior")).join("")}</div><button class="add" data-add="prior">+ Add credit</button></div></div></div>`;
+  for(let y=0;y<p.years;y++){
+    const yrKeys=[0,1,2,3].filter(q=>q<3||p.showSummer).map(q=>y+"-"+q);
+    const cum=sumCr(coursesUpTo(p,y+"-"+(p.showSummer?3:2)));
+    html+=`<div class="year"><div class="yhead"><h2>Year ${y+1} · ${p.startYear+y}–${String(p.startYear+y+1).slice(2)}</h2>
+      <span class="muted">After this year: <span class="mono">${fmt(cum)}</span> cr · ${standing(cum)} standing</span></div>
+      <div class="qgrid" style="--cols:${cols}">`;
+    for(const k of yrKeys){
+      const list=p.quarters[k]||[], cr=sumCr(list), q=+k.split("-")[1];
+      const ld=q===3?"norm":cr<12?"light":cr>18?"heavy":"norm", ldt=q===3?"Summer":cr<12?"Part-time":cr>18?"Over 18":"Full-time";
+      html+=`<div class="q ${keyIndex(p,k)>tIdx?"after":""} ${g===k?"grad":""}" data-k="${k}">
+        <div class="qh"><strong>${qLabel(p,k)}</strong>${list.length?`<span class="load ${ld}"><span class="mono">${fmt(cr)}</span> · ${ldt}</span>`:""}</div>
+        ${g===k?`<div class="gradflag">Graduate here</div>`:""}
+        ${list.map(c=>courseHTML(c,k)).join("")}
+        <button class="add" data-add="${k}">+ Add course</button></div>`;
+    }
+    html+=`</div></div>`;
+  }
+  const el=document.getElementById("years"); el.innerHTML=html;
+  el.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>openEditor(null,b.dataset.add));
+  el.querySelectorAll(".course").forEach(b=>{
+    b.onclick=()=>openEditor(b.dataset.c,b.dataset.k);
+    b.ondragstart=e=>{e.dataTransfer.setData("text/plain",b.dataset.c+"|"+b.dataset.k);e.dataTransfer.effectAllowed="move"};
+  });
+  el.querySelectorAll(".q").forEach(q=>{
+    q.ondragover=e=>{e.preventDefault();q.classList.add("drop")};
+    q.ondragleave=()=>q.classList.remove("drop");
+    q.ondrop=e=>{e.preventDefault();q.classList.remove("drop");
+      const [cid,from]=(e.dataTransfer.getData("text/plain")||"").split("|"); const to=q.dataset.k;
+      if(!cid||from===to) return; moveCourse(p,cid,from,to); persist(); render();};
+  });
+}
+
+function renderAudit(p){
+  const cs=allCourses(p);
+  let html="";
+  for(const gk of Object.keys(GROUPS)){
+    const on=!!p.groupsOn[gk], reqs=p.reqs.filter(r=>r.group===gk);
+    const res=reqs.map(r=>[r,evalReq(r,cs)]), met=res.filter(([,e])=>e.met).length;
+    html+=`<div class="grp ${on?"":"off"}"><div class="grph"><h3>${GROUPS[gk]}</h3>
+      <span style="display:flex;gap:8px;align-items:center">${on?`<span class="muted mono" style="font-size:12px">${met}/${reqs.length}</span>`:""}
+      <input type="checkbox" class="switch" data-grp="${gk}" ${on?"checked":""} aria-label="Count ${GROUPS[gk]} toward graduation"></span></div>`;
+    if(on) for(const [r,e] of res){
+      const val=editing&&r.type!=="courses"?`<input type="number" class="needin mono" data-need="${r.id}" value="${r.need}" min="0" aria-label="Needed for ${esc(r.label)}">`:`${e.met?"✓ ":""}${fmt(e.have)} / ${e.need}`;
+      const lab=editing&&gk==="minor"?`<input type="text" class="labelin" data-label="${r.id}" value="${esc(r.label)}" aria-label="Requirement name">`:esc(r.label);
+      html+=`<div class="req"><div class="rl"><span>${lab}</span><span class="mono ${e.met&&!editing?"met":""}">${val}</span></div>`;
+      if(r.type==="courses") html+=`<div class="checks">${e.items.map(i=>`<span class="chk ${i.status||""}">${esc(i.label)}</span>`).join("")}</div>`;
+      else { const d=Math.max(e.need,e.have)||1; html+=`<div class="bar"><i class="c-done" style="width:${e.st.done/d*100}%"></i><i class="c-now" style="width:${e.st.now/d*100}%"></i><i class="c-plan" style="width:${e.st.plan/d*100}%"></i></div>`;
+        if(e.extra) html+=`<div class="note">${e.extra}</div>`; }
+      html+=`</div>`;
+    }
+    if(gk==="gen"&&on&&cs.some(c=>norm(c.code).startsWith("FSTDY"))) html+=`<p class="note" style="margin:6px 0 0;color:var(--warn)">You have FSTDY study abroad credit. UW will not award your degree until it is converted to UW courses.</p>`;
+    if(gk==="cs"&&on) html+=`<p class="note" style="margin:6px 0 0">Tag core, capstone and elective courses yourself. See the <a href="https://www.cs.washington.edu/academics/undergraduate/degree-requirements/" target="_blank" rel="noopener">Allen School course lists</a>.</p>`;
+    if(gk==="minor"&&on) html+=`<p class="note" style="margin:6px 0 0">Tag its courses as “Minor”. Use “Edit requirement numbers” to rename it and set its credit total.</p>`;
+    html+=`</div>`;
+  }
+  html+=`<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" id="editneeds">${editing?"Done editing":"Edit requirement numbers"}</button><button class="btn small ghost" id="resetreqs">Reset to defaults</button></div>
+    <p class="note" style="margin:0">Courses count by code (MATH 208, CSE 311) or by the tags you give them. A course can carry several tags.</p>`;
+  const el=document.getElementById("audit"); el.innerHTML=html;
+  el.querySelectorAll("[data-grp]").forEach(s=>s.onchange=()=>{p.groupsOn[s.dataset.grp]=s.checked;persist();render()});
+  el.querySelectorAll("[data-need]").forEach(i=>i.onchange=()=>{const r=p.reqs.find(r=>r.id===i.dataset.need);const v=parseFloat(i.value);if(r&&v>=0){r.need=v;persist();render()}});
+  el.querySelectorAll("[data-label]").forEach(i=>i.onchange=()=>{const r=p.reqs.find(r=>r.id===i.dataset.label);if(r&&i.value.trim()){r.label=i.value.trim();persist()}});
+  document.getElementById("editneeds").onclick=()=>{editing=!editing;renderAudit(p)};
+  document.getElementById("resetreqs").onclick=()=>showConfirm("Reset this plan's requirement numbers to the defaults?","Reset",()=>{p.reqs=clone(DEFAULT_REQS);persist();render()});
+}
+
+/* ---------- confirm bar ---------- */
+function clearConfirm(){document.getElementById("confirm").innerHTML=""}
+function showConfirm(msg,label,fn){
+  const el=document.getElementById("confirm");
+  el.innerHTML=`<div class="confirmbar" role="alert"><span>${esc(msg)}</span><span style="margin-left:auto;display:flex;gap:6px"><button class="btn small" id="cno">Cancel</button><button class="btn small danger armed" id="cyes">${esc(label)}</button></span></div>`;
+  document.getElementById("cno").onclick=clearConfirm;
+  document.getElementById("cyes").onclick=()=>{clearConfirm();fn()};
+  el.scrollIntoView({block:"nearest"});
+}
+function toast(msg){
+  const el=document.getElementById("confirm");
+  el.innerHTML=`<div class="toast" role="status">${esc(msg)}</div>`;
+  setTimeout(()=>{ if(el.querySelector(".toast")) el.innerHTML=""; },4000);
+}
+
+/* ---------- dialogs ---------- */
+function dialog(html,onMount){
+  const ov=document.getElementById("overlay");
+  ov.innerHTML=`<div class="ov" id="ovbg"><div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgt">${html}</div></div>`;
+  const close=()=>{ov.innerHTML="";document.removeEventListener("keydown",onKey)};
+  const onKey=e=>{if(e.key==="Escape")close()};
+  document.addEventListener("keydown",onKey);
+  document.getElementById("ovbg").onclick=e=>{if(e.target.id==="ovbg")close()};
+  onMount(ov,close);
+}
+function openEditor(cid,key){
+  const p=plan(), list=listOf(p,key), existing=cid?list.find(c=>c.id===cid):null;
+  const c=existing?clone(existing):{id:uid(),code:"",title:"",credits:5,tags:[],status:key==="prior"?"done":"plan"};
+  const keys=["prior",...allKeys(p).filter(k=>p.showSummer||!k.endsWith("-3"))];
+  dialog(`<h3 id="dlgt">${existing?"Edit course":"Add course"} <span class="muted" style="font-size:14px;font-weight:500">· ${qLabel(p,key)}</span></h3>
+    <div class="row"><div><label class="lbl" for="e-code">Course code</label><input type="text" id="e-code" value="${esc(c.code)}" placeholder="CSE 311"></div>
+      <div><label class="lbl" for="e-cr">Credits</label><input type="number" id="e-cr" value="${c.credits}" step="0.5"></div></div>
+    <div><label class="lbl" for="e-title">Title or note</label><input type="text" id="e-title" value="${esc(c.title)}" placeholder="Foundations of Computing I" style="width:100%"></div>
+    <div class="row"><div><label class="lbl" for="e-st">Status</label><select id="e-st">
+      <option value="plan" ${c.status==="plan"?"selected":""}>Planned</option><option value="now" ${c.status==="now"?"selected":""}>In progress</option><option value="done" ${c.status==="done"?"selected":""}>Completed</option></select></div>
+      <div><label class="lbl" for="e-q">Quarter</label><select id="e-q">${keys.map(k=>`<option value="${k}" ${k===key?"selected":""}>${qLabel(p,k)}</option>`).join("")}</select></div></div>
+    <div><label class="lbl">Counts toward</label><div class="tagpick">${TAGS.map(t=>`<button type="button" aria-pressed="${c.tags.includes(t)}" data-t="${esc(t)}">${esc(t)}</button>`).join("")}</div>
+      <p class="note" style="margin:6px 0 0">Math, fundamentals and ETHICS 495 match by course code, so they need no tag.</p></div>
+    <div class="dlgfoot"><span>${existing?`<button class="btn danger" id="e-del">Delete</button>`:""}</span>
+      <span style="display:flex;gap:8px"><button class="btn" id="e-cancel">Cancel</button><button class="btn primary" id="e-save">${existing?"Save":"Add"}</button></span></div>`,
+  (ov,close)=>{
+    ov.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>b.setAttribute("aria-pressed",b.getAttribute("aria-pressed")!=="true"));
+    document.getElementById("e-cancel").onclick=close;
+    const save=()=>{
+      c.code=document.getElementById("e-code").value.trim().toUpperCase().replace(/\s+/g," ");
+      c.title=document.getElementById("e-title").value.trim();
+      c.credits=parseFloat(document.getElementById("e-cr").value)||0;
+      c.status=document.getElementById("e-st").value;
+      c.tags=[...ov.querySelectorAll("[data-t][aria-pressed=true]")].map(b=>b.dataset.t);
+      const to=document.getElementById("e-q").value;
+      if(existing){ Object.assign(existing,c); if(to!==key) moveCourse(p,existing.id,key,to); }
+      else if(to==="prior") p.prior.push(c); else (p.quarters[to]=p.quarters[to]||[]).push(c);
+      persist(); close(); render();
+    };
+    document.getElementById("e-save").onclick=save;
+    ov.querySelectorAll("input[type=text],input[type=number]").forEach(i=>i.addEventListener("keydown",e=>{if(e.key==="Enter")save()}));
+    if(existing) document.getElementById("e-del").onclick=e=>{
+      const b=e.currentTarget;
+      if(b.classList.contains("armed")){ const l=listOf(p,key); l.splice(l.indexOf(existing),1); if(key!=="prior"&&!l.length) delete p.quarters[key]; persist(); close(); render(); }
+      else { b.classList.add("armed"); b.textContent="Click again to delete"; }
+    };
+    setTimeout(()=>document.getElementById("e-code").focus(),0);
+  });
+}
+function openDars(){
+  dialog(`<h3 id="dlgt">Import from DARS</h3>
+    <ol class="note">
+      <li>Open your degree audit in <a href="https://myplan.uw.edu/audit/" target="_blank" rel="noopener">MyPlan</a>.</li>
+      <li>Select the whole page (Ctrl+A or Cmd+A) and copy it.</li>
+      <li>Paste it below.</li>
+    </ol>
+    <textarea id="d-text" placeholder="Paste your DARS audit text here" aria-label="DARS audit text"></textarea>
+    <div id="d-prev" class="preview" hidden></div>
+    <div class="dlgfoot"><span></span><span style="display:flex;gap:8px"><button class="btn" id="d-cancel">Cancel</button><button class="btn primary" id="d-go" disabled>Create plan</button></span></div>`,
+  (ov,close)=>{
+    const ta=document.getElementById("d-text"), prev=document.getElementById("d-prev"), go=document.getElementById("d-go");
+    let parsed=null;
+    const update=()=>{
+      parsed=parseDars(ta.value);
+      if(!ta.value.trim()){prev.hidden=true;go.disabled=true;return}
+      prev.hidden=false;
+      if(!parsed.courses.length){prev.innerHTML="No courses found. Make sure you copied the full audit page, including the course tables.";go.disabled=true;return}
+      const ip=parsed.courses.filter(c=>c.grade==="IP").length;
+      prev.innerHTML=`Found <b class="mono">${parsed.courses.length}</b> courses (${ip} in progress)${parsed.earned!==null?`, <b class="mono">${parsed.earned}</b> earned credits`:""}${parsed.catalogYear?`, catalog year ${esc(parsed.catalogYear)}`:""}.
+        <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><label for="d-start">First autumn at UW</label><input type="number" id="d-start" value="${parsed.startYear||new Date().getFullYear()}" style="width:90px"></div>`;
+      go.disabled=false;
+    };
+    ta.addEventListener("input",update);
+    document.getElementById("d-cancel").onclick=close;
+    go.onclick=()=>{ if(!parsed||!parsed.courses.length) return;
+      const sy=parseInt((document.getElementById("d-start")||{}).value)||parsed.startYear||new Date().getFullYear();
+      close(); addPlan(planFromDars(parsed,sy)); toast("Plan created from DARS. Check the tags on AP and transfer credit, then add your future courses."); };
+    setTimeout(()=>ta.focus(),0);
+  });
+}
+
+/* ---------- export / import ---------- */
+document.getElementById("exportBtn").onclick=()=>{
+  if(!plans.length){toast("There are no plans to export yet.");return}
+  const blob=new Blob([JSON.stringify({app:"husky-degree-planner",version:1,exportedAt:new Date().toISOString(),plans},null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="husky-degree-plans.json";
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+};
+const fileIn=document.getElementById("importFile");
+document.getElementById("importBtn").onclick=()=>fileIn.click();
+fileIn.onchange=async()=>{
+  const f=fileIn.files[0]; fileIn.value=""; if(!f) return;
+  try{
+    const d=JSON.parse(await f.text());
+    const raw=Array.isArray(d)?d:Array.isArray(d.plans)?d.plans:[d.data||d];
+    const got=raw.map(x=>normalizePlan(clone(x))).filter(Boolean);
+    if(!got.length) throw new Error("none");
+    got.forEach(p=>{ if(plans.some(x=>x.id===p.id)){ p.id="p"+uid(); p.name+=" (imported)"; } plans.push(p); });
+    cur=got[0].id; persist(); render(); toast(`Imported ${got.length} plan${got.length>1?"s":""}.`);
+  }catch(e){ toast("That file is not a planner export. Choose a .json file made with Export plans."); }
+};
+
+load();
+if(!plans.find(p=>p.id===cur)) cur=plans[0]?.id||null;
+render();
+})();
+</script>
+</body>
+</html>
