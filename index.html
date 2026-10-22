@@ -427,7 +427,7 @@ let session = null, guestDirty = false, nudged = false;
 const HANDOFF = "husky-degree-planner-oauth-handoff";
 const QN = ["Autumn","Winter","Spring","Summer"];
 const TAGS = ["C","W","A&H","SSc","NSc","DIV","CS Sci","Core","Capstone","CSE Elective","Ethics A","Ethics B","Minor"];
-const AREAS = ["A&H","SSc","NSc","DIV","C"], CSE_TAGS = ["Core","Capstone","CSE Elective"];
+const AREAS = ["A&H","SSc","NSc","DIV","C"], CSE_TAGS = ["Core","Capstone","CSE Elective"], CS_FILTERS = ["Fundamentals",...CSE_TAGS];
 const GROUPS = {gen:"General education", cs:"CS major", eth:"Ethics minor", minor:"Another minor"};
 const DEFAULT_REQS = [
   {id:"total",group:"gen",label:"Total credits",type:"total",need:180},
@@ -849,10 +849,10 @@ function loadCatalog(){
     return {built:d.built,list,byCode:new Map(list.map(c=>[c.key,c]))};
   }).catch(e=>{ catalogP=null; throw e; });
 }
-// Areas must all match; CSE tags match any one; scope is an extra test from a clicked requirement.
-function searchCatalog(cat,q,areas,cse=[],scope=null){
+// Areas must all match; CS list tests match any one; scope is an extra test from a clicked requirement.
+function searchCatalog(cat,q,areas,cs=[],scope=null){
   const words=norm(q).split(" ").filter(Boolean), compact=norm(q).replace(/ /g,"");
-  const hits=cat.list.filter(c=>areas.every(a=>c.gen.includes(a))&&(!cse.length||cse.includes(c.cse))&&(!scope||scope.test(c))&&words.every(w=>c.hay.includes(w)));
+  const hits=cat.list.filter(c=>areas.every(a=>c.gen.includes(a))&&(!cs.length||cs.some(f=>f(c)))&&(!scope||scope.test(c))&&words.every(w=>c.hay.includes(w)));
   if(!compact) return hits;
   const rank=c=>c.key===compact?3:c.key.startsWith(compact)?2:c.title.toUpperCase().startsWith(norm(q))?1:0;
   return hits.sort((a,b)=>rank(b)-rank(a));
@@ -874,9 +874,11 @@ function repairPlans(){
   },()=>{});
 }
 // Which catalog filters show the courses that count toward a requirement, or null when the catalog can't tell (W, CS Sci, ethics lists).
+const reqKeys = r => new Set((r?.options||[]).flat(2).map(c=>norm(c).replace(/ /g,"")));
 function reqFilter(r){
   if(!r) return null;
-  if(r.type==="courses"){ const codes=new Set((r.options||[]).flat(2).map(c=>norm(c).replace(/ /g,""))); return {label:r.label,scope:{label:r.label,test:c=>codes.has(c.key)}}; }
+  if(r.id==="fund") return {label:r.label,on:["Fundamentals"]};
+  if(r.type==="courses"){ const codes=reqKeys(r); return {label:r.label,scope:{label:r.label,test:c=>codes.has(c.key)}}; }
   const t=r.tags||[];
   if(!t.length||r.all) return null;
   if(t.every(x=>CSE_TAGS.includes(x))||(t.length===1&&AREAS.includes(t[0]))) return {label:r.label,on:t};
@@ -886,13 +888,15 @@ function reqFilter(r){
 function openFind(key,preset){
   const p=plan(); if(!p) return;
   const dest=key||nextQuarterKey(p), on=new Set(preset?.on||[]);
+  const fund=reqKeys(p.reqs.find(r=>r.id==="fund")), csOn=p.groupsOn.cs||CS_FILTERS.some(t=>on.has(t));
+  const csTest=t=>t==="Fundamentals"?c=>fund.has(c.key):c=>c.cse===t;
   let scope=preset?.scope||null;
   const chip=a=>`<button type="button" aria-pressed="${on.has(a)}" data-area="${esc(a)}">${esc(a)}</button>`;
   dialog(`<h3 id="dlgt">${key?"Add to "+esc(qLabel(p,key)):preset?esc(preset.label):"Find courses"}</h3>
     <input type="search" id="f-q" class="findq" placeholder="Search by code or title, like CSE 311 or ethics" aria-label="Search UW courses" autocomplete="off">
     <div class="findchips">
       <div class="tagpick" role="group" aria-label="Filter by gen-ed area">${AREAS.map(chip).join("")}</div>
-      <div class="tagpick" role="group" aria-label="Filter by CS major list">${CSE_TAGS.map(chip).join("")}</div>
+      ${csOn?`<div class="tagpick" role="group" aria-label="Filter by CS major list">${CS_FILTERS.map(chip).join("")}</div>`:""}
       <div class="tagpick" id="f-scope"></div>
     </div>
     <p class="note" id="f-status" role="status" style="margin:0">Loading the UW course catalog…</p>
@@ -909,12 +913,12 @@ function openFind(key,preset){
       sc.innerHTML=scope?`<button type="button" class="scope" aria-pressed="true" aria-label="Stop limiting to ${esc(scope.label)}">${esc(scope.label)} <span aria-hidden="true">×</span></button>`:"";
       if(scope) sc.firstElementChild.onclick=()=>{ scope=null; draw(); };
       if(!q.value.trim()&&!on.size&&!scope){ res.innerHTML=""; status.textContent=`Search ${cat.list.length.toLocaleString()} UW courses. Pick an area or a CS list to browse.`; return; }
-      const hits=searchCatalog(cat,q.value,AREAS.filter(a=>on.has(a)),CSE_TAGS.filter(a=>on.has(a)),scope); shown=hits.slice(0,60);
+      const hits=searchCatalog(cat,q.value,AREAS.filter(a=>on.has(a)),CS_FILTERS.filter(t=>on.has(t)).map(csTest),scope); shown=hits.slice(0,60);
       status.textContent=!hits.length?"No courses match. Try a department code like PHIL or fewer words.":hits.length>shown.length?`Showing ${shown.length} of ${hits.length.toLocaleString()}. Type more to narrow it down.`:`${hits.length} course${hits.length>1?"s":""}`;
       res.innerHTML=shown.map((c,i)=>`<li class="fr">
         <div class="fr-main"><div class="fr-top"><span class="code">${esc(c.code)}</span><span class="fr-cr">${esc(c.cr)} cr</span>${inPlan.has(c.key)?`<span class="inplan">In plan</span>`:""}</div>
           <span class="fr-t">${esc(c.title)}</span>
-          <div class="fr-meta">${c.gen.length||c.cse?`<span class="tags">${c.cse?`<span class="tag cse">${esc(c.cse)}</span>`:""}${c.gen.map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</span>`:""}<a href="${myplanUrl(c.code)}" target="_blank" rel="noopener">MyPlan</a></div></div>
+          <div class="fr-meta">${c.gen.length||c.cse||fund.has(c.key)?`<span class="tags">${fund.has(c.key)?`<span class="tag cse">Fundamentals</span>`:""}${c.cse?`<span class="tag cse">${esc(c.cse)}</span>`:""}${c.gen.map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</span>`:""}<a href="${myplanUrl(c.code)}" target="_blank" rel="noopener">MyPlan</a></div></div>
         <button class="btn small" data-pick="${i}" aria-label="Add ${esc(c.code)} to plan">Add</button></li>`).join("");
       res.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{ const c=shown[+b.dataset.pick]; close();
         openEditor(null,dest,{code:c.code,title:c.title,tags:[...c.tags,c.cse].filter(Boolean),...(c.credits!==null?{credits:c.credits}:{})}); });
