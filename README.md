@@ -4,7 +4,7 @@ A quarter-by-quarter degree planner for Computer Science majors at the Universit
 
 Paste in your DARS audit, add the courses you plan to take, and the planner shows the first quarter in which you meet every requirement. You can keep several plans side by side, for example "graduate Spring 2029" and "graduate Spring 2030".
 
-**Live site:** `https://<your-username>.github.io/husky-degree-planner/`
+**Live site:** https://husky-degree-planner.vercel.app
 
 ## Features
 
@@ -16,7 +16,7 @@ Paste in your DARS audit, add the courses you plan to take, and the planner show
   - Optional Ethics minor and one custom minor
 - **Multiple plans.** Copy a plan, start a blank one, or open an example. You can change the number of years shown and turn summer quarters on or off.
 - **Drag and drop.** Move courses between quarters.
-- **Private by default.** Plans are saved in your browser's localStorage, and nothing is uploaded. Use **Export plans** to back them up or move them to another device, and **Import file** to load them.
+- **Local by default, synced if you sign in.** Plans are saved in your browser's localStorage. Optionally create an account (email + password, via Supabase Auth) to sync your plans across devices. Use **Export plans** to back them up or move them to another device, and **Import file** to load them.
 
 ## Using it
 
