@@ -162,6 +162,7 @@ h1{font-family:var(--f-display);font-weight:400;font-size:28px;line-height:1;let
 .course .ttl{font-size:12px;color:var(--muted);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
 .tag{font-size:10.5px;font-weight:500;padding:1px 6px;border-radius:5px;background:var(--sunk);color:var(--muted)}
+.tag.cse{background:var(--accent-soft);color:var(--accent)}
 .add{border:1px dashed var(--line-strong);background:transparent;border-radius:10px;padding:7px;color:var(--muted);font-size:12.5px;margin-top:auto;opacity:.7;
   transition:opacity .15s,color .15s,border-color .15s,background-color .15s}
 .q:hover .add,.add:focus-visible{opacity:1}
@@ -178,6 +179,12 @@ aside{position:sticky;top:84px;display:flex;flex-direction:column;gap:12px;max-h
 .grph h3{margin:0;font-family:var(--f-display);font-weight:400;font-size:20px;letter-spacing:-.005em}
 .req{padding:9px 0;border-top:1px solid color-mix(in srgb,var(--line) 75%,transparent)}
 .req:first-of-type{border-top:0}
+.req.go{cursor:pointer;margin:0 -8px;padding:9px 8px;border-radius:8px;transition:background-color .12s}
+.req.go:hover{background:var(--sunk)}
+.req.go .rl span:first-child::after{content:" ›";color:var(--muted)}
+.req.go:hover .rl span:first-child{color:var(--accent)}
+.findchips{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
+.tagpick button.scope{display:inline-flex;gap:6px;align-items:center}
 .req .rl{display:flex;justify-content:space-between;gap:10px;font-size:13px;align-items:baseline}
 .req .rl span:first-child{min-width:0}
 .req .met{color:var(--ok);font-weight:600}
@@ -420,6 +427,7 @@ let session = null, guestDirty = false, nudged = false;
 const HANDOFF = "husky-degree-planner-oauth-handoff";
 const QN = ["Autumn","Winter","Spring","Summer"];
 const TAGS = ["C","W","A&H","SSc","NSc","DIV","CS Sci","Core","Capstone","CSE Elective","Ethics A","Ethics B","Minor"];
+const AREAS = ["A&H","SSc","NSc","DIV","C"], CSE_TAGS = ["Core","Capstone","CSE Elective"];
 const GROUPS = {gen:"General education", cs:"CS major", eth:"Ethics minor", minor:"Another minor"};
 const DEFAULT_REQS = [
   {id:"total",group:"gen",label:"Total credits",type:"total",need:180},
@@ -452,11 +460,13 @@ const level = code => { const m = norm(code).match(/\b(\d{3})\b/); return m?+m[1
 const esc = s => String(s??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
 const fmt = n => Number.isInteger(n)?String(n):(+n).toFixed(1);
 const sumCr = list => list.reduce((s,c)=>s+(+c.credits||0),0);
+// Adds the Allen School core/capstone/elective tag unless the course already carries one.
+const addCseTag = c => { const t=cseTag(c.code); if(t&&!(c.tags||[]).some(x=>CSE_TAGS.includes(x))) (c.tags=c.tags||[]).push(t); return c; };
 
 function basePlan(name){
   const y=new Date().getFullYear(), m=new Date().getMonth();
   const start = m>=8 ? y : y-1;
-  return {id:"p"+uid(),name,schema:2,createdAt:Date.now(),startYear:start,years:4,showSummer:false,target:"3-2",
+  return {id:"p"+uid(),name,schema:3,createdAt:Date.now(),startYear:start,years:4,showSummer:false,target:"3-2",
     groupsOn:{gen:true,cs:true,eth:false,minor:false},reqs:clone(DEFAULT_REQS),prior:[],quarters:{}};
 }
 function examplePlan(){
@@ -478,8 +488,9 @@ function normalizePlan(p){
   p.reqs = clone(DEFAULT_REQS).map(r=>old[r.id]&&typeof old[r.id].need==="number"?{...r,need:old[r.id].need,label:r.group==="minor"&&old[r.id].label?old[r.id].label:r.label}:r);
   const fixTags = c => { c.id=c.id||uid(); c.tags=(c.tags||[]).map(t=>t==="Business"?"Minor":t); c.status=["done","now","plan"].includes(c.status)?c.status:"plan"; return c; };
   p.prior.forEach(fixTags); Object.values(p.quarters).forEach(l=>l.forEach(fixTags));
+  if((p.schema||1)<3){ p.prior.forEach(addCseTag); Object.values(p.quarters).forEach(l=>l.forEach(addCseTag)); } // plans made before auto-tagging
   if(p.target===undefined) p.target=(p.years-1)+"-2";
-  p.schema=2; return p;
+  p.schema=3; return p;
 }
 
 /* ---------- storage ---------- */
@@ -585,7 +596,7 @@ function planFromDars(parsed, startYear){
   let maxYear=3;
   for(const c of parsed.courses){
     const status = c.grade==="IP" ? "now" : c.grade==="PL" ? "plan" : "done";
-    const course = C(c.code,c.credits,c.tags,status,c.title);
+    const course = addCseTag(C(c.code,c.credits,c.tags,status,c.title));
     const ay = 2000+c.yy-(c.q===0?0:1);          // academic year that quarter belongs to
     const y = ay-startYear;
     if(y<0 || /^(AP|IB)$/.test(c.grade)){ p.prior.push(course); continue; }
@@ -698,7 +709,7 @@ function courseHTML(c,key){
   return `<button class="course ${c.status}" draggable="true" data-c="${c.id}" data-k="${key}" aria-label="${esc((c.code||"Untitled")+", "+fmt(+c.credits||0)+" credits, "+label)}">
     <span class="r1"><span class="code">${esc(c.code||"Untitled")}</span><span class="cr">${fmt(+c.credits||0)} cr</span></span>
     ${c.title?`<span class="ttl">${esc(c.title)}</span>`:""}
-    ${(c.tags||[]).length?`<span class="tags">${c.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</span>`:""}
+    ${(c.tags||[]).length?`<span class="tags">${c.tags.map(t=>`<span class="tag${CSE_TAGS.includes(t)?" cse":""}">${esc(t)}</span>`).join("")}</span>`:""}
   </button>`;
 }
 function nowKey(p){
@@ -753,7 +764,8 @@ function renderAudit(p){
     if(on) for(const [r,e] of res){
       const val=editing&&r.type!=="courses"?`<input type="number" class="needin mono" data-need="${r.id}" value="${r.need}" min="0" aria-label="Needed for ${esc(r.label)}">`:`${e.met?"✓ ":""}${fmt(e.have)} / ${e.need}`;
       const lab=editing&&gk==="minor"?`<input type="text" class="labelin" data-label="${r.id}" value="${esc(r.label)}" aria-label="Requirement name">`:esc(r.label);
-      html+=`<div class="req"><div class="rl"><span>${lab}</span><span class="mono ${e.met&&!editing?"met":""}">${val}</span></div>`;
+      const go=!editing&&reqFilter(r);
+      html+=`<div class="req${go?" go":""}"${go?` role="button" tabindex="0" data-find="${r.id}" title="Browse courses for this requirement"`:""}><div class="rl"><span>${lab}</span><span class="mono ${e.met&&!editing?"met":""}">${val}</span></div>`;
       if(r.type==="courses") html+=`<div class="checks">${e.items.map(i=>`<span class="chk ${i.status||""}">${esc(i.label)}</span>`).join("")}</div>`;
       else { const d=Math.max(e.need,e.have)||1; html+=`<div class="bar"><i class="c-done" style="width:${e.st.done/d*100}%"></i><i class="c-now" style="width:${e.st.now/d*100}%"></i><i class="c-plan" style="width:${e.st.plan/d*100}%"></i></div>`;
         if(e.extra) html+=`<div class="note">${e.extra}</div>`; }
@@ -765,8 +777,10 @@ function renderAudit(p){
     html+=`</div>`;
   }
   html+=`<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" id="editneeds">${editing?"Done editing":"Edit requirement numbers"}</button><button class="btn small ghost" id="resetreqs">Reset to defaults</button></div>
-    <p class="note" style="margin:0">Courses count by code (MATH 208, CSE 311) or by the tags you give them. A course can carry several tags.</p>`;
+    <p class="note" style="margin:0">Courses count by code (MATH 208, CSE 311) or by the tags you give them. A course can carry several tags. Click a requirement marked › to browse courses that count toward it.</p>`;
   const el=document.getElementById("audit"); el.innerHTML=html;
+  el.querySelectorAll("[data-find]").forEach(d=>{ const go=()=>openFind(null,reqFilter(p.reqs.find(r=>r.id===d.dataset.find)));
+    d.onclick=go; d.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); go(); } }; });
   el.querySelectorAll("[data-grp]").forEach(s=>s.onchange=()=>{p.groupsOn[s.dataset.grp]=s.checked;persist();render()});
   el.querySelectorAll("[data-need]").forEach(i=>i.onchange=()=>{const r=p.reqs.find(r=>r.id===i.dataset.need);const v=parseFloat(i.value);if(r&&v>=0){r.need=v;persist();render()}});
   el.querySelectorAll("[data-label]").forEach(i=>i.onchange=()=>{const r=p.reqs.find(r=>r.id===i.dataset.label);if(r&&i.value.trim()){r.label=i.value.trim();persist()}});
@@ -830,14 +844,15 @@ function loadCatalog(){
     const list=d.courses.map(([code,title,cr,gen])=>{
       const m=cr.match(/(\d+)(?:-(\d+))?/);
       return {code,title,cr,gen:gen?gen.split(" "):[],credits:m?+(m[2]||m[1]):null,tags:(gen||"").split(" ").filter(t=>TAGS.includes(t)),
-        key:code.replace(/ /g,""),hay:(code+" "+code.replace(/ /g,"")+" "+title).toUpperCase()};
+        cse:cseTag(code),key:code.replace(/ /g,""),hay:(code+" "+code.replace(/ /g,"")+" "+title).toUpperCase()};
     });
     return {built:d.built,list,byCode:new Map(list.map(c=>[c.key,c]))};
   }).catch(e=>{ catalogP=null; throw e; });
 }
-function searchCatalog(cat,q,areas){
+// Areas must all match; CSE tags match any one; scope is an extra test from a clicked requirement.
+function searchCatalog(cat,q,areas,cse=[],scope=null){
   const words=norm(q).split(" ").filter(Boolean), compact=norm(q).replace(/ /g,"");
-  const hits=cat.list.filter(c=>areas.every(a=>c.gen.includes(a))&&words.every(w=>c.hay.includes(w)));
+  const hits=cat.list.filter(c=>areas.every(a=>c.gen.includes(a))&&(!cse.length||cse.includes(c.cse))&&(!scope||scope.test(c))&&words.every(w=>c.hay.includes(w)));
   if(!compact) return hits;
   const rank=c=>c.key===compact?3:c.key.startsWith(compact)?2:c.title.toUpperCase().startsWith(norm(q))?1:0;
   return hits.sort((a,b)=>rank(b)-rank(a));
@@ -853,17 +868,33 @@ function repairPlans(){
     for(const p of plans) for(const c of allCourses(p).filter(titleOnly)){
       const code=resolveShortTitle(cat.list,c.code); if(!code) continue;
       if(!c.title) c.title=cat.byCode.get(code.replace(/ /g,""))?.title||c.code;
-      c.code=code; n++;
+      c.code=code; addCseTag(c); n++;
     }
     if(n){ persist(); render(); }
   },()=>{});
 }
-function openFind(key){
+// Which catalog filters show the courses that count toward a requirement, or null when the catalog can't tell (W, CS Sci, ethics lists).
+function reqFilter(r){
+  if(!r) return null;
+  if(r.type==="courses"){ const codes=new Set((r.options||[]).flat(2).map(c=>norm(c).replace(/ /g,""))); return {label:r.label,scope:{label:r.label,test:c=>codes.has(c.key)}}; }
+  const t=r.tags||[];
+  if(!t.length||r.all) return null;
+  if(t.every(x=>CSE_TAGS.includes(x))||(t.length===1&&AREAS.includes(t[0]))) return {label:r.label,on:t};
+  if(t.every(x=>AREAS.includes(x))) return {label:r.label,scope:{label:t.join(" / "),test:c=>c.gen.some(g=>t.includes(g))}};
+  return null;
+}
+function openFind(key,preset){
   const p=plan(); if(!p) return;
-  const dest=key||nextQuarterKey(p), areas=["A&H","SSc","NSc","DIV","C"], on=new Set();
-  dialog(`<h3 id="dlgt">${key?"Add to "+esc(qLabel(p,key)):"Find courses"}</h3>
+  const dest=key||nextQuarterKey(p), on=new Set(preset?.on||[]);
+  let scope=preset?.scope||null;
+  const chip=a=>`<button type="button" aria-pressed="${on.has(a)}" data-area="${esc(a)}">${esc(a)}</button>`;
+  dialog(`<h3 id="dlgt">${key?"Add to "+esc(qLabel(p,key)):preset?esc(preset.label):"Find courses"}</h3>
     <input type="search" id="f-q" class="findq" placeholder="Search by code or title, like CSE 311 or ethics" aria-label="Search UW courses" autocomplete="off">
-    <div class="tagpick" role="group" aria-label="Filter by gen-ed area">${areas.map(a=>`<button type="button" aria-pressed="false" data-area="${esc(a)}">${esc(a)}</button>`).join("")}</div>
+    <div class="findchips">
+      <div class="tagpick" role="group" aria-label="Filter by gen-ed area">${AREAS.map(chip).join("")}</div>
+      <div class="tagpick" role="group" aria-label="Filter by CS major list">${CSE_TAGS.map(chip).join("")}</div>
+      <div class="tagpick" id="f-scope"></div>
+    </div>
     <p class="note" id="f-status" role="status" style="margin:0">Loading the UW course catalog…</p>
     <ul class="findres" id="f-res"></ul>
     <button class="btn ghost" id="f-manual" style="align-self:flex-start">Enter a course manually</button>`,
@@ -874,16 +905,19 @@ function openFind(key){
     const inPlan=new Set(allCourses(p).map(c=>norm(c.code).replace(/ /g,"")));
     const draw=()=>{
       if(!cat) return;
-      if(!q.value.trim()&&!on.size){ res.innerHTML=""; status.textContent=`Search ${cat.list.length.toLocaleString()} UW courses. Pick an area to browse by gen-ed requirement.`; return; }
-      const hits=searchCatalog(cat,q.value,[...on]); shown=hits.slice(0,60);
+      const sc=document.getElementById("f-scope");
+      sc.innerHTML=scope?`<button type="button" class="scope" aria-pressed="true" aria-label="Stop limiting to ${esc(scope.label)}">${esc(scope.label)} <span aria-hidden="true">×</span></button>`:"";
+      if(scope) sc.firstElementChild.onclick=()=>{ scope=null; draw(); };
+      if(!q.value.trim()&&!on.size&&!scope){ res.innerHTML=""; status.textContent=`Search ${cat.list.length.toLocaleString()} UW courses. Pick an area or a CS list to browse.`; return; }
+      const hits=searchCatalog(cat,q.value,AREAS.filter(a=>on.has(a)),CSE_TAGS.filter(a=>on.has(a)),scope); shown=hits.slice(0,60);
       status.textContent=!hits.length?"No courses match. Try a department code like PHIL or fewer words.":hits.length>shown.length?`Showing ${shown.length} of ${hits.length.toLocaleString()}. Type more to narrow it down.`:`${hits.length} course${hits.length>1?"s":""}`;
       res.innerHTML=shown.map((c,i)=>`<li class="fr">
         <div class="fr-main"><div class="fr-top"><span class="code">${esc(c.code)}</span><span class="fr-cr">${esc(c.cr)} cr</span>${inPlan.has(c.key)?`<span class="inplan">In plan</span>`:""}</div>
           <span class="fr-t">${esc(c.title)}</span>
-          <div class="fr-meta">${c.gen.length?`<span class="tags">${c.gen.map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</span>`:""}<a href="${myplanUrl(c.code)}" target="_blank" rel="noopener">MyPlan</a></div></div>
+          <div class="fr-meta">${c.gen.length||c.cse?`<span class="tags">${c.cse?`<span class="tag cse">${esc(c.cse)}</span>`:""}${c.gen.map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</span>`:""}<a href="${myplanUrl(c.code)}" target="_blank" rel="noopener">MyPlan</a></div></div>
         <button class="btn small" data-pick="${i}" aria-label="Add ${esc(c.code)} to plan">Add</button></li>`).join("");
       res.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{ const c=shown[+b.dataset.pick]; close();
-        openEditor(null,dest,{code:c.code,title:c.title,tags:[...c.tags,cseTag(c.code)].filter(Boolean),...(c.credits!==null?{credits:c.credits}:{})}); });
+        openEditor(null,dest,{code:c.code,title:c.title,tags:[...c.tags,c.cse].filter(Boolean),...(c.credits!==null?{credits:c.credits}:{})}); });
     };
     q.addEventListener("input",draw);
     ov.querySelectorAll("[data-area]").forEach(b=>b.onclick=()=>{ const a=b.dataset.area; on.has(a)?on.delete(a):on.add(a); b.setAttribute("aria-pressed",on.has(a)); draw(); });
