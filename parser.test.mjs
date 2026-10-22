@@ -37,3 +37,12 @@ for (const [name, text] of Object.entries({
   assert.equal(r.startYear, 2025, name);
 }
 console.log("parseDars: all copy formats OK");
+
+const cseTag = new Function(src.slice(src.indexOf("/*CSETAGS-START*/"), src.indexOf("/*CSETAGS-END*/")) + ";return cseTag;")();
+for (const [code, tag] of Object.entries({
+  "CSE 333": "Core", "cse 446": "Core", "CSE493G": "Core", "EE 371": "Core", "E E 469": "Core", "STAT 391": "Core",
+  "CSE 481": "Capstone", "CSE 481 S": "Capstone", "CSE 428": "Capstone",
+  "CSE 490": "CSE Elective", "CSE 498": "CSE Elective", "CSE 480": "CSE Elective", "MATH 407": "CSE Elective", "E E 433": "CSE Elective", "GEN ST 350": "CSE Elective",
+  "CSE 331": null, "CSE 311": null, "CSE 414": null, "CSE 499": null, "E E 471": null, "MATH 126": null, "PHIL 118": null, "": null,
+})) assert.equal(cseTag(code), tag, code);
+console.log("cseTag: Allen School lists OK");

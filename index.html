@@ -366,6 +366,25 @@ function parseDars(text){
 }
 /*PARSER-END*/
 
+/*CSETAGS-START*/
+/* Allen School CS lists (cs.washington.edu/academics/undergraduate/courses and .../degree-requirements/capstones), AY 2026-27.
+   CSE 331 is left out of Core because it is required for CS. Elective credit caps (e.g. 2 cr of CSE 301/394/492) are not modeled. */
+const CSE_LISTS = Object.fromEntries(Object.entries({
+  "Core": "CSE:333,340,341,344,369,371,401,402,403,421,422,426,427,431,434,438,440,442,443,444,446,447,451,452,453,455,457,458,461,462,469,470,473,474,478,484,486,493;E E:371,469,470,474;STAT:391",
+  "Capstone": "CSE:428,460,475,481,482",
+  "CSE Elective": "CSE:301,394,480,492;ENGR:321;GEN ST:350;AMATH:401,402,403,422,423,483;BIOEN:485;DXARTS:460,461,462,463;E E:331,332,341;ENTRE:432;GEOG:360,460,463,465;INFO:444,446,454,464;LING:472;MATH:318,334,335,336,395,396,402,403,404,407,408,409,414,415,424,425,426,435,436,441,442,461,462,464,465,466,491;MUSIC:400;STAT:341,342,395,396,421,491",
+}).map(([tag, s]) => [tag, new Set(s.split(";").flatMap(g => { const [d, ns] = g.split(":"); return ns.split(",").map(n => d + " " + n); }))]));
+function cseTag(code){
+  const m = String(code||"").toUpperCase().replace(/\s+/g," ").trim().replace(/^EE(?= ?\d)/,"E E").match(/^([A-Z][A-Z& ]*?) ?(\d{3})/);
+  if(!m) return null;
+  const c = m[1].trim()+" "+m[2], n = +m[2];
+  for(const tag of ["Core","Capstone","CSE Elective"]) if(CSE_LISTS[tag].has(c)) return tag;
+  if(m[1].trim()==="CSE" && n>=400 && n<499 && !(n>=410 && n<=419)) return "CSE Elective"; // graded 400-level majors courses; 41x are non-majors
+  if(m[1].trim()==="E E" && n>=400 && ![406,452,453,454,455,456,457,471,472,478,491].includes(n)) return "CSE Elective";
+  return null;
+}
+/*CSETAGS-END*/
+
 (() => {
 const STORE = "husky-degree-planner-v1";
 const supa = window.supabase.createClient("https://hazmlvijljrqqocbzbvv.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhhem1sdmlqbGpycXFvY2J6YnZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MjA0MTksImV4cCI6MjEwODE5NjQxOX0.znyYBJq9AVoki1lMCSr8DVCe10dps00baUvZwJv9-bE");
@@ -713,7 +732,7 @@ function renderAudit(p){
       html+=`</div>`;
     }
     if(gk==="gen"&&on&&cs.some(c=>norm(c.code).startsWith("FSTDY"))) html+=`<p class="note" style="margin:6px 0 0;color:var(--warn)">You have FSTDY study abroad credit. UW will not award your degree until it is converted to UW courses.</p>`;
-    if(gk==="cs"&&on) html+=`<p class="note" style="margin:6px 0 0">Tag core, capstone and elective courses yourself. See the <a href="https://www.cs.washington.edu/academics/undergraduate/degree-requirements/" target="_blank" rel="noopener">Allen School course lists</a>.</p>`;
+    if(gk==="cs"&&on) html+=`<p class="note" style="margin:6px 0 0">Core, capstone and elective tags are added automatically when you enter a course code. Double-check them against the <a href="https://www.cs.washington.edu/academics/undergraduate/degree-requirements/" target="_blank" rel="noopener">Allen School course lists</a>.</p>`;
     if(gk==="minor"&&on) html+=`<p class="note" style="margin:6px 0 0">Tag its courses as “Minor”. Use “Edit requirement numbers” to rename it and set its credit total.</p>`;
     html+=`</div>`;
   }
@@ -821,7 +840,7 @@ function openFind(){
           <div class="fr-meta">${c.gen.length?`<span class="tags">${c.gen.map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</span>`:""}<a href="${myplanUrl(c.code)}" target="_blank" rel="noopener">MyPlan</a></div></div>
         <button class="btn small" data-pick="${i}" aria-label="Add ${esc(c.code)} to plan">Add</button></li>`).join("");
       res.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{ const c=shown[+b.dataset.pick]; close();
-        openEditor(null,nextQuarterKey(p),{code:c.code,title:c.title,tags:[...c.tags],...(c.credits!==null?{credits:c.credits}:{})}); });
+        openEditor(null,nextQuarterKey(p),{code:c.code,title:c.title,tags:[...c.tags,cseTag(c.code)].filter(Boolean),...(c.credits!==null?{credits:c.credits}:{})}); });
     };
     q.addEventListener("input",draw);
     ov.querySelectorAll("[data-area]").forEach(b=>b.onclick=()=>{ const a=b.dataset.area; on.has(a)?on.delete(a):on.add(a); b.setAttribute("aria-pressed",on.has(a)); draw(); });
@@ -877,12 +896,15 @@ function openEditor(cid,key,prefill){
       else { b.classList.add("armed"); b.textContent="Click again to delete"; }
     };
     const codeIn=document.getElementById("e-code");
+    const pick=(t,on)=>ov.querySelector(`[data-t="${CSS.escape(t)}"]`)?.setAttribute("aria-pressed",String(on));
+    let autoTag=cseTag(c.code);
+    codeIn.addEventListener("input",()=>{ const t=cseTag(codeIn.value); if(t===autoTag) return; if(autoTag) pick(autoTag,false); if(t) pick(t,true); autoTag=t; });
     codeIn.addEventListener("change",async()=>{
       const hit=await loadCatalog().then(cat=>cat.byCode.get(norm(codeIn.value).replace(/ /g,"")),()=>null);
       if(!hit) return;
       const t=document.getElementById("e-title"); if(!t.value.trim()) t.value=hit.title;
       if(hit.credits!==null) document.getElementById("e-cr").value=hit.credits;
-      hit.tags.forEach(tag=>ov.querySelector(`[data-t="${CSS.escape(tag)}"]`)?.setAttribute("aria-pressed","true"));
+      hit.tags.forEach(tag=>pick(tag,true));
     });
     setTimeout(()=>(prefill?document.getElementById("e-q"):codeIn).focus(),0);
   });
