@@ -305,7 +305,13 @@ const DARS_SECTIONS = [
   [/^Computer Science Requirement:/i,[]],[/^(UNIVERSITY REQUIREMENTS|GENERAL EDUCATION REQUIREMENTS)/i,[]]
 ];
 function parseDars(text){
-  const lines = String(text||"").split(/\r?\n/).map(l=>l.replace(/\s+/g," ").trim()).filter(Boolean);
+  // Browsers copy the audit table differently: one cell per line, tab-separated rows, or whole rows on one line.
+  const ROW = /^((?:AU|WI|SP|SU) ?\d{2}) (.+?) (\d{1,2}(?:\.\d+)?) (\S+)(?: (\S+))?$/;
+  const SPLITCODE = /^([A-Z][A-Z&]{0,7}(?: [A-Z&]{1,6})? ?\d[\dX]{2}[A-Z]?) (.+)$/;
+  const lines = String(text||"").replace(/[​-‍⁠﻿­]/g,"").split(/\r\n|\r|\n|\t/)
+    .map(l=>l.replace(/\s+/g," ").trim()).filter(Boolean)
+    .flatMap(l=>{ const m=l.match(ROW); if(!m) return [l]; const c=m[2].match(SPLITCODE);
+      return [m[1].replace(" ",""), ...(c?[c[1],c[2]]:[m[2]]), m[3], m[4], ...(m[5]?[m[5]]:[])]; });
   const out = {courses:[], catalogYear:null, earned:null, startYear:null};
   const QRE = /^(AU|WI|SP|SU)(\d{2})$/, NUM = /^-?\d+(\.\d+)?$/, CODE = /^[A-Z][A-Z& ]{0,8} ?\d{3}[A-Z]?$/;
   let tags = [], seenTotal = false;
@@ -519,7 +525,7 @@ function planFromDars(parsed, startYear){
   p.startYear=startYear;
   let maxYear=3;
   for(const c of parsed.courses){
-    const status = c.grade==="IP" ? "now" : "done";
+    const status = c.grade==="IP" ? "now" : c.grade==="PL" ? "plan" : "done";
     const course = C(c.code,c.credits,c.tags,status,c.title);
     const ay = 2000+c.yy-(c.q===0?0:1);          // academic year that quarter belongs to
     const y = ay-startYear;

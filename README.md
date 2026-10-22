@@ -35,6 +35,8 @@ Paste in your DARS audit, add the courses you plan to take, and the planner show
 
 The app is one static file, so there is no build step and nothing to install.
 
+To check the DARS parser after changing it, run `node parser.test.mjs`.
+
 ## Updating requirements
 
 Default requirement numbers live in the `DEFAULT_REQS` array in `index.html`. They follow the UW General Catalog for the BS in Computer Science and the College of Arts & Sciences gen-ed rules for catalog year AU 26. If the rules change, edit that array and open a pull request. Users can also change the numbers for a single plan in the app with **Edit requirement numbers**.
