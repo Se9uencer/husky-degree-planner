@@ -347,7 +347,8 @@ function parseDars(text){
 (() => {
 const STORE = "husky-degree-planner-v1";
 const supa = window.supabase.createClient("https://hazmlvijljrqqocbzbvv.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhhem1sdmlqbGpycXFvY2J6YnZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MjA0MTksImV4cCI6MjEwODE5NjQxOX0.znyYBJq9AVoki1lMCSr8DVCe10dps00baUvZwJv9-bE");
-let session = null;
+let session = null, guestDirty = false, nudged = false;
+const HANDOFF = "husky-degree-planner-oauth-handoff";
 const QN = ["Autumn","Winter","Spring","Summer"];
 const TAGS = ["C","W","A&H","SSc","NSc","DIV","CS Sci","Core","Capstone","CSE Elective","Ethics A","Ethics B","Minor"];
 const GROUPS = {gen:"General education", cs:"CS major", eth:"Ethics minor", minor:"Another minor"};
@@ -417,7 +418,7 @@ let plans=[], cur=null, editing=false;
 const saveEl=document.getElementById("save");
 function load(){ try{ const d=JSON.parse(localStorage.getItem(STORE)||"null"); if(d&&Array.isArray(d.plans)){ plans=d.plans.map(normalizePlan).filter(Boolean); cur=d.current; } }catch(e){ saveEl.textContent="This browser is blocking storage. Export your plans to keep them."; } }
 function persist(){
-  if(!session){ try{ localStorage.removeItem(STORE); }catch(e){} saveEl.textContent="Sign in to save — nothing is kept if you leave or refresh."; return; }
+  if(!session){ guestDirty=true; try{ localStorage.removeItem(STORE); }catch(e){} saveEl.textContent="Sign in to save — nothing is kept if you leave or refresh."; return; }
   const time=new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"});
   try{ localStorage.setItem(STORE,JSON.stringify({plans,current:cur})); saveEl.textContent="Synced as "+session.user.email+" · "+time; }
   catch(e){ saveEl.textContent="Could not save in this browser. Export your plans to keep them."; }
@@ -431,11 +432,13 @@ async function cloudPull(){
   const { data, error } = await supa.from("plans").select("data").eq("user_id",session.user.id).maybeSingle();
   if(error){ toast("Could not load your synced plans."); return; }
   if(data&&data.data){
-    plans=(data.data.plans||[]).map(normalizePlan).filter(Boolean); cur=data.data.current;
+    const cloud=(data.data.plans||[]).map(normalizePlan).filter(Boolean);
+    const extra=guestDirty?plans.filter(p=>!cloud.some(c=>c.id===p.id)):[];
+    plans=[...cloud,...extra]; if(!extra.length) cur=data.data.current;
     if(!plans.find(p=>p.id===cur)) cur=plans[0]?.id||null;
-    try{ localStorage.setItem(STORE,JSON.stringify({plans,current:cur})); }catch(e){}
-  } else cloudPush();
-  render();
+  }
+  guestDirty=false;
+  persist(); render();
 }
 
 /* ---------- plan helpers ---------- */
@@ -501,7 +504,10 @@ function moveCourse(p,cid,from,to){
   if(from!=="prior"&&!src.length) delete p.quarters[from];
   if(to==="prior") p.prior.push(c); else (p.quarters[to]=p.quarters[to]||[]).push(c);
 }
-function addPlan(np){ plans.push(np); cur=np.id; persist(); render(); }
+function addPlan(np){
+  plans.push(np); cur=np.id; persist(); render();
+  if(!session&&!nudged){ nudged=true; setTimeout(()=>{ if(!session&&!document.querySelector(".dlg")) openAuth(true); },700); }
+}
 
 /* ---------- DARS → plan ---------- */
 function planFromDars(parsed, startYear){
@@ -718,13 +724,13 @@ function renderAccount(){
   const el=document.getElementById("account");
   el.innerHTML=session
     ? `<span class="who" title="${esc(session.user.email)}"><span class="avatar" aria-hidden="true">${esc((session.user.email||"?")[0].toUpperCase())}</span><span class="em">${esc(session.user.email)}</span></span><button class="btn small" id="signout">Sign out</button>`
-    : `<button class="btn small" id="signin">Sign in to sync</button>`;
-  const si=document.getElementById("signin"); if(si) si.onclick=openAuth;
+    : `<button class="btn small primary" id="signin">Sign in to save</button>`;
+  const si=document.getElementById("signin"); if(si) si.onclick=()=>openAuth();
   const so=document.getElementById("signout"); if(so) so.onclick=()=>supa.auth.signOut();
 }
-function openAuth(){
-  dialog(`<h3 id="dlgt">Sign in</h3>
-    <p class="note">Create an account to sync your plans across devices. Plans already in this browser carry over.</p>
+function openAuth(nudge){
+  dialog(`<h3 id="dlgt">${nudge?"Save your plan":"Sign in"}</h3>
+    <p class="note">${nudge?"You're not signed in, so this plan disappears when you close or refresh the tab. Sign in to keep it and open it on any device.":"Sign in to save your plans and open them on any device. Anything you've made on this page comes with you."}</p>
     <button class="btn" id="a-google" style="width:100%">Continue with Google</button>
     <p class="note" style="text-align:center;margin:0">or use email</p>
     <div><label class="lbl" for="a-email">Email</label><input type="text" id="a-email" style="width:100%"></div>
@@ -736,8 +742,12 @@ function openAuth(){
     const email=()=>document.getElementById("a-email").value.trim();
     const pass=()=>document.getElementById("a-pass").value;
     const err=document.getElementById("a-err");
-    document.getElementById("a-google").onclick=()=>supa.auth.signInWithOAuth({provider:"google",options:{redirectTo:window.location.origin+window.location.pathname}});
-    document.getElementById("a-cancel").onclick=close;
+    document.getElementById("a-google").onclick=()=>{
+      // ponytail: OAuth reloads the page, so guest plans ride along in sessionStorage and are removed on return
+      if(plans.length) try{ sessionStorage.setItem(HANDOFF,JSON.stringify({plans,current:cur})); }catch(e){}
+      supa.auth.signInWithOAuth({provider:"google",options:{redirectTo:window.location.origin+window.location.pathname}});
+    };
+    const cancel=document.getElementById("a-cancel"); cancel.onclick=close; if(nudge) cancel.textContent="Not now";
     document.getElementById("a-signup").onclick=async()=>{
       err.textContent="Working…";
       const {data,error}=await supa.auth.signUp({email:email(),password:pass()});
@@ -863,10 +873,13 @@ fileIn.onchange=async()=>{
 };
 
 load();
+try{
+  const h=JSON.parse(sessionStorage.getItem(HANDOFF)||"null"); sessionStorage.removeItem(HANDOFF);
+  if(h&&Array.isArray(h.plans)&&h.plans.length){ plans=h.plans.map(normalizePlan).filter(Boolean); cur=h.current; guestDirty=true; nudged=true; }
+}catch(e){}
 if(!plans.find(p=>p.id===cur)) cur=plans[0]?.id||null;
 render();
 renderAccount();
-supa.auth.getSession().then(({data})=>{ if(data.session){ session=data.session; renderAccount(); cloudPull(); } });
 })();
 </script>
 </body>
