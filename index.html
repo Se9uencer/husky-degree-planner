@@ -640,6 +640,8 @@ function renderAccount(){
 function openAuth(){
   dialog(`<h3 id="dlgt">Sign in</h3>
     <p class="note">Create an account to sync your plans across devices. Plans already in this browser carry over.</p>
+    <button class="btn" id="a-google" style="width:100%">Continue with Google</button>
+    <p class="note" style="text-align:center;margin:0">or use email</p>
     <div><label class="lbl" for="a-email">Email</label><input type="text" id="a-email" style="width:100%"></div>
     <div><label class="lbl" for="a-pass">Password</label><input type="password" id="a-pass" placeholder="At least 6 characters" style="width:100%"></div>
     <div id="a-err" class="note" style="color:var(--bad)"></div>
@@ -649,6 +651,7 @@ function openAuth(){
     const email=()=>document.getElementById("a-email").value.trim();
     const pass=()=>document.getElementById("a-pass").value;
     const err=document.getElementById("a-err");
+    document.getElementById("a-google").onclick=()=>supa.auth.signInWithOAuth({provider:"google",options:{redirectTo:window.location.origin+window.location.pathname}});
     document.getElementById("a-cancel").onclick=close;
     document.getElementById("a-signup").onclick=async()=>{
       err.textContent="Working…";
