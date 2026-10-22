@@ -590,7 +590,7 @@ function renderTabs(){
   el.innerHTML=plans.map(p=>`<button class="tab" role="tab" aria-selected="${p.id===cur}" data-tab="${p.id}">${esc(p.name)}</button>`).join("")+
    `<div class="newmenu"><button class="btn small" id="findbtn">Find courses</button><button class="btn small" id="newbtn" aria-haspopup="true">+ New plan</button></div>`;
   el.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{cur=b.dataset.tab;clearConfirm();persist();render()});
-  const fb=document.getElementById("findbtn"); if(fb) fb.onclick=openFind;
+  const fb=document.getElementById("findbtn"); if(fb) fb.onclick=()=>openFind();
   const nb=document.getElementById("newbtn"); if(!nb) return;
   nb.onclick=e=>{
     e.stopPropagation();
@@ -699,7 +699,7 @@ function renderYears(p){
     html+=`</div></div>`;
   }
   const el=document.getElementById("years"); el.innerHTML=html;
-  el.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>openEditor(null,b.dataset.add));
+  el.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>openFind(b.dataset.add));
   el.querySelectorAll(".course").forEach(b=>{
     b.onclick=()=>openEditor(b.dataset.c,b.dataset.k);
     b.ondragstart=e=>{e.dataTransfer.setData("text/plain",b.dataset.c+"|"+b.dataset.k);e.dataTransfer.effectAllowed="move"};
@@ -816,14 +816,15 @@ function searchCatalog(cat,q,areas){
 }
 const myplanUrl=code=>"https://myplan.washington.edu/course/#/courses/"+encodeURIComponent(code.replace(/ (?=\d{3}[A-Z]?$)/,""));
 function nextQuarterKey(p){ const ks=orderedKeys(p), i=ks.indexOf(nowKey(p)); return ks[i+1]||ks[0]; }
-function openFind(){
+function openFind(key){
   const p=plan(); if(!p) return;
-  const areas=["A&H","SSc","NSc","DIV","C"], on=new Set();
-  dialog(`<h3 id="dlgt">Find courses</h3>
+  const dest=key||nextQuarterKey(p), areas=["A&H","SSc","NSc","DIV","C"], on=new Set();
+  dialog(`<h3 id="dlgt">${key?"Add to "+esc(qLabel(p,key)):"Find courses"}</h3>
     <input type="search" id="f-q" class="findq" placeholder="Search by code or title, like CSE 311 or ethics" aria-label="Search UW courses" autocomplete="off">
     <div class="tagpick" role="group" aria-label="Filter by gen-ed area">${areas.map(a=>`<button type="button" aria-pressed="false" data-area="${esc(a)}">${esc(a)}</button>`).join("")}</div>
     <p class="note" id="f-status" role="status" style="margin:0">Loading the UW course catalog…</p>
-    <ul class="findres" id="f-res"></ul>`,
+    <ul class="findres" id="f-res"></ul>
+    <button class="btn ghost" id="f-manual" style="align-self:flex-start">Enter a course manually</button>`,
   (ov,close)=>{
     ov.querySelector(".dlg").classList.add("find");
     const q=document.getElementById("f-q"), res=document.getElementById("f-res"), status=document.getElementById("f-status");
@@ -840,11 +841,13 @@ function openFind(){
           <div class="fr-meta">${c.gen.length?`<span class="tags">${c.gen.map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</span>`:""}<a href="${myplanUrl(c.code)}" target="_blank" rel="noopener">MyPlan</a></div></div>
         <button class="btn small" data-pick="${i}" aria-label="Add ${esc(c.code)} to plan">Add</button></li>`).join("");
       res.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{ const c=shown[+b.dataset.pick]; close();
-        openEditor(null,nextQuarterKey(p),{code:c.code,title:c.title,tags:[...c.tags,cseTag(c.code)].filter(Boolean),...(c.credits!==null?{credits:c.credits}:{})}); });
+        openEditor(null,dest,{code:c.code,title:c.title,tags:[...c.tags,cseTag(c.code)].filter(Boolean),...(c.credits!==null?{credits:c.credits}:{})}); });
     };
     q.addEventListener("input",draw);
     ov.querySelectorAll("[data-area]").forEach(b=>b.onclick=()=>{ const a=b.dataset.area; on.has(a)?on.delete(a):on.add(a); b.setAttribute("aria-pressed",on.has(a)); draw(); });
     loadCatalog().then(c=>{ cat=c; draw(); },()=>{ status.textContent="Couldn't load the course catalog. Check your connection and try again."; });
+    document.getElementById("f-manual").onclick=()=>{ const v=q.value.trim(); close();
+      openEditor(null,dest,/^[A-Za-z][A-Za-z& ]*\s?\d{3}/.test(v)?{code:norm(v),tags:[cseTag(v)].filter(Boolean)}:undefined); };
     setTimeout(()=>q.focus(),0);
   });
 }
