@@ -267,6 +267,7 @@ footer{font-size:12px;color:var(--muted);max-width:80ch;padding-top:18px;border-
       <button class="btn" data-start="blank">Start a blank plan</button>
       <button class="btn" data-start="example">Open an example</button>
     </div>
+    <p class="note">Where's DARS? In <a href="https://myplan.uw.edu/audit/" target="_blank" rel="noopener">MyPlan</a>: <b>Audit → Degree Audit → Run Degree Audit</b>, then copy the whole audit page.</p>
     <p class="note">Sign in to save — nothing is kept if you close the tab or refresh without an account. Use Export to back up your plans or move them to another device.</p>
   </section>
   <div id="planner">
@@ -808,8 +809,9 @@ function openEditor(cid,key){
 function openDars(){
   dialog(`<h3 id="dlgt">Import from DARS</h3>
     <ol class="note">
-      <li>Open your degree audit in <a href="https://myplan.uw.edu/audit/" target="_blank" rel="noopener">MyPlan</a>.</li>
-      <li>Select the whole page (Ctrl+A or Cmd+A) and copy it.</li>
+      <li>Go to <a href="https://myplan.uw.edu/audit/" target="_blank" rel="noopener">MyPlan</a> and sign in with your UW NetID.</li>
+      <li>Open <b>Audit → Degree Audit</b>, pick your program, and click <b>Run Degree Audit</b>.</li>
+      <li>When it finishes, open the audit, select the whole page (Ctrl+A or Cmd+A), and copy it.</li>
       <li>Paste it below.</li>
     </ol>
     <textarea id="d-text" placeholder="Paste your DARS audit text here" aria-label="DARS audit text"></textarea>
