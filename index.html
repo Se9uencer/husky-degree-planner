@@ -317,7 +317,7 @@ const DARS_SECTIONS = [
   [/^English Composition/i,["C"]],[/^Writing across the curriculum/i,["W"]],[/^Diversity Course/i,["DIV"]],
   [/^Arts and Humanities$/i,["A&H"]],[/^Social Sciences$/i,["SSc"]],[/^Natural Sciences$/i,["NSc"]],
   [/^Computer Science Requirement: Natural Science/i,["CS Sci"]],
-  [/Four CSE courses from the CSE Core/i,["Core"]],[/Two additional courses from the entire Core/i,["Core"]],
+  [/Four CSE courses from the CSE Core/i,["CS Core"]],[/Two additional courses from the entire Core/i,["CS Core"]],
   [/One additional core course or one course from the CSE Capstone/i,["Capstone"]],
   [/Courses from the CSE Electives list/i,["CSE Elective"]],
   [/^(Reasoning|Foreign Language|AREAS OF INQUIRY|DEPARTMENTAL REQUIREMENTS|OTHER COURSES|General Electives)/i,[]],
@@ -377,7 +377,7 @@ function parseDars(text){
 /* Allen School CS lists (cs.washington.edu/academics/undergraduate/courses and .../degree-requirements/capstones), AY 2026-27.
    CSE 331 is left out of Core because it is required for CS. Elective credit caps (e.g. 2 cr of CSE 301/394/492) are not modeled. */
 const CSE_LISTS = Object.fromEntries(Object.entries({
-  "Core": "CSE:333,340,341,344,369,371,401,402,403,421,422,426,427,431,434,438,440,442,443,444,446,447,451,452,453,455,457,458,461,462,469,470,473,474,478,484,486,493;E E:371,469,470,474;STAT:391",
+  "CS Core": "CSE:333,340,341,344,369,371,401,402,403,421,422,426,427,431,434,438,440,442,443,444,446,447,451,452,453,455,457,458,461,462,469,470,473,474,478,484,486,493;E E:371,469,470,474;STAT:391",
   "Capstone": "CSE:428,460,475,481,482",
   "CSE Elective": "CSE:301,394,480,492;ENGR:321;GEN ST:350;AMATH:401,402,403,422,423,483;BIOEN:485;DXARTS:460,461,462,463;E E:331,332,341;ENTRE:432;GEOG:360,460,463,465;INFO:444,446,454,464;LING:472;MATH:318,334,335,336,395,396,402,403,404,407,408,409,414,415,424,425,426,435,436,441,442,461,462,464,465,466,491;MUSIC:400;STAT:341,342,395,396,421,491",
 }).map(([tag, s]) => [tag, new Set(s.split(";").flatMap(g => { const [d, ns] = g.split(":"); return ns.split(",").map(n => d + " " + n); }))]));
@@ -385,7 +385,7 @@ function cseTag(code){
   const m = String(code||"").toUpperCase().replace(/\s+/g," ").trim().replace(/^EE(?= ?\d)/,"E E").match(/^([A-Z][A-Z& ]*?) ?(\d{3})/);
   if(!m) return null;
   const c = m[1].trim()+" "+m[2], n = +m[2];
-  for(const tag of ["Core","Capstone","CSE Elective"]) if(CSE_LISTS[tag].has(c)) return tag;
+  for(const tag of ["CS Core","Capstone","CSE Elective"]) if(CSE_LISTS[tag].has(c)) return tag;
   if(m[1].trim()==="CSE" && n>=400 && n<499 && !(n>=410 && n<=419)) return "CSE Elective"; // graded 400-level majors courses; 41x are non-majors
   if(m[1].trim()==="E E" && n>=400 && ![406,452,453,454,455,456,457,471,472,478,491].includes(n)) return "CSE Elective";
   return null;
@@ -426,8 +426,8 @@ const supa = window.supabase.createClient("https://hazmlvijljrqqocbzbvv.supabase
 let session = null, guestDirty = false, nudged = false;
 const HANDOFF = "husky-degree-planner-oauth-handoff";
 const QN = ["Autumn","Winter","Spring","Summer"];
-const TAGS = ["C","W","A&H","SSc","NSc","DIV","CS Sci","Core","Capstone","CSE Elective","Ethics A","Ethics B","Minor"];
-const AREAS = ["A&H","SSc","NSc","DIV","C"], CSE_TAGS = ["Core","Capstone","CSE Elective"], CS_FILTERS = ["Fundamentals",...CSE_TAGS];
+const TAGS = ["C","W","A&H","SSc","NSc","DIV","CS Sci","CS Core","Capstone","CSE Elective","Ethics A","Ethics B","Minor"];
+const AREAS = ["A&H","SSc","NSc","DIV","C"], CSE_TAGS = ["CS Core","Capstone","CSE Elective"], CS_FILTERS = ["Fundamentals",...CSE_TAGS];
 const GROUPS = {gen:"General education", cs:"CS major", eth:"Ethics minor", minor:"Another minor"};
 const DEFAULT_REQS = [
   {id:"total",group:"gen",label:"Total credits",type:"total",need:180},
@@ -442,9 +442,9 @@ const DEFAULT_REQS = [
   {id:"math",group:"cs",label:"Math",type:"courses",options:[[["MATH 124"],["MATH 125"],["MATH 126"],["MATH 208"]],[["MATH 134"],["MATH 135"],["MATH 136"]]]},
   {id:"sci",group:"cs",label:"Approved natural science",type:"credits",tags:["CS Sci"],need:5},
   {id:"fund",group:"cs",label:"Fundamentals",type:"courses",options:[[["CSE 123","CSE 143"],["CSE 311"],["CSE 312"],["CSE 331"],["CSE 332"],["CSE 351"]]]},
-  {id:"core",group:"cs",label:"Core courses, 4+ at 400-level",type:"count",tags:["Core"],need:6,need400:4},
-  {id:"core7",group:"cs",label:"One more core or a capstone",type:"count",tags:["Core","Capstone"],need:7},
-  {id:"elec",group:"cs",label:"Core + electives credits",type:"credits",tags:["Core","Capstone","CSE Elective"],need:33},
+  {id:"core",group:"cs",label:"6 CS Core courses (4 at 400-level)",type:"count",tags:["CS Core"],need:6,need400:4},
+  {id:"core7",group:"cs",label:"7th course: CS Core or Capstone",type:"count",tags:["CS Core","Capstone"],need:7},
+  {id:"elec",group:"cs",label:"33 credits of CS Core, Capstone and Electives",type:"credits",tags:["CS Core","Capstone","CSE Elective"],need:33},
   {id:"ethA",group:"eth",label:"List A, 1+ at 300-level",type:"credits",tags:["Ethics A"],need:15,need300:1},
   {id:"ethB",group:"eth",label:"List B, 1+ at 300-level",type:"credits",tags:["Ethics B"],need:10,need300:1},
   {id:"eth495",group:"eth",label:"Capstone",type:"courses",options:[[["ETHICS 495"]]]},
@@ -486,7 +486,7 @@ function normalizePlan(p){
   if(p.groupsOn.bus!==undefined){ p.groupsOn.minor=p.groupsOn.bus; delete p.groupsOn.bus; }
   const old = Object.fromEntries((p.reqs||[]).map(r=>[r.id==="bus"?"minor":r.id,r]));
   p.reqs = clone(DEFAULT_REQS).map(r=>old[r.id]&&typeof old[r.id].need==="number"?{...r,need:old[r.id].need,label:r.group==="minor"&&old[r.id].label?old[r.id].label:r.label}:r);
-  const fixTags = c => { c.id=c.id||uid(); c.tags=(c.tags||[]).map(t=>t==="Business"?"Minor":t); c.status=["done","now","plan"].includes(c.status)?c.status:"plan"; return c; };
+  const fixTags = c => { c.id=c.id||uid(); c.tags=(c.tags||[]).map(t=>t==="Business"?"Minor":t==="Core"?"CS Core":t); c.status=["done","now","plan"].includes(c.status)?c.status:"plan"; return c; };
   p.prior.forEach(fixTags); Object.values(p.quarters).forEach(l=>l.forEach(fixTags));
   if((p.schema||1)<3){ p.prior.forEach(addCseTag); Object.values(p.quarters).forEach(l=>l.forEach(addCseTag)); } // plans made before auto-tagging
   if(p.target===undefined) p.target=(p.years-1)+"-2";
@@ -761,6 +761,7 @@ function renderAudit(p){
     html+=`<div class="grp ${on?"":"off"}"><div class="grph"><h3>${GROUPS[gk]}</h3>
       <span style="display:flex;gap:8px;align-items:center">${on?`<span class="muted mono" style="font-size:12px">${met}/${reqs.length}</span>`:""}
       <input type="checkbox" class="switch" data-grp="${gk}" ${on?"checked":""} aria-label="Count ${GROUPS[gk]} toward graduation"></span></div>`;
+    if(gk==="cs"&&on) html+=`<p class="note" style="margin:0 0 4px"><b>Fundamentals</b> are required intro courses. <b>CS Core</b> courses are upper-level courses you choose from. <b>Capstones</b> are team projects. <b>Electives</b> fill out the rest of the 33 credits.</p>`;
     if(on) for(const [r,e] of res){
       const val=editing&&r.type!=="courses"?`<input type="number" class="needin mono" data-need="${r.id}" value="${r.need}" min="0" aria-label="Needed for ${esc(r.label)}">`:`${e.met?"✓ ":""}${fmt(e.have)} / ${e.need}`;
       const lab=editing&&gk==="minor"?`<input type="text" class="labelin" data-label="${r.id}" value="${esc(r.label)}" aria-label="Requirement name">`:esc(r.label);
@@ -772,7 +773,7 @@ function renderAudit(p){
       html+=`</div>`;
     }
     if(gk==="gen"&&on&&cs.some(c=>norm(c.code).startsWith("FSTDY"))) html+=`<p class="note" style="margin:6px 0 0;color:var(--warn)">You have FSTDY study abroad credit. UW will not award your degree until it is converted to UW courses.</p>`;
-    if(gk==="cs"&&on) html+=`<p class="note" style="margin:6px 0 0">Core, capstone and elective tags are added automatically when you enter a course code. Double-check them against the <a href="https://www.cs.washington.edu/academics/undergraduate/degree-requirements/" target="_blank" rel="noopener">Allen School course lists</a>.</p>`;
+    if(gk==="cs"&&on) html+=`<p class="note" style="margin:6px 0 0">CS Core, capstone and elective tags are added automatically when you enter a course code. Double-check them against the <a href="https://www.cs.washington.edu/academics/undergraduate/degree-requirements/" target="_blank" rel="noopener">Allen School course lists</a>.</p>`;
     if(gk==="minor"&&on) html+=`<p class="note" style="margin:6px 0 0">Tag its courses as “Minor”. Use “Edit requirement numbers” to rename it and set its credit total.</p>`;
     html+=`</div>`;
   }

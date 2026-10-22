@@ -15,7 +15,7 @@ Paste in your DARS audit, add the courses you plan to take, and the planner show
   - CS major: math, science, fundamentals, core, capstone, and electives
   - Optional Ethics minor and one custom minor
 - **Multiple plans.** Copy a plan, start a blank one, or open an example. You can change the number of years shown and turn summer quarters on or off.
-- **Browse by requirement.** Click a requirement in the audit (Core, Capstone, Areas of Inquiry, Fundamentals and so on) to open course search already filtered to the courses that count toward it. Search results and course cards mark Allen School Core, Capstone and CSE Elective courses.
+- **Browse by requirement.** Click a requirement in the audit (CS Core, Capstone, Areas of Inquiry, Fundamentals and so on) to open course search already filtered to the courses that count toward it. Search results and course cards mark Fundamentals, CS Core, Capstone and CSE Elective courses.
 - **Drag and drop.** Move courses between quarters.
 - **Accounts.** Sign in with Google (via Supabase Auth) to save your plans — nothing persists in the browser until you do. Once signed in, plans sync across devices. Use **Export plans** to back them up or move them to another device, and **Import file** to load them.
 
