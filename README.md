@@ -16,7 +16,7 @@ Paste in your DARS audit, add the courses you plan to take, and the planner show
   - Optional Ethics minor and one custom minor
 - **Multiple plans.** Copy a plan, start a blank one, or open an example. You can change the number of years shown and turn summer quarters on or off.
 - **Drag and drop.** Move courses between quarters.
-- **Local by default, synced if you sign in.** Plans are saved in your browser's localStorage. Optionally create an account (email + password, via Supabase Auth) to sync your plans across devices. Use **Export plans** to back them up or move them to another device, and **Import file** to load them.
+- **Accounts.** Sign in with email/password or Google (via Supabase Auth) to save your plans — nothing persists in the browser until you do. Once signed in, plans sync across devices. Use **Export plans** to back them up or move them to another device, and **Import file** to load them.
 
 ## Using it
 

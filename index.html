@@ -165,7 +165,7 @@ footer{font-size:12px;color:var(--muted);max-width:80ch}
   <header class="top">
     <div>
       <h1>Husky Degree Planner</h1>
-      <div class="save" id="save">Plans are saved in this browser.</div>
+      <div class="save" id="save">Sign in to save — nothing is kept if you leave or refresh.</div>
     </div>
     <div class="hactions">
       <button class="btn small" id="exportBtn">Export plans</button>
@@ -184,7 +184,7 @@ footer{font-size:12px;color:var(--muted);max-width:80ch}
       <button class="btn" data-start="blank">Start a blank plan</button>
       <button class="btn" data-start="example">Open an example</button>
     </div>
-    <p class="note">Everything stays in your browser. Nothing is uploaded. Use Export to back up your plans or move them to another device.</p>
+    <p class="note">Sign in to save — nothing is kept if you close the tab or refresh without an account. Use Export to back up your plans or move them to another device.</p>
   </section>
   <div id="planner">
     <section class="proj" id="proj"></section>
@@ -337,10 +337,11 @@ let plans=[], cur=null, editing=false;
 const saveEl=document.getElementById("save");
 function load(){ try{ const d=JSON.parse(localStorage.getItem(STORE)||"null"); if(d&&Array.isArray(d.plans)){ plans=d.plans.map(normalizePlan).filter(Boolean); cur=d.current; } }catch(e){ saveEl.textContent="This browser is blocking storage. Export your plans to keep them."; } }
 function persist(){
+  if(!session){ try{ localStorage.removeItem(STORE); }catch(e){} saveEl.textContent="Sign in to save — nothing is kept if you leave or refresh."; return; }
   const time=new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"});
-  try{ localStorage.setItem(STORE,JSON.stringify({plans,current:cur})); saveEl.textContent=(session?"Synced as "+session.user.email:"Saved in this browser")+" · "+time; }
+  try{ localStorage.setItem(STORE,JSON.stringify({plans,current:cur})); saveEl.textContent="Synced as "+session.user.email+" · "+time; }
   catch(e){ saveEl.textContent="Could not save in this browser. Export your plans to keep them."; }
-  if(session) cloudPush();
+  cloudPush();
 }
 async function cloudPush(){
   const { error } = await supa.from("plans").upsert({user_id:session.user.id, data:{plans,current:cur}, updated_at:new Date().toISOString()});
@@ -669,9 +670,10 @@ function openAuth(){
   });
 }
 supa.auth.onAuthStateChange((_evt,s)=>{
-  const justIn=!session&&s;
+  const justIn=!session&&s, justOut=session&&!s;
   session=s; renderAccount();
   if(justIn) cloudPull();
+  if(justOut){ plans=[]; cur=null; try{ localStorage.removeItem(STORE); }catch(e){} render(); }
 });
 
 /* ---------- dialogs ---------- */
