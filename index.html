@@ -427,6 +427,7 @@ let session = null, guestDirty = false, nudged = false;
 const HANDOFF = "husky-degree-planner-oauth-handoff";
 const QN = ["Autumn","Winter","Spring","Summer"];
 const TAGS = ["C","W","A&H","SSc","NSc","DIV","CS Sci","CS Core","Capstone","CSE Elective","Ethics A","Ethics B","Minor"];
+const CS_TERMS = "<b>Fundamentals</b> are required intro courses. <b>CS Core</b> courses are upper-level courses you choose from. <b>Capstones</b> are team projects. <b>Electives</b> fill out the rest of the 33 credits.";
 const AREAS = ["A&H","SSc","NSc","DIV","C"], CSE_TAGS = ["CS Core","Capstone","CSE Elective"], CS_FILTERS = ["Fundamentals",...CSE_TAGS];
 const GROUPS = {gen:"General education", cs:"CS major", eth:"Ethics minor", minor:"Another minor"};
 const DEFAULT_REQS = [
@@ -761,7 +762,7 @@ function renderAudit(p){
     html+=`<div class="grp ${on?"":"off"}"><div class="grph"><h3>${GROUPS[gk]}</h3>
       <span style="display:flex;gap:8px;align-items:center">${on?`<span class="muted mono" style="font-size:12px">${met}/${reqs.length}</span>`:""}
       <input type="checkbox" class="switch" data-grp="${gk}" ${on?"checked":""} aria-label="Count ${GROUPS[gk]} toward graduation"></span></div>`;
-    if(gk==="cs"&&on) html+=`<p class="note" style="margin:0 0 4px"><b>Fundamentals</b> are required intro courses. <b>CS Core</b> courses are upper-level courses you choose from. <b>Capstones</b> are team projects. <b>Electives</b> fill out the rest of the 33 credits.</p>`;
+    if(gk==="cs"&&on) html+=`<p class="note" style="margin:0 0 4px">${CS_TERMS}</p>`;
     if(on) for(const [r,e] of res){
       const val=editing&&r.type!=="courses"?`<input type="number" class="needin mono" data-need="${r.id}" value="${r.need}" min="0" aria-label="Needed for ${esc(r.label)}">`:`${e.met?"✓ ":""}${fmt(e.have)} / ${e.need}`;
       const lab=editing&&gk==="minor"?`<input type="text" class="labelin" data-label="${r.id}" value="${esc(r.label)}" aria-label="Requirement name">`:esc(r.label);
@@ -900,6 +901,7 @@ function openFind(key,preset){
       ${csOn?`<div class="tagpick" role="group" aria-label="Filter by CS major list">${CS_FILTERS.map(chip).join("")}</div>`:""}
       <div class="tagpick" id="f-scope"></div>
     </div>
+    ${csOn?`<p class="note" style="margin:0">${CS_TERMS}</p>`:""}
     <p class="note" id="f-status" role="status" style="margin:0">Loading the UW course catalog…</p>
     <ul class="findres" id="f-res"></ul>
     <button class="btn ghost" id="f-manual" style="align-self:flex-start">Enter a course manually</button>`,
