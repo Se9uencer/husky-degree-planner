@@ -46,3 +46,13 @@ for (const [code, tag] of Object.entries({
   "CSE 331": null, "CSE 311": null, "CSE 414": null, "CSE 499": null, "E E 471": null, "MATH 126": null, "PHIL 118": null, "": null,
 })) assert.equal(cseTag(code), tag, code);
 console.log("cseTag: Allen School lists OK");
+
+const resolveShortTitle = new Function(src.slice(src.indexOf("/*MATCH-START*/"), src.indexOf("/*MATCH-END*/")) + ";return resolveShortTitle;")();
+const list = JSON.parse(readFileSync(new URL("./catalog.json", import.meta.url), "utf8")).courses.map(([code, title]) => ({ code, title }));
+for (const [short, code] of Object.entries({
+  "CALC ANYL GEOM III": "MATH 126", "MATRIX ALGEBRA": "MATH 208", "FOUNDATIONS COMP I": "CSE 311", "FOUNDATIONS COMP II": "CSE 312",
+  "SW DESIGN & IMPL": "CSE 331", "DATA STRUC & PRLLEL": "CSE 332", "HW SW INTERFACE": "CSE 351", "SYSTEMS PROGRAMMING": "CSE 333",
+  "NAT LANG PROCESSING": "CSE 447", "ARTIFICIAL INTEL": "CSE 473",
+  "MECHANICS": null, "INTERMEDIATE FRENCH": null, "TRANSFER COURSE": null, "AP ENGLISH": null,
+})) assert.equal(resolveShortTitle(list, short), code, short);
+console.log("resolveShortTitle: DARS abbreviations OK");

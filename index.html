@@ -385,6 +385,34 @@ function cseTag(code){
 }
 /*CSETAGS-END*/
 
+/*MATCH-START*/
+/* DARS shows planned and in-progress courses by an abbreviated title ("CALC ANYL GEOM III").
+   Each abbreviated word is a shortened word of the catalog title, in order; numerals must match exactly. */
+const TITLE_STOP = new Set(["OF","AND","THE","WITH","TO","IN","FOR","A","AN","ON","&","AT","BY"]);
+const titleWords = s => String(s).toUpperCase().replace(/[^A-Z0-9& ]+/g," ").split(" ").filter(w => w && !TITLE_STOP.has(w));
+function abbrevOf(t, w){
+  if(/^(I|II|III|IV|V|VI|\d+)$/.test(t) || /^(I|II|III|IV|V|VI|\d+)$/.test(w)) return t === w;
+  if(t[0] !== w[0] || t.length > w.length) return false;
+  const pool = [...w];
+  for(const ch of t){ const i = pool.indexOf(ch); if(i < 0) return false; pool.splice(i, 1); }
+  return true;
+}
+// Returns a course code, or null when nothing matches or two courses match equally well.
+function resolveShortTitle(list, short){
+  const t = titleWords(short); if(!t.length) return null;
+  let best = null, bestScore = -1, tie = false;
+  for(const c of list){
+    const w = c.w || (c.w = titleWords(c.title));
+    let j = 0, ok = true;
+    for(const tok of t){ while(j < w.length && !abbrevOf(tok, w[j])) j++; if(j++ >= w.length){ ok = false; break; } }
+    if(!ok || t.length / w.length < 0.6) continue;
+    const score = t.length / w.length * 10 + (+c.code.match(/\d{3}/)[0] < 500 ? 5 : 0) + (/^CSE /.test(c.code) ? 1 : 0);
+    if(score > bestScore){ best = c.code; bestScore = score; tie = false; } else if(score === bestScore) tie = true;
+  }
+  return tie ? null : best;
+}
+/*MATCH-END*/
+
 (() => {
 const STORE = "husky-degree-planner-v1";
 const supa = window.supabase.createClient("https://hazmlvijljrqqocbzbvv.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhhem1sdmlqbGpycXFvY2J6YnZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MjA0MTksImV4cCI6MjEwODE5NjQxOX0.znyYBJq9AVoki1lMCSr8DVCe10dps00baUvZwJv9-bE");
@@ -479,7 +507,7 @@ async function cloudPull(){
     if(!plans.find(p=>p.id===cur)) cur=plans[0]?.id||null;
   }
   guestDirty=false;
-  persist(); render();
+  persist(); render(); repairPlans();
 }
 
 /* ---------- plan helpers ---------- */
@@ -546,7 +574,7 @@ function moveCourse(p,cid,from,to){
   if(to==="prior") p.prior.push(c); else (p.quarters[to]=p.quarters[to]||[]).push(c);
 }
 function addPlan(np){
-  plans.push(np); cur=np.id; persist(); render();
+  plans.push(np); cur=np.id; persist(); render(); repairPlans();
   if(!session&&!nudged){ nudged=true; setTimeout(()=>{ if(!session&&!document.querySelector(".dlg")) openAuth(true); },700); }
 }
 
@@ -816,6 +844,20 @@ function searchCatalog(cat,q,areas){
 }
 const myplanUrl=code=>"https://myplan.washington.edu/course/#/courses/"+encodeURIComponent(code.replace(/ (?=\d{3}[A-Z]?$)/,""));
 function nextQuarterKey(p){ const ks=orderedKeys(p), i=ks.indexOf(nowKey(p)); return ks[i+1]||ks[0]; }
+const titleOnly=c=>!/\d{3}/.test(c.code||"")&&c.code!=="TRANSFER CAP";
+// Give DARS courses that arrived as abbreviated titles their real course code, so code-based requirements and 400-level counts see them.
+function repairPlans(){
+  if(!plans.some(p=>allCourses(p).some(titleOnly))) return;
+  loadCatalog().then(cat=>{
+    let n=0;
+    for(const p of plans) for(const c of allCourses(p).filter(titleOnly)){
+      const code=resolveShortTitle(cat.list,c.code); if(!code) continue;
+      if(!c.title) c.title=cat.byCode.get(code.replace(/ /g,""))?.title||c.code;
+      c.code=code; n++;
+    }
+    if(n){ persist(); render(); }
+  },()=>{});
+}
 function openFind(key){
   const p=plan(); if(!p) return;
   const dest=key||nextQuarterKey(p), areas=["A&H","SSc","NSc","DIV","C"], on=new Set();
