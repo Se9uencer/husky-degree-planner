@@ -75,7 +75,7 @@ a{color:var(--accent);text-underline-offset:2px}
 .btn.ghost:hover{background:var(--sunk)}
 .btn.small{min-height:30px;padding:0 10px;font-size:12.5px;border-radius:8px}
 label.lbl{font-size:12px;color:var(--muted);font-weight:500;display:block;margin-bottom:6px}
-input[type=text],input[type=number],input[type=password],input[type=email],select,textarea{background:var(--raised);border:1px solid var(--line);border-radius:10px;padding:7px 10px;min-height:36px;min-width:0;
+input[type=text],input[type=number],input[type=password],input[type=email],input[type=search],select,textarea{background:var(--raised);border:1px solid var(--line);border-radius:10px;padding:7px 10px;min-height:36px;min-width:0;
   transition:border-color .15s var(--ease),box-shadow .15s var(--ease)}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 
@@ -95,7 +95,7 @@ h1{font-family:var(--f-display);font-weight:400;font-size:28px;line-height:1;let
 .tab{border:0;background:none;padding:10px 0 11px;margin-bottom:-1px;font-weight:500;font-size:14px;color:var(--muted);border-bottom:2px solid transparent;transition:color .15s,border-color .15s}
 .tab:hover{color:var(--ink)}
 .tab[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent)}
-.newmenu{position:relative;margin-left:auto;padding:6px 0}
+.newmenu{position:relative;margin-left:auto;padding:6px 0;display:flex;gap:6px}
 .menu{position:absolute;top:calc(100% + 4px);right:0;background:var(--raised);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-lg);padding:6px;z-index:20;min-width:230px;display:flex;flex-direction:column;animation:pop .16s var(--ease);transform-origin:top right}
 .menu button{border:0;background:none;text-align:left;padding:9px 11px;border-radius:9px;transition:background-color .12s}
 .menu button:hover{background:var(--accent-soft)}
@@ -202,6 +202,17 @@ aside{position:sticky;top:84px;display:flex;flex-direction:column;gap:12px;max-h
 .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}
 .row > div{display:flex;flex-direction:column;min-width:0}
 .tagpick{display:flex;flex-wrap:wrap;gap:6px}
+.dlg.find{height:100%}
+.findq{width:100%;min-height:44px;font-size:15px}
+.findres{list-style:none;margin:0 -4px;padding:0 4px;flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;border-top:1px solid var(--line)}
+.fr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}
+.fr-main{min-width:0;display:flex;flex-direction:column;gap:3px}
+.fr-top{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}
+.fr .code{font-family:var(--f-mono);font-weight:500;font-size:13px}
+.fr-cr{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.fr-t{font-size:13.5px;text-wrap:pretty}
+.fr-meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px}
+.inplan{font-size:11.5px;font-weight:600;color:var(--ok)}
 .tagpick button{border:1px solid var(--line);background:var(--raised);border-radius:8px;padding:5px 10px;font-size:12.5px;transition:background-color .12s,border-color .12s,color .12s,transform .1s}
 .tagpick button:hover{border-color:var(--accent-line)}
 .tagpick button:active{transform:scale(.97)}
@@ -231,6 +242,7 @@ footer{font-size:12px;color:var(--muted);max-width:80ch;padding-top:18px;border-
 @media (max-width:700px){
   .ov{align-items:flex-end;justify-content:center;padding:0}
   .dlg{width:100%;max-height:90dvh;border-radius:22px 22px 0 0;border-bottom:0;padding:12px 18px max(20px, env(safe-area-inset-bottom, 0px));animation-name:sheet-up}
+  .dlg.find{height:90dvh}
   .dlg::before{content:"";align-self:center;flex:none;width:38px;height:4px;border-radius:2px;background:var(--line-strong);margin-bottom:6px}
 }
 @media (max-width:440px){.qgrid{grid-template-columns:minmax(0,1fr)!important} .q{border-right:0;min-height:0} h1{font-size:24px}}
@@ -557,8 +569,9 @@ function renderTabs(){
   const el=document.getElementById("tabs");
   el.hidden=!plans.length;
   el.innerHTML=plans.map(p=>`<button class="tab" role="tab" aria-selected="${p.id===cur}" data-tab="${p.id}">${esc(p.name)}</button>`).join("")+
-   `<div class="newmenu"><button class="btn small" id="newbtn" aria-haspopup="true">+ New plan</button></div>`;
+   `<div class="newmenu"><button class="btn small" id="findbtn">Find courses</button><button class="btn small" id="newbtn" aria-haspopup="true">+ New plan</button></div>`;
   el.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{cur=b.dataset.tab;clearConfirm();persist();render()});
+  const fb=document.getElementById("findbtn"); if(fb) fb.onclick=openFind;
   const nb=document.getElementById("newbtn"); if(!nb) return;
   nb.onclick=e=>{
     e.stopPropagation();
@@ -763,6 +776,60 @@ supa.auth.onAuthStateChange((_evt,s)=>{
   if(justOut){ plans=[]; cur=null; try{ localStorage.removeItem(STORE); }catch(e){} render(); }
 });
 
+/* ---------- course catalog ---------- */
+let catalogP=null;
+function loadCatalog(){
+  return catalogP ||= fetch("catalog.json").then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); }).then(d=>{
+    const list=d.courses.map(([code,title,cr,gen])=>{
+      const m=cr.match(/(\d+)(?:-(\d+))?/);
+      return {code,title,cr,gen:gen?gen.split(" "):[],credits:m?+(m[2]||m[1]):null,tags:(gen||"").split(" ").filter(t=>TAGS.includes(t)),
+        key:code.replace(/ /g,""),hay:(code+" "+code.replace(/ /g,"")+" "+title).toUpperCase()};
+    });
+    return {built:d.built,list,byCode:new Map(list.map(c=>[c.key,c]))};
+  }).catch(e=>{ catalogP=null; throw e; });
+}
+function searchCatalog(cat,q,areas){
+  const words=norm(q).split(" ").filter(Boolean), compact=norm(q).replace(/ /g,"");
+  const hits=cat.list.filter(c=>areas.every(a=>c.gen.includes(a))&&words.every(w=>c.hay.includes(w)));
+  if(!compact) return hits;
+  const rank=c=>c.key===compact?3:c.key.startsWith(compact)?2:c.title.toUpperCase().startsWith(norm(q))?1:0;
+  return hits.sort((a,b)=>rank(b)-rank(a));
+}
+const myplanUrl=code=>"https://myplan.washington.edu/course/#/courses/"+encodeURIComponent(code.replace(/ (?=\d{3}[A-Z]?$)/,""));
+function nextQuarterKey(p){ const ks=orderedKeys(p), i=ks.indexOf(nowKey(p)); return ks[i+1]||ks[0]; }
+function openFind(){
+  const p=plan(); if(!p) return;
+  const areas=["A&H","SSc","NSc","DIV","C"], on=new Set();
+  dialog(`<h3 id="dlgt">Find courses</h3>
+    <input type="search" id="f-q" class="findq" placeholder="Search by code or title, like CSE 311 or ethics" aria-label="Search UW courses" autocomplete="off">
+    <div class="tagpick" role="group" aria-label="Filter by gen-ed area">${areas.map(a=>`<button type="button" aria-pressed="false" data-area="${esc(a)}">${esc(a)}</button>`).join("")}</div>
+    <p class="note" id="f-status" role="status" style="margin:0">Loading the UW course catalog…</p>
+    <ul class="findres" id="f-res"></ul>`,
+  (ov,close)=>{
+    ov.querySelector(".dlg").classList.add("find");
+    const q=document.getElementById("f-q"), res=document.getElementById("f-res"), status=document.getElementById("f-status");
+    let cat=null, shown=[];
+    const inPlan=new Set(allCourses(p).map(c=>norm(c.code).replace(/ /g,"")));
+    const draw=()=>{
+      if(!cat) return;
+      if(!q.value.trim()&&!on.size){ res.innerHTML=""; status.textContent=`Search ${cat.list.length.toLocaleString()} UW courses. Pick an area to browse by gen-ed requirement.`; return; }
+      const hits=searchCatalog(cat,q.value,[...on]); shown=hits.slice(0,60);
+      status.textContent=!hits.length?"No courses match. Try a department code like PHIL or fewer words.":hits.length>shown.length?`Showing ${shown.length} of ${hits.length.toLocaleString()}. Type more to narrow it down.`:`${hits.length} course${hits.length>1?"s":""}`;
+      res.innerHTML=shown.map((c,i)=>`<li class="fr">
+        <div class="fr-main"><div class="fr-top"><span class="code">${esc(c.code)}</span><span class="fr-cr">${esc(c.cr)} cr</span>${inPlan.has(c.key)?`<span class="inplan">In plan</span>`:""}</div>
+          <span class="fr-t">${esc(c.title)}</span>
+          <div class="fr-meta">${c.gen.length?`<span class="tags">${c.gen.map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</span>`:""}<a href="${myplanUrl(c.code)}" target="_blank" rel="noopener">MyPlan</a></div></div>
+        <button class="btn small" data-pick="${i}" aria-label="Add ${esc(c.code)} to plan">Add</button></li>`).join("");
+      res.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{ const c=shown[+b.dataset.pick]; close();
+        openEditor(null,nextQuarterKey(p),{code:c.code,title:c.title,tags:[...c.tags],...(c.credits!==null?{credits:c.credits}:{})}); });
+    };
+    q.addEventListener("input",draw);
+    ov.querySelectorAll("[data-area]").forEach(b=>b.onclick=()=>{ const a=b.dataset.area; on.has(a)?on.delete(a):on.add(a); b.setAttribute("aria-pressed",on.has(a)); draw(); });
+    loadCatalog().then(c=>{ cat=c; draw(); },()=>{ status.textContent="Couldn't load the course catalog. Check your connection and try again."; });
+    setTimeout(()=>q.focus(),0);
+  });
+}
+
 /* ---------- dialogs ---------- */
 function dialog(html,onMount){
   const ov=document.getElementById("overlay");
@@ -773,9 +840,9 @@ function dialog(html,onMount){
   document.getElementById("ovbg").onclick=e=>{if(e.target.id==="ovbg")close()};
   onMount(ov,close);
 }
-function openEditor(cid,key){
+function openEditor(cid,key,prefill){
   const p=plan(), list=listOf(p,key), existing=cid?list.find(c=>c.id===cid):null;
-  const c=existing?clone(existing):{id:uid(),code:"",title:"",credits:5,tags:[],status:key==="prior"?"done":"plan"};
+  const c=existing?clone(existing):{id:uid(),code:"",title:"",credits:5,tags:[],status:key==="prior"?"done":"plan",...prefill};
   const keys=["prior",...allKeys(p).filter(k=>p.showSummer||!k.endsWith("-3"))];
   dialog(`<h3 id="dlgt">${existing?"Edit course":"Add course"} <span class="muted" style="font-size:14px;font-weight:500">· ${qLabel(p,key)}</span></h3>
     <div class="row"><div><label class="lbl" for="e-code">Course code</label><input type="text" id="e-code" value="${esc(c.code)}" placeholder="CSE 311"></div>
@@ -809,7 +876,15 @@ function openEditor(cid,key){
       if(b.classList.contains("armed")){ const l=listOf(p,key); l.splice(l.indexOf(existing),1); if(key!=="prior"&&!l.length) delete p.quarters[key]; persist(); close(); render(); }
       else { b.classList.add("armed"); b.textContent="Click again to delete"; }
     };
-    setTimeout(()=>document.getElementById("e-code").focus(),0);
+    const codeIn=document.getElementById("e-code");
+    codeIn.addEventListener("change",async()=>{
+      const hit=await loadCatalog().then(cat=>cat.byCode.get(norm(codeIn.value).replace(/ /g,"")),()=>null);
+      if(!hit) return;
+      const t=document.getElementById("e-title"); if(!t.value.trim()) t.value=hit.title;
+      if(hit.credits!==null) document.getElementById("e-cr").value=hit.credits;
+      hit.tags.forEach(tag=>ov.querySelector(`[data-t="${CSS.escape(tag)}"]`)?.setAttribute("aria-pressed","true"));
+    });
+    setTimeout(()=>(prefill?document.getElementById("e-q"):codeIn).focus(),0);
   });
 }
 function openDars(){
