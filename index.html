@@ -510,7 +510,7 @@ function normalizePlan(p){
   p.reqs = clone(DEFAULT_REQS).map(r=>old[r.id]&&typeof old[r.id].need==="number"?{...r,need:old[r.id].need,label:r.group==="minor"&&old[r.id].label?old[r.id].label:r.label}:r);
   const fixTags = c => { c.id=c.id||uid(); c.tags=(c.tags||[]).map(t=>t==="Business"?"Minor":t==="Core"?"CS Core":t); c.status=["done","now","plan"].includes(c.status)?c.status:"plan"; return c; };
   p.prior.forEach(fixTags); Object.values(p.quarters).forEach(l=>l.forEach(fixTags));
-  if((p.schema||1)<3){ p.prior.forEach(addCseTag); Object.values(p.quarters).forEach(l=>l.forEach(addCseTag)); } // plans made before auto-tagging
+  if((p.schema||1)<3){ p.prior.forEach(addAutoTags); Object.values(p.quarters).forEach(l=>l.forEach(addAutoTags)); } // plans made before auto-tagging
   if(p.target===undefined) p.target=(p.years-1)+"-2";
   p.schema=3; return p;
 }
