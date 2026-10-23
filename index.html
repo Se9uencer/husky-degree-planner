@@ -392,6 +392,22 @@ function cseTag(code){
 }
 /*CSETAGS-END*/
 
+/*ETHICSTAGS-START*/
+/* UW Ethics minor lists (phil.washington.edu/ethics-minor-courses). Joint/cross-listed codes are each included separately.
+   ETHICS 495 (the capstone) isn't on either list; it's matched by course code in the "eth495" requirement instead. */
+const ETHICS_LISTS = Object.fromEntries(Object.entries({
+  "Ethics A": "B H:402,404,440,474;ENVIR:243,416,417;ETHICS:207,291;GWSS:206;PHIL:102,110,114,118,206,207,234,240,241,242,291,307,314,338,345,346,406,407,408,409,410,411,412,413,414,415,416,417,440,441,442,459;POL S:212,217",
+  "Ethics B": "AAS:380,385;AES:150,211,487;AIS:461;ANTH:150,207,211,215,302,308,322,323,345,371,376,419,459,474,487,497;ARCHY:467;B H:201,311,339,409,420,421,444,456,488;CEP:460,461;CHID:230,260,332,370,433,434,437,487,488;CHSTU:405;COM:302,305,375,468;CSS:211;DIS ST:230,332,433,434,437;ECON:235,435,436,446,447,448;EDLPS:302;EDPSY:420;EDUC:340,451;ENGL:259,265,270,478;ENV H:205,220,472;ENVIR:103,211,235,360,362,371,379,384,431,439,459,460;ESRM:150,235,362,371,431,458,460,470;FISH:480;GEOG:123,180,208,230,270,272,370,425,467,472,478;GERMAN:285,385;G H:101,220,305,415,419,456;GWSS:244,305,310,333,345,355,391,447;HCDE:300,419;HSERV:415;HSTAA:231;HSTCMP:446;INFO:351,464;JEW ST:130,339;JSIS:123,310;JSIS A:426,485;JSIS B:103,180,333,345,350,446;JSIS D:450;LAW:305;LSJ:230,320,321,327,331,332,375,377,425,433,434,437,444,467,476;MGMT:200,320;N SCI:402;NEAR E:328;NURS:410;POL S:201,273,303,305,311,317,327,368,383,384,422,464,465;PSYCH:208,431,439,456;RELIG:101,320;SCAND:350;SMEA:103,430,480,485;SOC:211,225,372,374,375,379,450,476;SOC WF:101,120,404;SPH:481;UCONJ:442",
+}).map(([tag, s]) => [tag, new Set(s.split(";").flatMap(g => { const [d, ns] = g.split(":"); return ns.split(",").map(n => d + " " + n); }))]));
+function ethicsTag(code){
+  const m = String(code||"").toUpperCase().replace(/\s+/g," ").trim().match(/^([A-Z][A-Z& ]*?) ?(\d{3})/);
+  if(!m) return null;
+  const c = m[1].trim()+" "+m[2];
+  for(const tag of ["Ethics A","Ethics B"]) if(ETHICS_LISTS[tag].has(c)) return tag;
+  return null;
+}
+/*ETHICSTAGS-END*/
+
 /*MATCH-START*/
 /* DARS shows planned and in-progress courses by an abbreviated title ("CALC ANYL GEOM III").
    Each abbreviated word is a shortened word of the catalog title, in order; numerals must match exactly. */
@@ -428,7 +444,8 @@ const HANDOFF = "husky-degree-planner-oauth-handoff";
 const QN = ["Autumn","Winter","Spring","Summer"];
 const TAGS = ["C","W","A&H","SSc","NSc","DIV","CS Sci","CS Core","Capstone","CSE Elective","Ethics A","Ethics B","Minor"];
 const CS_TERMS = "<b>Fundamentals</b> are required intro courses. <b>CS Core</b> courses are upper-level courses you choose from. <b>Capstones</b> are team projects. <b>Electives</b> fill out the rest of the 33 credits.";
-const AREAS = ["A&H","SSc","NSc","DIV","C"], CSE_TAGS = ["CS Core","Capstone","CSE Elective"], CS_FILTERS = ["Fundamentals",...CSE_TAGS];
+const AREAS = ["A&H","SSc","NSc","DIV","C"], CSE_TAGS = ["CS Core","Capstone","CSE Elective"], CS_FILTERS = ["Fundamentals",...CSE_TAGS], ETH_TAGS = ["Ethics A","Ethics B"];
+const ETH_TERMS = "<b>List A</b> courses are normative-thinking and conceptual-analysis courses. <b>List B</b> courses are values-laden issue courses.";
 const GROUPS = {gen:"General education", cs:"CS major", eth:"Ethics minor", minor:"Another minor"};
 const DEFAULT_REQS = [
   {id:"total",group:"gen",label:"Total credits",type:"total",need:180},
@@ -461,8 +478,12 @@ const level = code => { const m = norm(code).match(/\b(\d{3})\b/); return m?+m[1
 const esc = s => String(s??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
 const fmt = n => Number.isInteger(n)?String(n):(+n).toFixed(1);
 const sumCr = list => list.reduce((s,c)=>s+(+c.credits||0),0);
-// Adds the Allen School core/capstone/elective tag unless the course already carries one.
-const addCseTag = c => { const t=cseTag(c.code); if(t&&!(c.tags||[]).some(x=>CSE_TAGS.includes(x))) (c.tags=c.tags||[]).push(t); return c; };
+// Adds the Allen School core/capstone/elective tag and the Ethics minor list tag, unless the course already carries one.
+const addAutoTags = c => {
+  const cs=cseTag(c.code); if(cs&&!(c.tags||[]).some(x=>CSE_TAGS.includes(x))) (c.tags=c.tags||[]).push(cs);
+  const eth=ethicsTag(c.code); if(eth&&!(c.tags||[]).some(x=>ETH_TAGS.includes(x))) (c.tags=c.tags||[]).push(eth);
+  return c;
+};
 
 function basePlan(name){
   const y=new Date().getFullYear(), m=new Date().getMonth();
@@ -597,7 +618,7 @@ function planFromDars(parsed, startYear){
   let maxYear=3;
   for(const c of parsed.courses){
     const status = c.grade==="IP" ? "now" : c.grade==="PL" ? "plan" : "done";
-    const course = addCseTag(C(c.code,c.credits,c.tags,status,c.title));
+    const course = addAutoTags(C(c.code,c.credits,c.tags,status,c.title));
     const ay = 2000+c.yy-(c.q===0?0:1);          // academic year that quarter belongs to
     const y = ay-startYear;
     if(y<0 || /^(AP|IB)$/.test(c.grade)){ p.prior.push(course); continue; }
@@ -670,6 +691,10 @@ function renderProj(p){
       <div class="big ${g?"gold":""}">${g?qLabel(p,g):"Requirements not met yet"}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center">${pill}${years?`<span class="pill neutral">${years%1?`about ${Math.ceil(years)}`:years} academic years at UW</span>`:""}</div>
       <p class="note" style="margin:10px 0 0">${pace}</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <button class="btn small" id="pautofill">Auto-fill to graduation</button>
+        ${all.some(c=>c.auto)?`<button class="btn small ghost" id="pclearfill">Clear auto-filled</button>`:""}
+      </div>
     </div>
     <div>
       <div class="settings">
@@ -703,14 +728,18 @@ function renderProj(p){
   };
   document.getElementById("psum").onchange=e=>{p.showSummer=e.target.checked;fixTarget(p);persist();render()};
   document.getElementById("pdel").onclick=()=>showConfirm(`Delete “${p.name}”? Export first if you want a backup.`,"Delete plan",()=>{plans=plans.filter(x=>x!==p);cur=plans[0]?.id||null;persist();render()});
+  document.getElementById("pautofill").onclick=()=>openAutoFill(p);
+  const cf=document.getElementById("pclearfill");
+  if(cf) cf.onclick=()=>showConfirm("Remove every auto-filled course from this plan?","Clear auto-filled",()=>{clearAutoFill(p);persist();render()});
 }
 
 function courseHTML(c,key){
   const label=c.status==="done"?"Completed":c.status==="now"?"In progress":"Planned";
-  return `<button class="course ${c.status}" draggable="true" data-c="${c.id}" data-k="${key}" aria-label="${esc((c.code||"Untitled")+", "+fmt(+c.credits||0)+" credits, "+label)}">
+  const tags=[...(c.auto?["Auto"]:[]),...(c.tags||[])];
+  return `<button class="course ${c.status}" draggable="true" data-c="${c.id}" data-k="${key}" aria-label="${esc((c.code||"Untitled")+", "+fmt(+c.credits||0)+" credits, "+label+(c.auto?", auto-filled":""))}">
     <span class="r1"><span class="code">${esc(c.code||"Untitled")}</span><span class="cr">${fmt(+c.credits||0)} cr</span></span>
     ${c.title?`<span class="ttl">${esc(c.title)}</span>`:""}
-    ${(c.tags||[]).length?`<span class="tags">${c.tags.map(t=>`<span class="tag${CSE_TAGS.includes(t)?" cse":""}">${esc(t)}</span>`).join("")}</span>`:""}
+    ${tags.length?`<span class="tags">${tags.map(t=>`<span class="tag${CSE_TAGS.includes(t)?" cse":""}">${esc(t)}</span>`).join("")}</span>`:""}
   </button>`;
 }
 function nowKey(p){
@@ -846,7 +875,7 @@ function loadCatalog(){
     const list=d.courses.map(([code,title,cr,gen])=>{
       const m=cr.match(/(\d+)(?:-(\d+))?/);
       return {code,title,cr,gen:gen?gen.split(" "):[],credits:m?+(m[2]||m[1]):null,tags:(gen||"").split(" ").filter(t=>TAGS.includes(t)),
-        cse:cseTag(code),key:code.replace(/ /g,""),hay:(code+" "+code.replace(/ /g,"")+" "+title).toUpperCase()};
+        cse:cseTag(code),eth:ethicsTag(code),key:code.replace(/ /g,""),hay:(code+" "+code.replace(/ /g,"")+" "+title).toUpperCase()};
     });
     return {built:d.built,list,byCode:new Map(list.map(c=>[c.key,c]))};
   }).catch(e=>{ catalogP=null; throw e; });
@@ -870,12 +899,12 @@ function repairPlans(){
     for(const p of plans) for(const c of allCourses(p).filter(titleOnly)){
       const code=resolveShortTitle(cat.list,c.code); if(!code) continue;
       if(!c.title) c.title=cat.byCode.get(code.replace(/ /g,""))?.title||c.code;
-      c.code=code; addCseTag(c); n++;
+      c.code=code; addAutoTags(c); n++;
     }
     if(n){ persist(); render(); }
   },()=>{});
 }
-// Which catalog filters show the courses that count toward a requirement, or null when the catalog can't tell (W, CS Sci, ethics lists).
+// Which catalog filters show the courses that count toward a requirement, or null when the catalog can't tell (W, CS Sci).
 const reqKeys = r => new Set((r?.options||[]).flat(2).map(c=>norm(c).replace(/ /g,"")));
 function reqFilter(r){
   if(!r) return null;
@@ -883,15 +912,106 @@ function reqFilter(r){
   if(r.type==="courses"){ const codes=reqKeys(r); return {label:r.label,scope:{label:r.label,test:c=>codes.has(c.key)}}; }
   const t=r.tags||[];
   if(!t.length||r.all) return null;
-  if(t.every(x=>CSE_TAGS.includes(x))||(t.length===1&&AREAS.includes(t[0]))) return {label:r.label,on:t};
+  if(t.every(x=>CSE_TAGS.includes(x))||t.every(x=>ETH_TAGS.includes(x))||(t.length===1&&AREAS.includes(t[0]))) return {label:r.label,on:t};
   if(t.every(x=>AREAS.includes(x))) return {label:r.label,scope:{label:t.join(" / "),test:c=>c.gen.some(g=>t.includes(g))}};
   return null;
 }
+
+/* ---------- auto-fill ---------- */
+// Advances the best-matching option path for a "courses" requirement (math, fundamentals, a named capstone) by one course.
+function nextChainCandidate(r,courses,cat){
+  const opts=(r.options||[r.sets]).map(sets=>sets.map(set=>({set,done:!!courses.find(c=>set.map(norm).includes(norm(c.code)))})));
+  const best=opts.map(items=>({items,have:items.filter(i=>i.done).length})).reduce((a,b)=>b.have/b.items.length>a.have/a.items.length?b:a);
+  if(best.have===best.items.length) return null;
+  const code=best.items.find(i=>!i.done).set[0];
+  const hit=cat?.byCode.get(code.replace(/ /g,""));
+  return {code,title:hit?.title||"",credits:hit?.credits??5};
+}
+// A real catalog course for a tag/area requirement, via the same filter "Find courses" uses; null when the catalog can't tell (W, CS Sci, Minor) or nothing's left.
+function pickRealCandidate(r,cat,usedCodes,fund){
+  const filt=reqFilter(r); if(!filt) return null;
+  const testTag=t=>t==="Fundamentals"?c=>fund.has(c.key):CSE_TAGS.includes(t)?c=>c.cse===t:ETH_TAGS.includes(t)?c=>c.eth===t:c=>c.gen.includes(t);
+  const pool=(filt.on
+    ? cat.list.filter(c=>filt.on.some(t=>testTag(t)(c)))
+    : cat.list.filter(c=>filt.scope.test(c))
+  ).filter(c=>!usedCodes.has(c.key)&&c.credits!==0);
+  if(!pool.length) return null;
+  const minLevel=r.need400?400:(r.need300||r.upperOnly)?300:0; // ponytail: always prefers upper-level once any 300/400 condition exists, not just until it's satisfied — simpler than tracking the running count, and extra upper-level credit never hurts
+  pool.sort((a,b)=>{const au=level(a.code)>=minLevel,bu=level(b.code)>=minLevel;return au!==bu?(au?-1:1):level(a.code)-level(b.code)});
+  const c=pool[0];
+  return {code:c.code,title:c.title,credits:c.credits??5,tags:c.tags}; // carry the course's own gen-ed tags forward; CS/Ethics tags are re-derived from the code below
+}
+const placeholderCandidate = r => ({code:"TBD",title:`${r.label} — placeholder, pick a real course`,credits:5,tags:(r.tags||[]).slice(0,1)});
+// Fills empty room in each quarter from the next open one through the target with courses for whatever's still unmet, reusing the audit's own evalReq so the fill always matches what it then shows as met.
+async function autoFillPlan(p,{real,min,max}){
+  const cat=await loadCatalog().catch(()=>null);
+  const fund=reqKeys(p.reqs.find(r=>r.id==="fund"));
+  const reqs=activeReqs(p).filter(r=>!r.all&&r.type!=="total");
+  const usedCodes=new Set(allCourses(p).map(c=>norm(c.code).replace(/ /g,"")).filter(Boolean));
+  const startIdx=keyIndex(p,nextQuarterKey(p)), tIdx=keyIndex(p,p.target);
+  const keys=orderedKeys(p).filter(k=>keyIndex(p,k)>=startIdx&&keyIndex(p,k)<=tIdx);
+  const allMet=()=>reqs.every(r=>evalReq(r,coursesUpTo(p,p.target)).met);
+  let added=0;
+  for(const k of keys){
+    if(allMet()) break;
+    let credits=sumCr(p.quarters[k]||[]);
+    while(!allMet()&&credits<max){
+      const courses=coursesUpTo(p,p.target);
+      let cand=null;
+      for(const r of reqs){
+        if(evalReq(r,courses).met) continue;
+        cand=r.type==="courses"?nextChainCandidate(r,courses,cat):
+          (real&&cat&&pickRealCandidate(r,cat,usedCodes,fund))||placeholderCandidate(r);
+        if(cand) break;
+      }
+      if(!cand) break;
+      if(credits+cand.credits>max&&credits>=min) break;
+      const tags=new Set(cand.tags||[]);
+      if(cand.code&&cand.code!=="TBD"){ const cs=cseTag(cand.code); if(cs) tags.add(cs); const et=ethicsTag(cand.code); if(et) tags.add(et); }
+      const course=C(cand.code,cand.credits,[...tags],"plan",cand.title); course.auto=true;
+      (p.quarters[k]=p.quarters[k]||[]).push(course);
+      if(cand.code&&cand.code!=="TBD") usedCodes.add(norm(cand.code).replace(/ /g,""));
+      credits+=cand.credits; added++;
+    }
+  }
+  return added;
+}
+function clearAutoFill(p){
+  p.prior=p.prior.filter(c=>!c.auto);
+  for(const k of Object.keys(p.quarters)){ p.quarters[k]=p.quarters[k].filter(c=>!c.auto); if(!p.quarters[k].length) delete p.quarters[k]; }
+}
+function openAutoFill(p){
+  dialog(`<h3 id="dlgt">Auto-fill to graduation</h3>
+    <p class="note" style="margin:0">Fills empty room in each quarter from ${esc(qLabel(p,nextQuarterKey(p)))} through your target graduation with courses for whatever requirements aren't met yet. There's no prerequisite or quarter-offered data behind this — it's a draft to edit, not a validated schedule.</p>
+    <div class="row"><div><label class="lbl" for="af-mode">Course picks</label><select id="af-mode">
+      <option value="real">Real courses from the catalog</option>
+      <option value="placeholder">Placeholder slots</option>
+    </select></div></div>
+    <div class="row">
+      <div><label class="lbl" for="af-min">Min credits / quarter</label><input type="number" id="af-min" value="12" min="0" step="1"></div>
+      <div><label class="lbl" for="af-max">Max credits / quarter</label><input type="number" id="af-max" value="18" min="1" step="1"></div>
+    </div>
+    <div class="dlgfoot"><span></span><span style="display:flex;gap:8px"><button class="btn" id="af-cancel">Cancel</button><button class="btn primary" id="af-go">Fill</button></span></div>`,
+  (ov,close)=>{
+    document.getElementById("af-cancel").onclick=close;
+    document.getElementById("af-go").onclick=async()=>{
+      const btn=document.getElementById("af-go"); btn.disabled=true; btn.textContent="Filling…";
+      const real=document.getElementById("af-mode").value==="real";
+      const min=Math.max(0,parseFloat(document.getElementById("af-min").value)||0);
+      const max=Math.max(min||1,parseFloat(document.getElementById("af-max").value)||18);
+      const added=await autoFillPlan(p,{real,min,max});
+      persist(); close(); render();
+      toast(added?`Added ${added} course${added===1?"":"s"} toward graduation. Review and edit as needed.`:"Nothing to add — requirements already check out by your target, or there's no room left before it.");
+    };
+    setTimeout(()=>document.getElementById("af-mode").focus(),0);
+  });
+}
+
 function openFind(key,preset){
   const p=plan(); if(!p) return;
   const dest=key||nextQuarterKey(p), on=new Set(preset?.on||[]);
-  const fund=reqKeys(p.reqs.find(r=>r.id==="fund")), csOn=p.groupsOn.cs||CS_FILTERS.some(t=>on.has(t));
-  const csTest=t=>t==="Fundamentals"?c=>fund.has(c.key):c=>c.cse===t;
+  const fund=reqKeys(p.reqs.find(r=>r.id==="fund")), csOn=p.groupsOn.cs||CS_FILTERS.some(t=>on.has(t)), ethOn=p.groupsOn.eth||ETH_TAGS.some(t=>on.has(t));
+  const filterTest=t=>t==="Fundamentals"?c=>fund.has(c.key):CSE_TAGS.includes(t)?c=>c.cse===t:c=>c.eth===t;
   let scope=preset?.scope||null;
   const chip=a=>`<button type="button" aria-pressed="${on.has(a)}" data-area="${esc(a)}">${esc(a)}</button>`;
   dialog(`<h3 id="dlgt">${key?"Add to "+esc(qLabel(p,key)):preset?esc(preset.label):"Find courses"}</h3>
@@ -899,9 +1019,11 @@ function openFind(key,preset){
     <div class="findchips">
       <div class="tagpick" role="group" aria-label="Filter by gen-ed area">${AREAS.map(chip).join("")}</div>
       ${csOn?`<div class="tagpick" role="group" aria-label="Filter by CS major list">${CS_FILTERS.map(chip).join("")}</div>`:""}
+      ${ethOn?`<div class="tagpick" role="group" aria-label="Filter by Ethics minor list">${ETH_TAGS.map(chip).join("")}</div>`:""}
       <div class="tagpick" id="f-scope"></div>
     </div>
     ${csOn?`<p class="note" style="margin:0">${CS_TERMS}</p>`:""}
+    ${ethOn?`<p class="note" style="margin:0">${ETH_TERMS}</p>`:""}
     <p class="note" id="f-status" role="status" style="margin:0">Loading the UW course catalog…</p>
     <ul class="findres" id="f-res"></ul>
     <button class="btn ghost" id="f-manual" style="align-self:flex-start">Enter a course manually</button>`,
@@ -916,21 +1038,21 @@ function openFind(key,preset){
       sc.innerHTML=scope?`<button type="button" class="scope" aria-pressed="true" aria-label="Stop limiting to ${esc(scope.label)}">${esc(scope.label)} <span aria-hidden="true">×</span></button>`:"";
       if(scope) sc.firstElementChild.onclick=()=>{ scope=null; draw(); };
       if(!q.value.trim()&&!on.size&&!scope){ res.innerHTML=""; status.textContent=`Search ${cat.list.length.toLocaleString()} UW courses. Pick an area or a CS list to browse.`; return; }
-      const hits=searchCatalog(cat,q.value,AREAS.filter(a=>on.has(a)),CS_FILTERS.filter(t=>on.has(t)).map(csTest),scope); shown=hits.slice(0,60);
+      const hits=searchCatalog(cat,q.value,AREAS.filter(a=>on.has(a)),[...CS_FILTERS,...ETH_TAGS].filter(t=>on.has(t)).map(filterTest),scope); shown=hits.slice(0,60);
       status.textContent=!hits.length?"No courses match. Try a department code like PHIL or fewer words.":hits.length>shown.length?`Showing ${shown.length} of ${hits.length.toLocaleString()}. Type more to narrow it down.`:`${hits.length} course${hits.length>1?"s":""}`;
       res.innerHTML=shown.map((c,i)=>`<li class="fr">
         <div class="fr-main"><div class="fr-top"><span class="code">${esc(c.code)}</span><span class="fr-cr">${esc(c.cr)} cr</span>${inPlan.has(c.key)?`<span class="inplan">In plan</span>`:""}</div>
           <span class="fr-t">${esc(c.title)}</span>
-          <div class="fr-meta">${c.gen.length||c.cse||fund.has(c.key)?`<span class="tags">${fund.has(c.key)?`<span class="tag cse">Fundamentals</span>`:""}${c.cse?`<span class="tag cse">${esc(c.cse)}</span>`:""}${c.gen.map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</span>`:""}<a href="${myplanUrl(c.code)}" target="_blank" rel="noopener">MyPlan</a></div></div>
+          <div class="fr-meta">${c.gen.length||c.cse||c.eth||fund.has(c.key)?`<span class="tags">${fund.has(c.key)?`<span class="tag cse">Fundamentals</span>`:""}${c.cse?`<span class="tag cse">${esc(c.cse)}</span>`:""}${c.eth?`<span class="tag cse">${esc(c.eth)}</span>`:""}${c.gen.map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</span>`:""}<a href="${myplanUrl(c.code)}" target="_blank" rel="noopener">MyPlan</a></div></div>
         <button class="btn small" data-pick="${i}" aria-label="Add ${esc(c.code)} to plan">Add</button></li>`).join("");
       res.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{ const c=shown[+b.dataset.pick]; close();
-        openEditor(null,dest,{code:c.code,title:c.title,tags:[...c.tags,c.cse].filter(Boolean),...(c.credits!==null?{credits:c.credits}:{})}); });
+        openEditor(null,dest,{code:c.code,title:c.title,tags:[...c.tags,c.cse,c.eth].filter(Boolean),...(c.credits!==null?{credits:c.credits}:{})}); });
     };
     q.addEventListener("input",draw);
     ov.querySelectorAll("[data-area]").forEach(b=>b.onclick=()=>{ const a=b.dataset.area; on.has(a)?on.delete(a):on.add(a); b.setAttribute("aria-pressed",on.has(a)); draw(); });
     loadCatalog().then(c=>{ cat=c; draw(); },()=>{ status.textContent="Couldn't load the course catalog. Check your connection and try again."; });
     document.getElementById("f-manual").onclick=()=>{ const v=q.value.trim(); close();
-      openEditor(null,dest,/^[A-Za-z][A-Za-z& ]*\s?\d{3}/.test(v)?{code:norm(v),tags:[cseTag(v)].filter(Boolean)}:undefined); };
+      openEditor(null,dest,/^[A-Za-z][A-Za-z& ]*\s?\d{3}/.test(v)?{code:norm(v),tags:[cseTag(v),ethicsTag(v)].filter(Boolean)}:undefined); };
     setTimeout(()=>q.focus(),0);
   });
 }
@@ -983,8 +1105,11 @@ function openEditor(cid,key,prefill){
     };
     const codeIn=document.getElementById("e-code");
     const pick=(t,on)=>ov.querySelector(`[data-t="${CSS.escape(t)}"]`)?.setAttribute("aria-pressed",String(on));
-    let autoTag=cseTag(c.code);
-    codeIn.addEventListener("input",()=>{ const t=cseTag(codeIn.value); if(t===autoTag) return; if(autoTag) pick(autoTag,false); if(t) pick(t,true); autoTag=t; });
+    let autoTag=cseTag(c.code), autoEth=ethicsTag(c.code);
+    codeIn.addEventListener("input",()=>{
+      const t=cseTag(codeIn.value); if(t!==autoTag){ if(autoTag) pick(autoTag,false); if(t) pick(t,true); autoTag=t; }
+      const e=ethicsTag(codeIn.value); if(e!==autoEth){ if(autoEth) pick(autoEth,false); if(e) pick(e,true); autoEth=e; }
+    });
     codeIn.addEventListener("change",async()=>{
       const hit=await loadCatalog().then(cat=>cat.byCode.get(norm(codeIn.value).replace(/ /g,"")),()=>null);
       if(!hit) return;

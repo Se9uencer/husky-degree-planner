@@ -47,6 +47,14 @@ for (const [code, tag] of Object.entries({
 })) assert.equal(cseTag(code), tag, code);
 console.log("cseTag: Allen School lists OK");
 
+const ethicsTag = new Function(src.slice(src.indexOf("/*ETHICSTAGS-START*/"), src.indexOf("/*ETHICSTAGS-END*/")) + ";return ethicsTag;")();
+for (const [code, tag] of Object.entries({
+  "PHIL 240": "Ethics A", "phil240": "Ethics A", "B H 402": "Ethics A", "ENVIR 416": "Ethics A", "ETHICS 291": "Ethics A", "POL S 217": "Ethics A",
+  "ANTH 211": "Ethics B", "AES 211": "Ethics B", "ENVIR 211": "Ethics B", "HSERV 415": "Ethics B", "LSJ 320": "Ethics B", "JSIS B 350": "Ethics B",
+  "ETHICS 495": null, "PHIL 100": null, "SERV 415": null, "CSE 311": null, "": null,
+})) assert.equal(ethicsTag(code), tag, code);
+console.log("ethicsTag: UW Ethics minor lists OK");
+
 const resolveShortTitle = new Function(src.slice(src.indexOf("/*MATCH-START*/"), src.indexOf("/*MATCH-END*/")) + ";return resolveShortTitle;")();
 const list = JSON.parse(readFileSync(new URL("./catalog.json", import.meta.url), "utf8")).courses.map(([code, title]) => ({ code, title }));
 for (const [short, code] of Object.entries({
