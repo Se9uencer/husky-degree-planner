@@ -691,10 +691,6 @@ function renderProj(p){
       <div class="big ${g?"gold":""}">${g?qLabel(p,g):"Requirements not met yet"}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center">${pill}${years?`<span class="pill neutral">${years%1?`about ${Math.ceil(years)}`:years} academic years at UW</span>`:""}</div>
       <p class="note" style="margin:10px 0 0">${pace}</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-        <button class="btn small" id="pautofill">Auto-fill to graduation</button>
-        ${all.some(c=>c.auto)?`<button class="btn small ghost" id="pclearfill">Clear auto-filled</button>`:""}
-      </div>
     </div>
     <div>
       <div class="settings">
@@ -728,18 +724,14 @@ function renderProj(p){
   };
   document.getElementById("psum").onchange=e=>{p.showSummer=e.target.checked;fixTarget(p);persist();render()};
   document.getElementById("pdel").onclick=()=>showConfirm(`Delete “${p.name}”? Export first if you want a backup.`,"Delete plan",()=>{plans=plans.filter(x=>x!==p);cur=plans[0]?.id||null;persist();render()});
-  document.getElementById("pautofill").onclick=()=>openAutoFill(p);
-  const cf=document.getElementById("pclearfill");
-  if(cf) cf.onclick=()=>showConfirm("Remove every auto-filled course from this plan?","Clear auto-filled",()=>{clearAutoFill(p);persist();render()});
 }
 
 function courseHTML(c,key){
   const label=c.status==="done"?"Completed":c.status==="now"?"In progress":"Planned";
-  const tags=[...(c.auto?["Auto"]:[]),...(c.tags||[])];
-  return `<button class="course ${c.status}" draggable="true" data-c="${c.id}" data-k="${key}" aria-label="${esc((c.code||"Untitled")+", "+fmt(+c.credits||0)+" credits, "+label+(c.auto?", auto-filled":""))}">
+  return `<button class="course ${c.status}" draggable="true" data-c="${c.id}" data-k="${key}" aria-label="${esc((c.code||"Untitled")+", "+fmt(+c.credits||0)+" credits, "+label)}">
     <span class="r1"><span class="code">${esc(c.code||"Untitled")}</span><span class="cr">${fmt(+c.credits||0)} cr</span></span>
     ${c.title?`<span class="ttl">${esc(c.title)}</span>`:""}
-    ${tags.length?`<span class="tags">${tags.map(t=>`<span class="tag${CSE_TAGS.includes(t)?" cse":""}">${esc(t)}</span>`).join("")}</span>`:""}
+    ${(c.tags||[]).length?`<span class="tags">${c.tags.map(t=>`<span class="tag${CSE_TAGS.includes(t)?" cse":""}">${esc(t)}</span>`).join("")}</span>`:""}
   </button>`;
 }
 function nowKey(p){
@@ -915,96 +907,6 @@ function reqFilter(r){
   if(t.every(x=>CSE_TAGS.includes(x))||t.every(x=>ETH_TAGS.includes(x))||(t.length===1&&AREAS.includes(t[0]))) return {label:r.label,on:t};
   if(t.every(x=>AREAS.includes(x))) return {label:r.label,scope:{label:t.join(" / "),test:c=>c.gen.some(g=>t.includes(g))}};
   return null;
-}
-
-/* ---------- auto-fill ---------- */
-// Advances the best-matching option path for a "courses" requirement (math, fundamentals, a named capstone) by one course.
-function nextChainCandidate(r,courses,cat){
-  const opts=(r.options||[r.sets]).map(sets=>sets.map(set=>({set,done:!!courses.find(c=>set.map(norm).includes(norm(c.code)))})));
-  const best=opts.map(items=>({items,have:items.filter(i=>i.done).length})).reduce((a,b)=>b.have/b.items.length>a.have/a.items.length?b:a);
-  if(best.have===best.items.length) return null;
-  const code=best.items.find(i=>!i.done).set[0];
-  const hit=cat?.byCode.get(code.replace(/ /g,""));
-  return {code,title:hit?.title||"",credits:hit?.credits??5};
-}
-// A real catalog course for a tag/area requirement, via the same filter "Find courses" uses; null when the catalog can't tell (W, CS Sci, Minor) or nothing's left.
-function pickRealCandidate(r,cat,usedCodes,fund){
-  const filt=reqFilter(r); if(!filt) return null;
-  const testTag=t=>t==="Fundamentals"?c=>fund.has(c.key):CSE_TAGS.includes(t)?c=>c.cse===t:ETH_TAGS.includes(t)?c=>c.eth===t:c=>c.gen.includes(t);
-  const pool=(filt.on
-    ? cat.list.filter(c=>filt.on.some(t=>testTag(t)(c)))
-    : cat.list.filter(c=>filt.scope.test(c))
-  ).filter(c=>!usedCodes.has(c.key)&&c.credits!==0);
-  if(!pool.length) return null;
-  const minLevel=r.need400?400:(r.need300||r.upperOnly)?300:0; // ponytail: always prefers upper-level once any 300/400 condition exists, not just until it's satisfied — simpler than tracking the running count, and extra upper-level credit never hurts
-  pool.sort((a,b)=>{const au=level(a.code)>=minLevel,bu=level(b.code)>=minLevel;return au!==bu?(au?-1:1):level(a.code)-level(b.code)});
-  const c=pool[0];
-  return {code:c.code,title:c.title,credits:c.credits??5,tags:c.tags}; // carry the course's own gen-ed tags forward; CS/Ethics tags are re-derived from the code below
-}
-const placeholderCandidate = r => ({code:"TBD",title:`${r.label} — placeholder, pick a real course`,credits:5,tags:(r.tags||[]).slice(0,1)});
-// Fills empty room in each quarter from the next open one through the target with courses for whatever's still unmet, reusing the audit's own evalReq so the fill always matches what it then shows as met.
-async function autoFillPlan(p,{real,min,max}){
-  const cat=await loadCatalog().catch(()=>null);
-  const fund=reqKeys(p.reqs.find(r=>r.id==="fund"));
-  const reqs=activeReqs(p).filter(r=>!r.all&&r.type!=="total");
-  const usedCodes=new Set(allCourses(p).map(c=>norm(c.code).replace(/ /g,"")).filter(Boolean));
-  const startIdx=keyIndex(p,nextQuarterKey(p)), tIdx=keyIndex(p,p.target);
-  const keys=orderedKeys(p).filter(k=>keyIndex(p,k)>=startIdx&&keyIndex(p,k)<=tIdx);
-  const allMet=()=>reqs.every(r=>evalReq(r,coursesUpTo(p,p.target)).met);
-  let added=0;
-  for(const k of keys){
-    if(allMet()) break;
-    let credits=sumCr(p.quarters[k]||[]);
-    while(!allMet()&&credits<max){
-      const courses=coursesUpTo(p,p.target);
-      let cand=null;
-      for(const r of reqs){
-        if(evalReq(r,courses).met) continue;
-        cand=r.type==="courses"?nextChainCandidate(r,courses,cat):
-          (real&&cat&&pickRealCandidate(r,cat,usedCodes,fund))||placeholderCandidate(r);
-        if(cand) break;
-      }
-      if(!cand) break;
-      if(credits+cand.credits>max&&credits>=min) break;
-      const tags=new Set(cand.tags||[]);
-      if(cand.code&&cand.code!=="TBD"){ const cs=cseTag(cand.code); if(cs) tags.add(cs); const et=ethicsTag(cand.code); if(et) tags.add(et); }
-      const course=C(cand.code,cand.credits,[...tags],"plan",cand.title); course.auto=true;
-      (p.quarters[k]=p.quarters[k]||[]).push(course);
-      if(cand.code&&cand.code!=="TBD") usedCodes.add(norm(cand.code).replace(/ /g,""));
-      credits+=cand.credits; added++;
-    }
-  }
-  return added;
-}
-function clearAutoFill(p){
-  p.prior=p.prior.filter(c=>!c.auto);
-  for(const k of Object.keys(p.quarters)){ p.quarters[k]=p.quarters[k].filter(c=>!c.auto); if(!p.quarters[k].length) delete p.quarters[k]; }
-}
-function openAutoFill(p){
-  dialog(`<h3 id="dlgt">Auto-fill to graduation</h3>
-    <p class="note" style="margin:0">Fills empty room in each quarter from ${esc(qLabel(p,nextQuarterKey(p)))} through your target graduation with courses for whatever requirements aren't met yet. There's no prerequisite or quarter-offered data behind this — it's a draft to edit, not a validated schedule.</p>
-    <div class="row"><div><label class="lbl" for="af-mode">Course picks</label><select id="af-mode">
-      <option value="real">Real courses from the catalog</option>
-      <option value="placeholder">Placeholder slots</option>
-    </select></div></div>
-    <div class="row">
-      <div><label class="lbl" for="af-min">Min credits / quarter</label><input type="number" id="af-min" value="12" min="0" step="1"></div>
-      <div><label class="lbl" for="af-max">Max credits / quarter</label><input type="number" id="af-max" value="18" min="1" step="1"></div>
-    </div>
-    <div class="dlgfoot"><span></span><span style="display:flex;gap:8px"><button class="btn" id="af-cancel">Cancel</button><button class="btn primary" id="af-go">Fill</button></span></div>`,
-  (ov,close)=>{
-    document.getElementById("af-cancel").onclick=close;
-    document.getElementById("af-go").onclick=async()=>{
-      const btn=document.getElementById("af-go"); btn.disabled=true; btn.textContent="Filling…";
-      const real=document.getElementById("af-mode").value==="real";
-      const min=Math.max(0,parseFloat(document.getElementById("af-min").value)||0);
-      const max=Math.max(min||1,parseFloat(document.getElementById("af-max").value)||18);
-      const added=await autoFillPlan(p,{real,min,max});
-      persist(); close(); render();
-      toast(added?`Added ${added} course${added===1?"":"s"} toward graduation. Review and edit as needed.`:"Nothing to add — requirements already check out by your target, or there's no room left before it.");
-    };
-    setTimeout(()=>document.getElementById("af-mode").focus(),0);
-  });
 }
 
 function openFind(key,preset){
