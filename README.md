@@ -66,7 +66,7 @@ Sources:
 
 ## Disclaimer
 
-This is an unofficial student project. It is not affiliated with or endorsed by the University of Washington or any of its departments. Always check your official DARS audit and talk to your adviser before you make decisions about your degree.
+This is an unofficial student project. It is not affiliated with or endorsed by the University of Washington or any of its departments. Always check your official DARS audit and talk to your adviser before you make decisions about your degree. If the planner disagrees with your audit, use **Report a mismatch** in the app.
 
 ## License
 
