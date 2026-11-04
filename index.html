@@ -325,8 +325,11 @@ const DARS_SECTIONS = [
   [/One additional core course or one course from the CSE Capstone/i,["Capstone"]],
   [/Courses from the CSE Electives list/i,["CSE Elective"]],
   [/^(Reasoning|Foreign Language|AREAS OF INQUIRY|DEPARTMENTAL REQUIREMENTS|OTHER COURSES|General Electives)/i,[]],
-  [/^Computer Science Requirement:/i,[]],[/^(UNIVERSITY REQUIREMENTS|GENERAL EDUCATION REQUIREMENTS|MAJOR REQUIREMENTS|COLLEGE REQUIREMENTS)/i,[]]
+  [/^Computer Science Requirement:/i,[]],
+  [/^(?!NOTE\b)[A-Z&]{2,}(?: [A-Z&]{2,})+/,[]] // any other all-caps header starts a new section, so the last section's tag doesn't carry over; course rows never reach this check
 ];
+// DARS shows transfer credit as "TRANSFER COURSE", and the sub-requirement it fills is the only sign of which course it is.
+const DARS_SLOT_CODES = {"FIRST-QUARTER CALCULUS":"MATH 124","SECOND-QUARTER CALCULUS":"MATH 125","THIRD-QUARTER CALCULUS":"MATH 126"};
 function parseDars(text){
   // Browsers copy the audit table differently: one cell per line, tab-separated rows, or whole rows on one line.
   const ROW = /^((?:AU|WI|SP|SU) ?\d{2}) (.+?) (\d{1,2}(?:\.\d+)?) (\S+)(?: (\S+))?$/;
@@ -337,7 +340,7 @@ function parseDars(text){
       return [m[1].replace(" ",""), ...(c?[c[1],c[2]]:[m[2]]), m[3], m[4], ...(m[5]?[m[5]]:[])]; });
   const out = {courses:[], catalogYear:null, earned:null, startYear:null};
   const QRE = /^(AU|WI|SP|SU)(\d{2})$/, NUM = /^-?\d+(\.\d+)?$/, CODE = /^[A-Z][A-Z& ]{0,8} ?\d{3}[A-Z]?$/;
-  let tags = [], seenTotal = false;
+  let tags = [], seenTotal = false, slot = null;
   const byKey = new Map();
   for(let i=0;i<lines.length;i++){
     const l = lines[i];
@@ -347,7 +350,9 @@ function parseDars(text){
     const em = l.match(/^Earned:\s*([\d.]+) credits/i);
     if(em && seenTotal && out.earned===null) out.earned = parseFloat(em[1]);
     const sec = DARS_SECTIONS.find(([re])=>re.test(l));
-    if(sec){ tags = sec[1]; continue; }
+    if(sec){ tags = sec[1]; slot = null; continue; }
+    const sub = l.match(/^\d+ \)\s*(.*)$/);
+    if(sub){ slot = DARS_SLOT_CODES[sub[1].trim().toUpperCase()]||null; continue; }
     const qm = l.match(QRE);
     if(!qm) continue;
     // collect up to two text lines, then a credits line, then a grade line
@@ -366,6 +371,7 @@ function parseDars(text){
     let c = byKey.get(key);
     if(!c){ c={qtr, q:["AU","WI","SP","SU"].indexOf(qm[1]), yy:+qm[2], code, title, credits, grade, tags:[]}; byKey.set(key,c); out.courses.push(c); }
     tags.forEach(t=>{ if(!c.tags.includes(t)) c.tags.push(t); });
+    if(slot && c.code==="TRANSFER COURSE"){ c.code = slot; c.title = "Transfer credit"; }
     i = j;
   }
   if(out.catalogYear){ const m=out.catalogYear.match(/(AU|WI|SP|SU) (\d{2})/); const yy=+m[2]; out.startYear = 2000+yy-(m[1]==="AU"?0:1); }
@@ -463,11 +469,13 @@ major("cs", "Computer Science (BS)", "as", GENCAT+"ComputerScience-210.html", {
   ]});
 
 major("ce", "Computer Engineering (BS)", "eng", GENCAT+"ComputerScienceandEngineering-406.html", {
-  gen:{aoi:30, nsc:41}, autoTags:["CS Core","Capstone","CSE Elective"],
+  gen:{aoi:30, nsc:41, nscLabel:"Natural Sciences: math and approved science", nscTags:["CE Sci"],
+    nscCodes:["MATH 124","MATH 125","MATH 126","MATH 134","MATH 135","MATH 136","MATH 207","MATH 208","MATH 209","MATH 318","MATH 334","MATH 335","MATH 394","STAT 391","STAT 394","AMATH 351","AMATH 353","PHYS 121","PHYS 122","PHYS 141","PHYS 142"]}, // DARS only counts these, not every NSc course such as CSE 121
+  autoTags:["CS Core","Capstone","CSE Elective"],
   tagOf: code => { const c = canonCode(code); return /^(CSE 369|CSE 371|E E 371)/.test(c) ? null : /^CSE 331/.test(c) ? "CS Core" : cseTag(code); }, // 369 and 371 are required here, and 331 is core here
   lists:{"CE Systems":"CSE:401,402,403,444,451,452,453,461,466,467,469,470,471,474,478,484;E E:469,470,474,476,477",
     "CE Sci":"BIOL:162,180,200,220,325,333,340,354,355,356,401,402,403,405,407,408,409,411,412,413,414,415,425,426,427,433,434,435,437,440,441,442,443,444,446,452,454,455,459,462,463,464,471,472,473,474,475,476,477,479,480;CHEM:142,143,144,145,152,155,162,165,220,221,223,224,237,238,239,241,242,312,317,321;PHYS:116,119,123,143,224,225,227,228,231,232,315,321,322,323,324,325,328,331,334,335,407,408,421,422,423,424,425,426,434,460;ESS:311,313,403,413,414,415,424,431,437,438,458,464,466,467,471;ASTR:301,321,322,323,423,480;ATMOS:301,321,370,380,451,452,460"},
-  note:`Core, systems, capstone and science tags are added automatically. Check them against the <a href="https://www.cs.washington.edu/academics/undergraduate/degree-requirements/courses/" target="_blank" rel="noopener">Allen School course lists</a>. The 40 credits of Engineering and CSE aren't checked separately.`,
+  note:`Core, systems, capstone and science tags are added automatically. Check them against the <a href="https://www.cs.washington.edu/academics/undergraduate/degree-requirements/courses/" target="_blank" rel="noopener">Allen School course lists</a>. The 40 credits of Engineering and CSE aren't checked separately, and DARS may apply fewer science credits than the planner shows.`,
   reqs:[
     all("math","Math","MATH 124,MATH 125,MATH 126,MATH 208;MATH 134,MATH 135,MATH 136"),
     all("phys","Physics","PHYS 121|PHYS 141,PHYS 122|PHYS 142"),
@@ -776,7 +784,7 @@ function genReqs(m){
     {id:"div",group:"gen",label:"Diversity (DIV)",type:"credits",tags:["DIV"],need:5},
     {id:"ah",group:"gen",label:"Arts & Humanities (A&H)",type:"credits",tags:["A&H"],need:g.ah},
     {id:"ssc",group:"gen",label:"Social Sciences (SSc)",type:"credits",tags:["SSc"],need:g.ssc},
-    {id:"nsc",group:"gen",label:"Natural Sciences (NSc)",type:"credits",tags:["NSc"],need:g.nsc},
+    {id:"nsc",group:"gen",label:g.nscLabel||"Natural Sciences (NSc)",type:"credits",tags:g.nscTags||["NSc"],...(g.nscCodes?{codes:g.nscCodes}:{}),need:g.nsc},
     m.college==="as" && {id:"aoi",group:"gen",label:"Areas of Inquiry total, max 35 per area",type:"credits",tags:["A&H","SSc","NSc"],need:g.aoi,capPerTag:35},
     m.college==="eng" && {id:"aoi",group:"gen",label:"A&H and SSc total",type:"credits",tags:["A&H","SSc"],need:g.aoi},
   ];

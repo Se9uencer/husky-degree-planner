@@ -42,6 +42,68 @@ const physRows = [["MECHANICS", 4, "PHYS 114"], ["MECHANICS", 5, "PHYS 121"], ["
 assert.deepEqual(parseDars(header + physRows.map(([t, cr]) => ["AU25", t, cr, "AP"].join("\n")).join("\n")).courses.map(c => c.code), physRows.map(r => r[2]), "AP physics titles");
 console.log("parseDars: AP physics titles OK");
 
+// Section layout of a Computer Engineering audit, with made-up rows.
+const ceAudit = parseDars(`Catalog Year:
+WI 27
+AREAS OF INQUIRY
+Social Sciences
+SP26
+INTRO MACROECON
+5
+AP
+DEPARTMENTAL REQUIREMENTS
+ADMISSION REQUIREMENTS
+3 ) Mathematics
+SU26
+TRANSFER COURSE
+5
+3.4
+GRADUATION REQUIREMENTS
+NATURAL SCIENCES
+Computer Engr Requirement: Mathematics
+1 ) First-quarter calculus
+SP26
+CALC ANALYT GEOM I
+5
+AP
+3 ) Third-quarter calculus
+SU26
+TRANSFER COURSE
+5
+3.4
+Computer Engr: Natural Science Electives
+SP26
+GENERAL CHEM I
+5
+AP
+COMPUTER ENGINEERING: FUNDAMENTAL COURSES (32-33 Credits). Minimum 2.0 grade in each course.
+1 )  or
+AU26
+COMP PROGRAMMING III
+4
+IP
+COMPUTER ENGINEERING: COE CREDITS 36 College of Engineering prefix credits
+AU26
+SOFTWARE TOOLS
+1
+IP
+OTHER COURSES
+AU26
+OTHER TRANSFER
+5
+3.0
+`);
+const ceRow = code => ceAudit.courses.find(c => c.code === code);
+assert.deepEqual(ceRow("ECON 201").tags, ["SSc"]);
+assert.deepEqual(ceRow("MATH 124").tags, ["NSc"], "stays in the science section across sub-requirements");
+assert.deepEqual(ceRow("CHEM 142").tags, ["NSc"]);
+assert.deepEqual(ceRow("CSE 123").tags, [], "all-caps major header ends the science section");
+assert.deepEqual(ceRow("CSE 391").tags, [], "all-caps major header ends the science section");
+assert.equal(ceRow("MATH 126").title, "Transfer credit", "transfer row takes the code of the calculus slot it fills");
+assert.equal(ceAudit.courses.filter(c => c.credits === 5 && c.qtr === "SU26").length, 1, "a row repeated across sections is one course");
+assert.ok(!ceAudit.courses.some(c => c.code === "TRANSFER COURSE"));
+console.log("parseDars: Computer Engineering audit layout OK");
+
 const cseTag = new Function(src.slice(src.indexOf("/*CSETAGS-START*/"), src.indexOf("/*CSETAGS-END*/")) + ";return cseTag;")();
 for (const [code, tag] of Object.entries({
   "CSE 333": "CS Core", "cse 446": "CS Core", "CSE493G": "CS Core", "EE 371": "CS Core", "E E 469": "CS Core", "STAT 391": "CS Core",
@@ -149,6 +211,11 @@ assert.equal(dept("tot").have, 5, "department total counts only that department"
 assert.equal(dept("soc").have, 2);
 const pols = results("pols-sec", [course("POL S 349", 5, "POL S 210+", "Intl Security")]);
 assert.equal(pols("up").have, 1); assert.equal(pols("elec").have, 5, "option credits may overlap the major");
+const ceReqs = planReqs(["ce"]), ceNsc = ceReqs.find(r => r.id === "nsc");
+const ceE = evalAll(ceReqs, [course("MATH 124", 5, "NSc"), course("CHEM 142", 5, "NSc", "CE Sci"), course("CSE 121", 4, "NSc"), course("PHYS 114", 4, "NSc")]);
+assert.equal(ceE.get(ceNsc).have, 10, "Computer Engineering NSc counts math and approved science, not CSE 121 or PHYS 114");
+const meReqs = planReqs(["me"]), meE = evalAll(meReqs, [course("CSE 121", 4, "NSc")]);
+assert.equal(meE.get(meReqs.find(r => r.id === "nsc")).have, 4, "other majors still count NSc tags");
 const cs = planReqs(["cs"]), csE = evalAll(cs, [course("CSE 333", 4, "CS Core")]);
 assert.equal(csE.get(cs.find(r => r.id === "core")).have, 1); assert.equal(csE.get(cs.find(r => r.id === "elec")).have, 4, "CS electives still include core");
 console.log("evalAll: additional requirements don't double-count");
