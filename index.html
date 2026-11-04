@@ -355,6 +355,7 @@ function parseDars(text){
     if(em && seenTotal && out.earned===null) out.earned = parseFloat(em[1]);
     const sec = DARS_SECTIONS.find(([re])=>re.test(l));
     if(sec){ tags = sec[1]; subTags = []; slot = null; continue; }
+    if(/^Calculus: MATH 124-126/i.test(l)){ slot = "sequence"; continue; } // the CS audit doesn't number this one
     const sub = l.match(/^\d+ \)\s*(.*)$/);
     if(sub){
       slot = DARS_SLOT_CODES[sub[1].trim().toUpperCase()]||(/^Calculus with Analytical Geometry/i.test(sub[1])?"sequence":null);

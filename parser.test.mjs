@@ -216,6 +216,23 @@ const fixedMath = parseDars("3 ) Mathematics\nSP26\nTRANSFER COURSE\n5\n3.4\n").
 assert.equal(fixedMath.code, "TRANSFER COURSE", "an admission math row doesn't say which course it is");
 console.log("parseDars: Foster and ECE audit layouts OK");
 
+// CS audits copy as tab-separated rows with an empty code cell, and split credit carries a ">S" note. Made-up rows.
+const csAudit = parseDars(["Catalog Year:", "AU 26", "The University requires a minimum of 180 academic credits for a Bachelors degree.", "Earned: 90 credits In-progress: 16 credits Needs: 74 credits",
+  "Natural Sciences", "SP26\t\tHEAT FLUIDS E&M\t3\tAP\t>S",
+  "DEPARTMENTAL REQUIREMENTS", "Computer Science Requirement: Natural Science", "SP26\t\tGENERAL CHEM I\t5\tAP\t",
+  "Computer Science Requirement: Mathematics", "Calculus: MATH 124-126 plus ", "Qtr\tCourse Name\tCredits\tGrade\tNotes", "SP26\t\tCALC ANALYT GEOM I\t5\tAP\t", "SP26\t\tCALC ANALYT GEOM II\t5\tAP\t", "SU26\t\tTRANSFER COURSE\t5\t3.4\t",
+  "OR ) ,  and ", "Computer Science Requirement: Fundamental Courses", "1 ) Introductory Programming", "AU26\t\tCOMP PROGRAMMING III\t4\tIP\t",
+  "Computer Science Requirement: Core and Electives", "1 ) Four CSE courses from the CSE Core Course list numbered 400 or higher.", "AU26\tCSE 451\tOPERATING SYSTEMS\t4\tIP\t",
+  "OTHER COURSES", "General Electives: The following courses count.", "SP26\t\tHEAT FLUIDS E&M\t1\tAP\t>S", "SP26\t\tOTHER TRANSFER\t5\tAP\t"].join("\n"));
+const csRow = code => csAudit.courses.filter(c => c.code === code);
+assert.equal(csAudit.earned, 90, "earned credits on a line with other totals");
+assert.equal(csRow("MATH 126")[0].title, "Transfer credit", "CS lists calculus without a number");
+assert.deepEqual(csRow("CHEM 142")[0].tags, ["CS Sci"]);
+assert.deepEqual(csRow("CSE 451")[0].tags, ["CS Core"]);
+assert.deepEqual(csRow("PHYS 115").map(c => c.credits), [3, 1], "split credit keeps both parts");
+assert.deepEqual(csRow("CSE 123")[0].tags, [], "Fundamental Courses section carries no tag");
+console.log("parseDars: CS audit layout OK");
+
 const cseTag = new Function(src.slice(src.indexOf("/*CSETAGS-START*/"), src.indexOf("/*CSETAGS-END*/")) + ";return cseTag;")();
 for (const [code, tag] of Object.entries({
   "CSE 333": "CS Core", "cse 446": "CS Core", "CSE493G": "CS Core", "EE 371": "CS Core", "E E 469": "CS Core", "STAT 391": "CS Core",
