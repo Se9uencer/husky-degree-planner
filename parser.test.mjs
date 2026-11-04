@@ -141,13 +141,13 @@ assert.deepEqual(gen("UW 115"), [], "leaves courses outside the catalog alone");
 console.log("addCatalogGen: catalog designations OK");
 
 const block = name => src.slice(src.indexOf(`/*${name}-START*/`), src.indexOf(`/*${name}-END*/`));
-const { MAJORS, COLLEGES, planReqs, canonCode, evalAll } = new Function(
-  block("CSETAGS") + block("MAJORS") + block("EVAL") + ";return {MAJORS,COLLEGES,planReqs,canonCode,evalAll};")();
+const { MAJORS, COLLEGES, planReqs, canonCode, evalAll, isDoubleDegree } = new Function(
+  block("CSETAGS") + block("MAJORS") + block("EVAL") + ";return {MAJORS,COLLEGES,planReqs,canonCode,evalAll,isDoubleDegree};")();
 
 // Every code a major names must exist in the catalog, so a typo can't slip in. Ranges like COM:201-299 cover numbers that don't exist, so only single numbers are checked.
 const catalog = new Set(list.map(c => c.code));
 // On a department's published list but not in the course catalog, checked by hand against the catalog pages. Kept so students who took them still get credit.
-const NOT_IN_CATALOG = new Set("AMATH 424,ANTH 497,ATMOS 460,BIOEN 447,BIOL 305,BIOL 325,BIOL 333,BIOL 409,BIOL 415,BIOL 419,BIOL 422,BIOL 437,BIOL 455,BIOL 472,CEE 402,CEE 403,CEE 495,CHEM 144,COM 325,COM 332,COM 426,COM 434,COM 463,CSE 466,CSE 467,CSE 471,E E 235,E E 341,E E 401,E E 414,E E 485,ESS 403,ESS 413,ESS 415,ESS 424,ESS 437,ESS 458,ESS 464,ESS 466,ESS 471,GEOG 349,LSJ 425,M E 406,M E 442,NEAR E 285,PGH 301,PHYS 315,PHYS 424,PHYS 425,PHYS 426,PHYS 460,POL S 285,POL S 473,PSYCH 494,SCAND 402".split(","));
+const NOT_IN_CATALOG = new Set("AMATH 424,ANTH 497,ATMOS 460,BIOEN 447,BIOL 305,BIOL 325,BIOL 333,BIOL 409,BIOL 415,BIOL 419,BIOL 422,BIOL 437,BIOL 455,BIOL 472,CEE 402,CEE 403,CEE 495,CHEM 144,COM 325,COM 332,COM 426,COM 434,COM 463,CSE 466,CSE 467,CSE 471,E E 235,E E 341,E E 401,E E 414,E E 485,ESS 211,ESS 403,ESS 413,ESS 415,ESS 424,ESS 437,ESS 458,ESS 464,ESS 466,ESS 471,GEOG 349,LSJ 425,M E 406,M E 442,NEAR E 285,PGH 301,PHYS 315,PHYS 424,PHYS 425,PHYS 426,PHYS 460,POL S 285,POL S 473,PSYCH 494,SCAND 402".split(","));
 const RANGE_CODE = /^(INFO 35\d|COM 2\d\d|ACCTG [34]\d\d|MGMT 40\d|POL S 20\d)$/;
 const missing = new Map();
 const flag = (code, id) => { if (!catalog.has(code) && !NOT_IN_CATALOG.has(code)) missing.set(code, id); };
@@ -158,9 +158,9 @@ for (const m of Object.values(MAJORS)) {
   assert.equal(new Set(reqs.map(r => r.id)).size, reqs.length, m.id + " requirement ids are unique");
   assert.ok(reqs.some(r => r.id === "total" && r.need === 180), m.id + " total");
   for (const r of reqs) {
-    if (r.group !== m.id) continue;
+    if (r.group !== m.id && r.id !== "nsc") continue;
     for (const code of [...(r.options || []).flat(2), ...(r.codes || [])]) if (!RANGE_CODE.test(code)) flag(code, m.id);
-    for (const t of r.tags || []) assert.ok(m.tags.includes(t), `${m.id}: ${r.id} uses unknown tag ${t}`);
+    for (const t of r.tags || []) if (t !== "NSc") assert.ok(m.tags.includes(t), `${m.id}: ${r.id} uses unknown tag ${t}`);
     assert.ok(r.type === "courses" || typeof r.need === "number", `${m.id}: ${r.id} need`);
   }
   for (const s of Object.values(m.lists || {})) for (const g of s.split(";").filter(Boolean)) {
@@ -173,14 +173,29 @@ console.log(`majors: ${Object.keys(MAJORS).length} majors and options, course co
 
 for (const [code, want] of Object.entries({ "me323": "M E 323", "EE 215": "E E 215", "pols 203": "POL S 203", "M E 323": "M E 323", "CSE493G": "CSE 493G", "TRANSFER CAP": "TRANSFER CAP" })) assert.equal(canonCode(code), want, code);
 
+const course0 = (code, credits, ...tags) => ({ id: code, code, credits, tags, status: "plan" });
+
 // Plans saved before this change must keep their CS requirements and ids.
 assert.deepEqual(planReqs(["cs"]).map(r => r.id), ["total","res","comp","w","div","ah","ssc","nsc","aoi","math","sci","fund","core","core7","elec","ethA","ethB","eth495","ethTot","ethUD","minor"]);
 const needOf = (ids, id) => planReqs(ids).find(r => r.id === id).need;
 assert.equal(needOf(["cs"], "aoi"), 75); assert.equal(needOf(["me"], "nsc"), 49); assert.equal(needOf(["ce"], "aoi"), 30); assert.equal(needOf(["info"], "ah"), 20);
 assert.ok(!planReqs(["info"]).some(r => r.id === "aoi"), "iSchool has no Areas of Inquiry total");
 assert.ok(!planReqs(["bioe"]).some(r => r.id === "w"), "Bioengineering writing is met by the major");
-assert.equal(needOf(["me", "cs"], "nsc"), 49, "gen-eds follow the first major");
 assert.ok(planReqs(["psych-bs", "econ-ba"]).some(r => r.group === "econ-ba"), "double major keeps both");
+
+// Majors in different colleges need both gen-ed sets. Totals follow the degree names.
+assert.equal(needOf(["me", "cs"], "nsc"), 49); assert.equal(needOf(["me", "cs"], "gen-as.nsc"), 20); assert.equal(needOf(["me", "cs"], "gen-as.aoi"), 75);
+assert.equal(planReqs(["me", "cs"]).filter(r => /(^|\.)total$/.test(r.id)).length, 1, "only one total-credit requirement");
+assert.equal(planReqs(["me", "cs"]).filter(r => /(^|\.)res$/.test(r.id)).length, 1, "only one residency requirement");
+assert.ok(!planReqs(["psych-bs", "biol-bs"]).some(r => r.group.startsWith("gen-")), "same college needs one set");
+assert.equal(planReqs(["cs", "info", "me"]).filter(r => r.group.startsWith("gen")).map(r => r.group).filter((g, i, a) => a.indexOf(g) === i).length, 3, "three colleges, three sets");
+for (const [ids, double] of [[["psych-bs", "biol-bs"], false], [["psych-ba", "com"], false], [["psych-ba", "biol-bs"], true], [["cs", "psych-bs"], false], [["cs", "ce"], true], [["bus-fin", "econ-ba"], true], [["bus-fin", "bus-mktg"], false], [["me", "me-mech"], false], [["cs"], false]]) {
+  assert.equal(isDoubleDegree(ids), double, ids.join(" + "));
+  assert.equal(needOf(ids, "total"), double ? 225 : 180, ids.join(" + ") + " total");
+  assert.equal(needOf(ids, "res"), double ? 90 : 45, ids.join(" + ") + " residency");
+}
+const both = planReqs(["me", "cs"]), bothE = evalAll(both, [course0("HUM 100", 5, "A&H")]);
+assert.equal(bothE.get(both.find(r => r.id === "ah")).have, 5); assert.equal(bothE.get(both.find(r => r.id === "gen-as.ah")).have, 5, "one course counts toward both colleges' sets");
 
 for (const [id, code, tag] of [["biol-bs","BIOL 472","Bio Ecology"],["biol-bs","BIOL 472","Bio Lab"],["econ-ba","ECON 482","ECON 400-level"],["com","COM 373","COM Methods"],["com","COM 373","COM Theory"],["pols","POL S 321","POL S 210+"],["ce","CSE 451","CE Systems"],["ce","CSE 331","CS Core"],["me","ME 402","ME Option"],["bioe","BIOEN 485","BioE Senior"],["cs","CSE 333","CS Core"]])
   assert.ok(MAJORS[id].tagsFor(code).includes(tag), `${id}: ${code} should be ${tag}`);
@@ -214,8 +229,27 @@ assert.equal(pols("up").have, 1); assert.equal(pols("elec").have, 5, "option cre
 const ceReqs = planReqs(["ce"]), ceNsc = ceReqs.find(r => r.id === "nsc");
 const ceE = evalAll(ceReqs, [course("MATH 124", 5, "NSc"), course("CHEM 142", 5, "NSc", "CE Sci"), course("CSE 121", 4, "NSc"), course("PHYS 114", 4, "NSc")]);
 assert.equal(ceE.get(ceNsc).have, 10, "Computer Engineering NSc counts math and approved science, not CSE 121 or PHYS 114");
-const meReqs = planReqs(["me"]), meE = evalAll(meReqs, [course("CSE 121", 4, "NSc")]);
-assert.equal(meE.get(meReqs.find(r => r.id === "nsc")).have, 4, "other majors still count NSc tags");
+const asReqs = planReqs(["psych-ba"]), asE = evalAll(asReqs, [course("CSE 121", 4, "NSc")]);
+assert.equal(asE.get(asReqs.find(r => r.id === "nsc")).have, 4, "Arts & Sciences still counts any NSc course");
+
+// Engineering natural sciences count only what the department names.
+const credits = new Map(JSON.parse(readFileSync(new URL("./catalog.json", import.meta.url), "utf8")).courses.map(([code, , cr]) => [code, parseFloat(cr)]));
+const nscHave = (id, codes) => {
+  const reqs = planReqs([id]), r = reqs.find(x => x.id === "nsc");
+  const courses = codes.map(c => course(c, credits.get(c) || 5, "NSc", ...MAJORS[id].tagsFor(c)));
+  return { ...evalAll(reqs, courses).get(r) };
+};
+for (const m of Object.values(MAJORS).filter(m => m.college === "eng")) assert.equal(nscHave(m.id, ["CSE 121", "M E 123", "PHYS 114"]).have, 0, m.id + " ignores other NSc courses");
+const CALC = ["MATH 124", "MATH 125", "MATH 126"], ENG_ALG = ["MATH 207", "MATH 208"], CH2 = ["CHEM 142", "CHEM 152"], PH3 = ["PHYS 121", "PHYS 122", "PHYS 123"];
+assert.ok(nscHave("me", [...CALC, ...ENG_ALG, "MATH 224", "IND E 315", ...CH2, ...PH3]).met, "Mechanical's required courses reach its total");
+assert.ok(nscHave("civ", [...CALC, ...ENG_ALG, "STAT 390", ...CH2, ...PH3, "ESS 101"]).met, "Civil's required courses and science elective reach its total");
+assert.ok(nscHave("bioe", [...CALC, ...ENG_ALG, "STAT 390", ...CH2, "CHEM 162", "CHEM 223", "PHYS 121", "PHYS 122", "BIOL 180", "BIOL 200", "BIOL 220"]).met, "Bioengineering's required courses reach its total");
+const ECE_BASE = ["MATH 134", "MATH 135", "MATH 136", "PHYS 121", "PHYS 122", "CHEM 142", "BIOL 220", "IND E 315"];
+assert.ok(!nscHave("ece", ECE_BASE).met, "ECE's accelerated math path needs more from its approved list");
+assert.equal(nscHave("ece", [...ECE_BASE, "CSE 121"]).have, nscHave("ece", ECE_BASE).have, "a course off the ECE list adds nothing");
+assert.ok(nscHave("ece", [...ECE_BASE, "MATH 224", "BIOL 180"]).met, "approved ECE courses close the gap");
+for (const [c, want] of [["MATH 124", true], ["MATH 111", false], ["PHYS 200", true], ["PHYS 114", false], ["CHEM 152", true], ["CHEM 162", false], ["BIOL 180", true], ["BIOL 162", false], ["NEUSCI 301", true], ["STAT 395", true], ["STAT 311", false]])
+  assert.equal(MAJORS.ece.tagsFor(c).includes("ECE Science"), want, c + " on the ECE science list");
 const cs = planReqs(["cs"]), csE = evalAll(cs, [course("CSE 333", 4, "CS Core")]);
 assert.equal(csE.get(cs.find(r => r.id === "core")).have, 1); assert.equal(csE.get(cs.find(r => r.id === "elec")).have, 4, "CS electives still include core");
 console.log("evalAll: additional requirements don't double-count");

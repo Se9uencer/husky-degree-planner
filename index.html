@@ -469,7 +469,7 @@ major("cs", "Computer Science (BS)", "as", GENCAT+"ComputerScience-210.html", {
   ]});
 
 major("ce", "Computer Engineering (BS)", "eng", GENCAT+"ComputerScienceandEngineering-406.html", {
-  gen:{aoi:30, nsc:41, nscLabel:"Natural Sciences: math and approved science", nscTags:["CE Sci"],
+  gen:{aoi:30, nsc:41, nscTags:["CE Sci"],
     nscCodes:["MATH 124","MATH 125","MATH 126","MATH 134","MATH 135","MATH 136","MATH 207","MATH 208","MATH 209","MATH 318","MATH 334","MATH 335","MATH 394","STAT 391","STAT 394","AMATH 351","AMATH 353","PHYS 121","PHYS 122","PHYS 141","PHYS 142"]}, // DARS only counts these, not every NSc course such as CSE 121
   autoTags:["CS Core","Capstone","CSE Elective"],
   tagOf: code => { const c = canonCode(code); return /^(CSE 369|CSE 371|E E 371)/.test(c) ? null : /^CSE 331/.test(c) ? "CS Core" : cseTag(code); }, // 369 and 371 are required here, and 331 is core here
@@ -698,6 +698,9 @@ major("bus-ops", "Business: Operations & Supply Chain (BA)", "biz", BUS_SRC, {no
 const ENG_MATH = "MATH 124,MATH 125,MATH 126,MATH 207|AMATH 351,MATH 208|AMATH 352;MATH 134,MATH 135,MATH 136";
 const ENG_CHEM2 = "CHEM 142|CHEM 143|CHEM 145,CHEM 152|CHEM 153|CHEM 155";
 const PHYS2 = "PHYS 121|PHYS 141,PHYS 122|PHYS 142", PHYS3 = PHYS2+",PHYS 123|PHYS 143";
+// Engineering natural sciences count named math and science, not every NSc course such as CSE 121.
+const NSC_MATH = ["MATH 124","MATH 125","MATH 126","MATH 134","MATH 135","MATH 136","MATH 207","MATH 208","AMATH 351","AMATH 352"];
+const NSC_CHEM2 = ["CHEM 142","CHEM 143","CHEM 145","CHEM 152","CHEM 153","CHEM 155"], NSC_PHYS3 = ["PHYS 121","PHYS 122","PHYS 123","PHYS 141","PHYS 142","PHYS 143"];
 
 const ME_SRC = GENCAT+"MechanicalEngineering-419.html", ME_MATH_TAIL = ",MATH 209|MATH 224|AMATH 353,IND E 315|STAT 290|STAT 390";
 const meBase = [
@@ -706,22 +709,26 @@ const meBase = [
   all("fund","Engineering fundamentals","A A 210,AMATH 301,CEE 220,E E 215,M E 123,M E 230,MSE 170"),
   all("core","Mechanical engineering core","M E 323,M E 331,M E 333,M E 354,M E 355,M E 356,M E 373,M E 374,M E 493|M E 414|E E 414,M E 494,M E 495"),
 ];
-const ME_OPTION = {"ME Option":"M E:402,406,410,411,412,419,425,426,430,431,440,442,445,450,460,461,469,470,471,473,477,478,480,498,499;ENGR:321"};
-const ME_GEN = {nsc:49, wCodes:["M E 354","M E 493","M E 414","E E 414"]};
+const ME_OPTION = {"ME Option":"M E:402,406,410,411,412,419,425,426,430,431,440,442,445,450,460,461,469,470,471,473,477,478,480,498,499;ENGR:321", "ME Science":""};
+const ME_GEN = {nsc:49, wCodes:["M E 354","M E 493","M E 414","E E 414"], nscTags:["ME Science"],
+  nscCodes:[...NSC_MATH,"MATH 209","MATH 224","AMATH 353","IND E 315","STAT 290","STAT 390",...NSC_CHEM2,...NSC_PHYS3]};
+const meNsc = `Natural sciences count your required math and science, which usually passes 49 credits. If yours doesn't, ask your adviser what else counts and tag it ME Science.`;
 major("me", "Mechanical Engineering (BS)", "eng", ME_SRC, {gen:ME_GEN, lists:ME_OPTION,
-  note:`ME electives follow the <a href="https://www.me.washington.edu/students/ug/requirements" target="_blank" rel="noopener">department list</a>. You can petition to count a course from another engineering department.`,
+  note:`ME electives follow the <a href="https://www.me.washington.edu/students/ug/requirements" target="_blank" rel="noopener">department list</a>. You can petition to count a course from another engineering department. `+meNsc,
   reqs:[...meBase, crd("elec","19 credits of engineering electives",19,"ME Option")]});
 major("me-bio", "Mechanical Engineering: Biomechanics (BS)", "eng", ME_SRC, {gen:ME_GEN, lists:{...ME_OPTION,"ME Biomech":""},
-  note:`Tag your biomechanics electives as ME Biomech, using the department's approved list.`,
+  note:`Tag your biomechanics electives as ME Biomech, using the department's approved list. `+meNsc,
   reqs:[...meBase, all("opt","Option courses","M E 411,M E 419"), crd("bio","6 credits of biomechanics electives",6,"ME Biomech"),
     {k:"tot",label:"19 option credits in total",type:"credits",tags:["ME Option","ME Biomech"],codes:["M E 411","M E 419"],need:19,rule:true}]});
-major("me-mech", "Mechanical Engineering: Mechatronics (BS)", "eng", ME_SRC, {gen:ME_GEN, reqs:[...meBase,
+major("me-mech", "Mechanical Engineering: Mechatronics (BS)", "eng", ME_SRC, {gen:ME_GEN, lists:{"ME Science":""}, note:meNsc, reqs:[...meBase,
   all("opt","Option courses","M E 471,M E 473,M E 477"),
   pick("two","2 of M E 469, 470, 478, 480, PHYS 334, 335",2,"M E:469,470,478,480;PHYS:334,335")]});
 
 major("ece", "Electrical & Computer Engineering (BS)", "eng", GENCAT+"ElectricalandComputerEngineering-410.html", {
-  gen:{nsc:45, wCodes:["E E 393"]}, lists:{"ECE Elective":"E E:233,300-489,491-499;CSE:373,374;ENGR:321"},
-  note:`These follow the rules for students starting ECE in Autumn 2025 or later, from the <a href="https://www.ece.uw.edu/academics/bachelor-of-science/bsece/degree-requirements/" target="_blank" rel="noopener">ECE degree requirements</a>. Limits on seminars, E E 499 and ENGR 321 aren't checked. Math courses count toward NSc, but check other NSc courses against the ECE list.`,
+  gen:{nsc:45, wCodes:["E E 393"], nscTags:["ECE Science"]},
+  lists:{"ECE Elective":"E E:233,300-489,491-499;CSE:373,374;ENGR:321",
+    "ECE Science":"MATH:124,125,126,134,135,136,200-599;AMATH:100-599;STAT:341,390,391,395,396,416,491,550;IND E:315;PHYS:121,122,123,141,142,143,200-599;CHEM:142,143,145,152,153,155,220;BIOL:101-160,163-599;NEUSCI:100-599"},
+  note:`These follow the rules for students starting ECE in Autumn 2025 or later, from the <a href="https://www.ece.uw.edu/academics/bachelor-of-science/bsece/degree-requirements/" target="_blank" rel="noopener">ECE degree requirements</a>, and natural sciences use its approved list. Limits on seminars, E E 499 and ENGR 321 aren't checked.`,
   reqs:[
     all("math","Math",ENG_MATH),
     all("phys","Physics and statistics",PHYS2+",IND E 315|STAT 390"),
@@ -734,8 +741,10 @@ major("ece", "Electrical & Computer Engineering (BS)", "eng", GENCAT+"Electrical
   ]});
 
 major("civ", "Civil Engineering (BS)", "eng", GENCAT+"CivilandEnvironmentalEngineering-403.html", {
-  gen:{nsc:46}, lists:{"CEE Technical":"CEE:378,402,403,409,410,412,415,416,419,420,422,424,432,433,434,436,437,451,452,453,454,457,459,462,463,465,467,473,474,475,476,477,478,480,481,482,483,484,498,499", "CEE Eng/Sci":"CEE:300-499", "CEE Science":""},
-  note:`Technical electives must cover <a href="https://www.ce.washington.edu/current/undergrad/civil/major-coursework/technical-electives" target="_blank" rel="noopener">three of the six areas</a>, which the planner doesn't check. Tag your basic science elective as CEE Science, and tag approved courses from other departments as CEE Eng/Sci.`,
+  gen:{nsc:46, nscTags:["CEE Science"], nscCodes:[...NSC_MATH,"IND E 315","Q SCI 381","STAT 290","STAT 390",...NSC_CHEM2,...NSC_PHYS3]},
+  lists:{"CEE Technical":"CEE:378,402,403,409,410,412,415,416,419,420,422,424,432,433,434,436,437,451,452,453,454,457,459,462,463,465,467,473,474,475,476,477,478,480,481,482,483,484,498,499", "CEE Eng/Sci":"CEE:300-499",
+    "CEE Science":"BIOL:180;ATMOS:101,211,212;ESRM:100,101,210;ESS:101,106,201,211,212;OCEAN:102,200"},
+  note:`Technical electives must cover <a href="https://www.ce.washington.edu/current/undergrad/civil/major-coursework/technical-electives" target="_blank" rel="noopener">three of the six areas</a>, which the planner doesn't check. Tag approved courses from other departments as CEE Eng/Sci.`,
   reqs:[
     all("math","Math",ENG_MATH),
     all("sci","Chemistry, physics and statistics",ENG_CHEM2+","+PHYS3+",IND E 315|Q SCI 381|STAT 290|STAT 390"),
@@ -748,6 +757,7 @@ major("civ", "Civil Engineering (BS)", "eng", GENCAT+"CivilandEnvironmentalEngin
   ]});
 
 const BIOE_SRC = GENCAT+"Bioengineering-745.html";
+const BIOE_GEN = {nsc:59, w:0, nscTags:[], nscCodes:[...NSC_MATH,"STAT 311","STAT 390","IND E 315","Q SCI 381",...NSC_CHEM2,"CHEM 162","CHEM 165","CHEM 223","CHEM 237","PHYS 121","PHYS 122","PHYS 141","PHYS 142","BIOL 180","BIOL 200","BIOL 220"]};
 const BIOE_LISTS = {
   "BioE Senior":"BIOEN:406,415,420,423,424,425,436,437,440,445,448,449,450,451,454,455,457,460,461,463,466,468,470,472,474,475,481,482,483,484,485,486,487,488,489,490,491,494,498,546,573,576,579,599",
   "BioE Engineering":"A A:210;AMATH:422,423,424,481,482,483;CHEM E:310,326,375,445,457,465;NME:220;CEE:220,350,357,480,495;CSE:122,123,154,160,373,410,427;E E:215,233,235,242,271,341,401,484,485;IND E:250,337,351,426,470;M E:123,230,410,414,461,478,498",
@@ -760,15 +770,15 @@ const bioeBase = [
 ];
 const bioeCap = all("cap","Capstone","BIOEN 401,BIOEN 402;BIOEN 404,BIOEN 405");
 const bioeNote = `The major's 7 writing credits come from required courses, so the planner doesn't list them. The engineering elective list comes from the <a href="https://bioe.uw.edu/academic-programs/undergraduate/undergraduate-degree-requirements/" target="_blank" rel="noopener">department's examples</a>. Ask an adviser for the full list. The team capstone (BIOEN 404 and 405) needs 12 engineering elective credits, not 9.`;
-major("bioe", "Bioengineering (BS)", "eng", BIOE_SRC, {gen:{nsc:59, w:0}, lists:BIOE_LISTS, note:bioeNote, reqs:[...bioeBase, bioeCap,
+major("bioe", "Bioengineering (BS)", "eng", BIOE_SRC, {gen:BIOE_GEN, lists:BIOE_LISTS, note:bioeNote, reqs:[...bioeBase, bioeCap,
   crd("sen","15 credits of senior electives",15,"BioE Senior"),
   crd("eng","9 credits of engineering electives",9,["BioE Senior","BioE Engineering"])]});
-major("bioe-ds", "Bioengineering: Data Science (BS)", "eng", BIOE_SRC, {gen:{nsc:59, w:0}, lists:BIOE_LISTS,
+major("bioe-ds", "Bioengineering: Data Science (BS)", "eng", BIOE_SRC, {gen:BIOE_GEN, lists:BIOE_LISTS,
   note:bioeNote+" You also need one course in each of two eScience data science areas, which the planner doesn't check.", reqs:[...bioeBase, bioeCap,
   all("ds","Data science","STAT 180|CSE 180|INFO 180|INFO 201|INFO 370,CSE 123|CSE 143|CSE 163,CSE 416|STAT 416|STAT 435|INFO 371,SOC 225|B H 201|B H 311|B H 444,BIOEN 420|BIOEN 423|BIOEN 424|BIOEN 436|BIOEN 447|BIOEN 449|BIOEN 451|BIOEN 466|BIOEN 485|BIOEN 488|BIOEN 492"),
   crd("sen","15 credits of senior electives",15,"BioE Senior"),
   crd("eng","9 credits of engineering electives",9,["BioE Senior","BioE Engineering"])]});
-major("bioe-nme", "Bioengineering: Nanoscience & Molecular (BS)", "eng", BIOE_SRC, {gen:{nsc:59, w:0}, lists:{...BIOE_LISTS,"BioE NME":""},
+major("bioe-nme", "Bioengineering: Nanoscience & Molecular (BS)", "eng", BIOE_SRC, {gen:BIOE_GEN, lists:{...BIOE_LISTS,"BioE NME":""},
   note:bioeNote+" Tag your nano-molecular courses as BioE NME, using the department's list.", reqs:[...bioeBase,
   all("cap","Capstone in a nano-molecular area","BIOEN 401,BIOEN 402"), all("nme","NME 220","NME 220"),
   crd("nano","18 credits of nano-molecular courses",18,"BioE NME"),
@@ -784,7 +794,7 @@ function genReqs(m){
     {id:"div",group:"gen",label:"Diversity (DIV)",type:"credits",tags:["DIV"],need:5},
     {id:"ah",group:"gen",label:"Arts & Humanities (A&H)",type:"credits",tags:["A&H"],need:g.ah},
     {id:"ssc",group:"gen",label:"Social Sciences (SSc)",type:"credits",tags:["SSc"],need:g.ssc},
-    {id:"nsc",group:"gen",label:g.nscLabel||"Natural Sciences (NSc)",type:"credits",tags:g.nscTags||["NSc"],...(g.nscCodes?{codes:g.nscCodes}:{}),need:g.nsc},
+    {id:"nsc",group:"gen",label:g.nscTags?"Natural Sciences: math and approved science":"Natural Sciences (NSc)",type:"credits",tags:g.nscTags||["NSc"],...(g.nscCodes?{codes:g.nscCodes}:{}),need:g.nsc},
     m.college==="as" && {id:"aoi",group:"gen",label:"Areas of Inquiry total, max 35 per area",type:"credits",tags:["A&H","SSc","NSc"],need:g.aoi,capPerTag:35},
     m.college==="eng" && {id:"aoi",group:"gen",label:"A&H and SSc total",type:"credits",tags:["A&H","SSc"],need:g.aoi},
   ];
@@ -798,9 +808,20 @@ const ETHICS_REQS = [
   {id:"ethUD",group:"eth",label:"Minor credits at 300+",type:"credits",tags:["Ethics A","Ethics B"],codes:["ETHICS 495"],need:15,upperOnly:true},
   {id:"minor",group:"minor",label:"Minor credits (rename me)",type:"credits",tags:["Minor"],need:25},
 ];
+/* One general education set per college (advising.uw.edu/degree-overview/majors/double-degree-and-double-major). The first keeps the "gen" group so saved plans still match.
+   ponytail: two majors in one college use the first major's set, so a second Engineering major's NSc rules are ignored. Add per-major sets if students ask. */
+function genGroups(ids){
+  const seen = new Set();
+  return ids.map(id => MAJORS[id]).filter(m => !seen.has(m.college) && seen.add(m.college)).map((m, i) => ({group: i ? "gen-"+m.college : "gen", college: m.college, major: m}));
+}
+// Majors with different degree names are a double degree. Arts & Sciences degrees are BA or BS, and other colleges name the degree after the major.
+const degreeName = m => m.college==="as" ? (m.name.match(/\((BA|BS)\)$/)||[])[1] : m.id.split("-")[0];
+const isDoubleDegree = ids => new Set(ids.map(id => degreeName(MAJORS[id]))).size > 1;
 function planReqs(ids){
+  const gen = genGroups(ids).flatMap(({group, major:m}, i) => genReqs(m).filter(r => !i || !["total","res"].includes(r.id)).map(r => i ? {...r, id:group+"."+r.id, group} : r));
+  if(isDoubleDegree(ids)) gen.forEach(r => { if(r.id==="total") r.need = 225; if(r.id==="res") r.need = 90; });
   const mine = ids.flatMap(id => MAJORS[id].reqs.map(({k, ...r}) => ({...r, id: id==="cs" ? k : id+"."+k, group:id}))); // CS keeps its original ids so saved plans still match
-  return JSON.parse(JSON.stringify([...genReqs(MAJORS[ids[0]]), ...mine, ...ETHICS_REQS]));
+  return JSON.parse(JSON.stringify([...gen, ...mine, ...ETHICS_REQS]));
 }
 /*MAJORS-END*/
 
@@ -904,7 +925,7 @@ const AREAS = ["A&H","SSc","NSc","DIV","C"], ETH_TAGS = ["Ethics A","Ethics B"];
 const ETH_TERMS = "<b>List A</b> courses are normative-thinking and conceptual-analysis courses. <b>List B</b> courses are values-laden issue courses.";
 const ALL_AUTO_TAGS = new Set(Object.values(MAJORS).flatMap(m=>m.auto));
 const planTags = p => [...GEN_TAGS,...new Set(p.majors.flatMap(id=>MAJORS[id].tags)),...ETH_TAGS,"Minor"];
-const groupsOf = p => ({gen:"General education",...Object.fromEntries(p.majors.map(id=>[id,MAJORS[id].name])),eth:"Ethics minor",minor:"Another minor"});
+const groupsOf = p => { const gens=genGroups(p.majors); return {...Object.fromEntries(gens.map(g=>[g.group,gens.length>1?"General education: "+COLLEGES[g.college].name:"General education"])),...Object.fromEntries(p.majors.map(id=>[id,MAJORS[id].name])),eth:"Ethics minor",minor:"Another minor"}; };
 const clone = o => JSON.parse(JSON.stringify(o));
 const uid = () => Math.random().toString(36).slice(2,10);
 const C = (code,credits,tags,status,title) => ({id:uid(),code,credits,tags:tags||[],status:status||"plan",title:title||""});
@@ -925,11 +946,12 @@ function setMajors(p,ids){
   const keep=new Set(ids.flatMap(id=>MAJORS[id].tags)), drop=new Set(p.majors.flatMap(id=>MAJORS[id].tags).filter(t=>!keep.has(t)));
   const courses=[...p.prior,...Object.values(p.quarters).flat()];
   courses.forEach(c=>{ c.tags=(c.tags||[]).filter(t=>!drop.has(t)); });
-  const old=Object.fromEntries(p.reqs.map(r=>[r.id,r])), sameCollege=MAJORS[ids[0]].college===MAJORS[p.majors[0]].college;
+  const old=Object.fromEntries(p.reqs.map(r=>[r.id,r])), defaults=Object.fromEntries(planReqs(p.majors).map(r=>[r.id,r.need])), sameCollege=MAJORS[ids[0]].college===MAJORS[p.majors[0]].college;
   p.majors=ids;
-  ids.forEach(id=>{ if(p.groupsOn[id]===undefined) p.groupsOn[id]=true; });
+  [...ids,...genGroups(ids).map(g=>g.group)].forEach(g=>{ if(p.groupsOn[g]===undefined) p.groupsOn[g]=true; });
   courses.forEach(c=>addAutoTags(c,p));
-  p.reqs=planReqs(ids).map(r=>old[r.id]&&typeof old[r.id].need==="number"&&(r.group!=="gen"||sameCollege)?{...r,need:old[r.id].need}:r);
+  const edited=r=>old[r.id]&&typeof old[r.id].need==="number"&&old[r.id].need!==defaults[r.id];
+  p.reqs=planReqs(ids).map(r=>edited(r)&&(r.group!=="gen"||sameCollege)?{...r,need:old[r.id].need}:r);
 }
 function majorOptions(selected){
   return Object.entries(COLLEGES).map(([k,col])=>`<optgroup label="${esc(col.name)}">${Object.values(MAJORS).filter(m=>m.college===k).map(m=>`<option value="${m.id}" ${m.id===selected?"selected":""}>${esc(m.name)}</option>`).join("")}</optgroup>`).join("");
@@ -966,7 +988,7 @@ function normalizePlan(p){
   if(!p||typeof p!=="object"||!Array.isArray(p.prior)||typeof p.quarters!=="object") return null;
   p.id = p.id||("p"+uid()); p.name = p.name||"Imported plan"; p.years=p.years||4; p.startYear=p.startYear||2026;
   p.majors = (Array.isArray(p.majors)?p.majors:["cs"]).filter(id=>MAJORS[id]); if(!p.majors.length) p.majors=["cs"]; // plans made before multiple majors are CS
-  p.groupsOn = Object.assign({gen:true,eth:false,minor:false}, Object.fromEntries(p.majors.map(id=>[id,true])), p.groupsOn||{});
+  p.groupsOn = Object.assign({gen:true,eth:false,minor:false}, Object.fromEntries([...p.majors,...genGroups(p.majors).map(g=>g.group)].map(g=>[g,true])), p.groupsOn||{});
   if(p.groupsOn.bus!==undefined){ p.groupsOn.minor=p.groupsOn.bus; delete p.groupsOn.bus; }
   const old = Object.fromEntries((p.reqs||[]).map(r=>[r.id==="bus"?"minor":r.id,r]));
   p.reqs = planReqs(p.majors).map(r=>old[r.id]&&typeof old[r.id].need==="number"?{...r,need:old[r.id].need,label:r.group==="minor"&&old[r.id].label?old[r.id].label:r.label}:r);
@@ -1220,7 +1242,9 @@ function renderAudit(p){
     html+=`<div class="grp ${on?"":"off"}"><div class="grph"><h3>${esc(groups[gk])}</h3>
       <span style="display:flex;gap:8px;align-items:center">${on?`<span class="muted mono" style="font-size:12px">${met}/${reqs.length}</span>`:""}
       <input type="checkbox" class="switch" data-grp="${gk}" ${on?"checked":""} aria-label="Count ${esc(groups[gk])} toward graduation"></span></div>`;
-    if(gk==="gen"&&on) html+=`<p class="note" style="margin:0 0 4px">${esc(COLLEGES[MAJORS[p.majors[0]].college].name)} rules, from your ${p.majors.length>1?"first ":""}major.</p>`;
+    const genSet=genGroups(p.majors).find(g=>g.group===gk), multi=genGroups(p.majors).length>1;
+    if(genSet&&on) html+=`<p class="note" style="margin:0 0 4px">${multi?"Your majors are in different colleges, so you need each college's general education. One course can count toward both.":esc(COLLEGES[genSet.college].name)+" rules, from your major."}</p>`;
+    if(gk==="gen"&&on&&isDoubleDegree(p.majors)) html+=`<p class="note" style="margin:0 0 4px">These majors have different degree names, so this is a <a href="https://advising.uw.edu/degree-overview/majors/double-degree-and-double-major/" target="_blank" rel="noopener">double degree</a>: 225 credits, with 90 at UW.</p>`;
     if(m?.terms&&on) html+=`<p class="note" style="margin:0 0 4px">${m.terms}</p>`;
     if(on) for(const [r,e] of res){
       const val=editing&&r.type!=="courses"?`<input type="number" class="needin mono" data-need="${r.id}" value="${r.need}" min="0" aria-label="Needed for ${esc(r.label)}">`:`${e.met?"✓ ":""}${fmt(e.have)} / ${e.need}`;
@@ -1342,7 +1366,10 @@ function reqFilter(r){
   if(r.type==="courses"){ const codes=reqKeys(r); return {label:r.label,scope:{label:r.label,test:c=>codes.has(c.key)}}; }
   if(r.dept) return {label:r.label,scope:{label:r.dept.join(" / "),test:c=>r.dept.includes(deptOf(c.code))&&level(c.code)>=(r.min||0)&&level(c.code)<=(r.max||999)}};
   const t=r.tags||[];
-  if(!t.length&&r.codes?.length){ const codes=new Set(r.codes.map(c=>norm(c).replace(/ /g,""))); return {label:r.label,scope:{label:r.label,test:c=>codes.has(c.key)}}; }
+  if(r.codes?.length&&!t.includes("W")&&!t.some(x=>ETH_TAGS.includes(x))){ // named courses plus any major lists it also accepts
+    const codes=new Set(r.codes.map(c=>norm(c).replace(/ /g,""))), ms=Object.values(MAJORS).filter(m=>m.auto.some(x=>t.includes(x)));
+    return {label:r.label,scope:{label:r.label,test:c=>codes.has(c.key)||ms.some(m=>m.tagsFor(c.code).some(x=>t.includes(x)))}};
+  }
   if(!t.length||r.all) return null;
   if(t.every(x=>ALL_AUTO_TAGS.has(x))||t.every(x=>ETH_TAGS.includes(x))||(t.length===1&&AREAS.includes(t[0]))) return {label:r.label,on:t};
   if(t.every(x=>AREAS.includes(x))) return {label:r.label,scope:{label:t.join(" / "),test:c=>c.gen.some(g=>t.includes(g))}};
