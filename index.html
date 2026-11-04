@@ -980,9 +980,8 @@ const groupsOf = p => { const gens=genGroups(p.majors); return {...Object.fromEn
 const clone = o => JSON.parse(JSON.stringify(o));
 const uid = () => Math.random().toString(36).slice(2,10);
 const C = (code,credits,tags,status,title) => ({id:uid(),code,credits,tags:tags||[],status:status||"plan",title:title||""});
-// Only the major names go in the link. Issues are public, so students fill in the rest themselves and never send an audit.
-const reportUrl = p => { const names=p.majors.map(id=>MAJORS[id].name).join(" + ");
-  return "https://github.com/Se9uencer/husky-degree-planner/issues/new?"+new URLSearchParams({title:"Mismatch: "+names, body:`Major: ${names}\nRequirement:\nPlanner shows:\nDARS shows:\nCourse involved:\n\nGitHub issues are public. Please don't paste your full audit, grades or name.`}); };
+// Fills in the form's major question. Only the major names go in the link, never courses or grades.
+const reportUrl = p => "https://docs.google.com/forms/d/e/1FAIpQLSc2wzpJp2gNpXXm0gyblS04vB3k3UT-YEmIt-09-zhsj17DRg/viewform?"+new URLSearchParams({usp:"pp_url", "entry.2042688286":p.majors.map(id=>MAJORS[id].name).join(" + ")});
 const esc = s => String(s??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
 const fmt = n => Number.isInteger(n)?String(n):(+n).toFixed(1);
 const sumCr = list => list.reduce((s,c)=>s+(+c.credits||0),0);
@@ -1319,7 +1318,7 @@ function renderAudit(p){
   }
   html+=`<div class="hstack"><button class="btn small" id="editneeds">${editing?"Done editing":"Edit requirement numbers"}</button><button class="btn small ghost" id="resetreqs">Reset to defaults</button></div>
     <p class="note">Courses count by code (MATH 208, PSYCH 101) or by the tags you give them. A course can carry several tags. Click a requirement marked › to browse courses that count toward it.</p>
-    <p class="note">Planner disagrees with your DARS? <a href="${esc(reportUrl(p))}" target="_blank" rel="noopener">Report a mismatch</a> (needs a GitHub account).</p>`;
+    <p class="note">Planner disagrees with your DARS? <a href="${esc(reportUrl(p))}" target="_blank" rel="noopener">Report a mismatch</a> or send feedback.</p>`;
   const el=document.getElementById("audit"); el.innerHTML=html;
   el.querySelectorAll("[data-find]").forEach(d=>{ const go=()=>openFind(null,reqFilter(p.reqs.find(r=>r.id===d.dataset.find)));
     d.onclick=go; d.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); go(); } }; });
