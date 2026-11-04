@@ -217,6 +217,12 @@ input.labelin{width:100%;padding:var(--sp-2) var(--sp-6);min-height:var(--h-xs)!
 .dlg h3{margin:0 0 var(--sp-2);font-family:var(--f-display);font-weight:400;font-size:var(--fs-page);line-height:1.05;letter-spacing:-.01em}
 .dlg textarea{width:100%;min-height:220px;font-family:var(--f-mono);font-size:var(--fs-sm);resize:vertical}
 .dlg h3 .sub{font-family:var(--f-body);font-size:var(--fs-base);font-weight:500;letter-spacing:0}
+.dlg.wide{width:min(640px,100%)}
+.dlg ol.tut{gap:var(--sp-24);padding-left:0;list-style:none;counter-reset:step;flex:none}
+.tut li{display:grid;gap:var(--sp-8)}
+.tut h4{margin:0;font-size:var(--fs-base);font-weight:600}
+.tut h4::before{counter-increment:step;content:"Step " counter(step) ": ";color:var(--accent)}
+.tut img{display:block;max-width:100%;height:auto;border:1px solid var(--line);border-radius:var(--r-sm)}
 .dlg ol{margin:0;padding-left:var(--sp-20);display:grid;gap:var(--sp-4)}
 .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:var(--sp-12)}
 .row > div{display:flex;flex-direction:column;min-width:0}
@@ -301,6 +307,7 @@ footer{font-size:var(--fs-sm);color:var(--muted);max-width:80ch;padding-top:var(
       <button class="btn primary" data-start="dars">Import from DARS</button>
       <button class="btn" data-start="blank">Start a blank plan</button>
       <button class="btn" data-start="example">Open an example</button>
+      <button class="btn ghost" id="tutorialbtn">See how it works</button>
     </div>
     <p class="note">Where's DARS? In <a href="https://myplan.uw.edu/audit/" target="_blank" rel="noopener">MyPlan</a>, click <b>Degree Audit (DARS)</b>, run or refresh your audit, then copy the whole audit page.</p>
     <p class="note">Sign in to save — nothing is kept if you close the tab or refresh without an account. Use Export to back up your plans or move them to another device.</p>
@@ -1170,6 +1177,7 @@ async function startAction(t,id=plan()?.majors[0]||"cs"){
 const wmajor=document.getElementById("wmajor");
 wmajor.innerHTML=majorOptions("cs");
 document.querySelectorAll("[data-start]").forEach(b=>b.onclick=()=>startAction(b.dataset.start,wmajor.value));
+document.getElementById("tutorialbtn").onclick=()=>openTutorial(wmajor.value);
 
 function renderProj(p){
   const g=projection(p), all=allCourses(p), tot=sumCr(all);
@@ -1544,6 +1552,23 @@ function openEditor(cid,key,prefill){
     setTimeout(()=>(prefill?document.getElementById("e-q"):codeIn).focus(),0);
   });
 }
+function openTutorial(id="cs"){
+  const step=(title,text,img,w,h,alt)=>`<li><h4>${title}</h4><p class="note">${text}</p>${img?`<a href="tutorial/${img}" target="_blank" rel="noopener" aria-label="Open this screenshot at full size"><img src="tutorial/${img}" width="${w}" height="${h}" alt="${alt}" loading="lazy"></a>`:""}</li>`;
+  dialog(`<h3 id="dlgt">How to import your DARS audit</h3>
+    <p class="note">It takes about a minute, and it fills in your AP, transfer and current courses for you.</p>
+    <ol class="tut">
+      ${step("Run your audit",`Go to <a href="https://myplan.uw.edu/audit/" target="_blank" rel="noopener">MyPlan</a> and click <b>Degree Audit (DARS)</b>. Run an audit for your program, or open your latest one and click <b>Refresh Audit</b>.`,"dars-step-1.webp",1400,581,"The MyPlan audit page with the Refresh Audit button outlined")}
+      ${step("Copy the whole page","Click anywhere on the audit and press Ctrl+A (Cmd+A on a Mac) so the whole page is highlighted. Then copy it with Ctrl+C (Cmd+C).","dars-step-2.webp",1400,581,"The MyPlan audit page with all of its text highlighted")}
+      ${step("Paste it here","Click <b>Import from DARS</b>, choose your major, and paste the audit into the box.","dars-step-3.webp",376,392,"The planner's Import from DARS panel, with a major picker and a box for the audit text")}
+      ${step("Check it and plan ahead","Check the tags on your AP and transfer credit, then add the courses you plan to take. The planner shows the first quarter where you meet every requirement.")}
+    </ol>
+    <div class="dlgfoot"><span></span><span class="hstack"><button class="btn" id="t-close">Close</button><button class="btn primary" id="t-import">Import from DARS</button></span></div>`,
+  (ov,close)=>{
+    ov.querySelector(".dlg").classList.add("wide");
+    document.getElementById("t-close").onclick=close;
+    document.getElementById("t-import").onclick=()=>{ close(); openDars(id); };
+  });
+}
 function openDars(id="cs"){
   dialog(`<h3 id="dlgt">Import from DARS</h3>
     <div><label class="lbl" for="d-major">Your major</label><select id="d-major" class="w-full">${majorOptions(id)}</select></div>
@@ -1553,6 +1578,7 @@ function openDars(id="cs"){
       <li>Select the whole page (Ctrl+A or Cmd+A) and copy it.</li>
       <li>Paste it below.</li>
     </ol>
+    <button type="button" class="btn ghost small self-start" id="d-tutorial">See the steps with screenshots</button>
     <textarea id="d-text" placeholder="Paste your DARS audit text here" aria-label="DARS audit text"></textarea>
     <div id="d-prev" class="preview" hidden></div>
     <div class="dlgfoot"><span></span><span class="hstack"><button class="btn" id="d-cancel">Cancel</button><button class="btn primary" id="d-go" disabled>Create plan</button></span></div>`,
@@ -1571,6 +1597,7 @@ function openDars(id="cs"){
     };
     ta.addEventListener("input",update);
     document.getElementById("d-cancel").onclick=close;
+    document.getElementById("d-tutorial").onclick=()=>{ const chosen=document.getElementById("d-major").value; close(); openTutorial(chosen); };
     go.onclick=()=>{ if(!parsed||!parsed.courses.length) return;
       const sy=parseInt((document.getElementById("d-start")||{}).value)||parsed.startYear||new Date().getFullYear();
       const chosen=document.getElementById("d-major").value;
