@@ -1,0 +1,250 @@
+# UW majors in DARS
+
+Every undergraduate program in the MyPlan "Audit a UW Degree Program (DARS)" dropdown for the Seattle campus, copied as written on November 3, 2026. A checked box means the planner supports it. The tests check that the number of checked boxes matches the number of programs in the app.
+
+- [ ] ACMS: Biological and Life Sciences (Not admitting)
+- [x] ACMS: Data Science and Statistics
+- [x] ACMS: Discrete Math and Algorithms
+- [x] ACMS: Mathematical Economics & Quantitative Finance
+- [x] ACMS: Sci Comp & Num Algorithms
+- [ ] Aeronautical & Astronautical Engineering
+- [ ] American Ethnic Studies
+- [ ] American Indian Studies
+- [ ] Anthropology
+- [ ] Anthropology: AG Option
+- [ ] Anthropology: Archaeological Sciences Option (BS)
+- [ ] Anthropology: Archy Sci Option
+- [ ] Anthropology: Human Evolutionary Bio Option
+- [ ] Anthropology: Human Evolutionary Biol Option (BS)
+- [ ] Anthropology: Indigenous Archaeology
+- [ ] Anthropology: MAGH Option (BA)
+- [ ] Anthropology: MAGH Option (BS)
+- [ ] Applied Mathematics
+- [ ] Applied Mathematics: Data Science
+- [ ] Aquatic & Fishery Sciences (BS)
+- [ ] Aquatic Conservation and Ecology (BS)
+- [ ] Arch Design w/Const Mgmt
+- [ ] Architectural Design
+- [ ] Architectural Studies (BA)
+- [ ] Architecture (BA) (Not admitting)
+- [ ] Art History
+- [ ] Art: Art (BA)
+- [ ] Art: Industrial Design (BOD)
+- [ ] Art: Interaction Design (BOD)
+- [ ] Art: Interdisc. Visual Art (BA) (Not admitting)
+- [ ] Art: Visual Communication Design (BOD)
+- [ ] Asian Languages and Cultures
+- [ ] Astronomy
+- [ ] Atmospheric & Climate Science: Chemistry
+- [ ] Atmospheric & Climate Science: Climate
+- [ ] Atmospheric & Climate Science: Data Science
+- [ ] Atmospheric & Climate Science: Meteorology
+- [ ] Biochemistry (BA)
+- [ ] Biochemistry (BS)
+- [x] Bioengineering
+- [x] Bioengineering: Data Science Option
+- [x] Bioengineering: Nanoscience/Molecular Engr Option
+- [x] Biology (BA)
+- [x] Biology (BS)
+- [ ] Biology: Ecology, Evolution & Conserv (No admit)
+- [ ] Biology: Mlcr, Cell, Dvp (Not admitting)
+- [ ] Biology: Physiology (Not admitting)
+- [ ] Biology: Plant Biol (Not admitting)
+- [ ] Bioresource Sci & Engineering: General Option (BS)
+- [x] Business Admin: Acct for Business Professionals
+- [x] Business Administration
+- [x] Business Administration: Accounting
+- [x] Business Administration: Entrepreneurship
+- [x] Business Administration: Finance
+- [x] Business Administration: Human Resource Mgmt
+- [x] Business Administration: Information Systems
+- [x] Business Administration: Marketing
+- [x] Business Administration: Ops and Supply Chain Mgmt
+- [ ] Chemical Engineering
+- [ ] Chemical Engineering: Nanosci/Molecular Option
+- [ ] Chemistry (BA)
+- [ ] Chemistry (BS)
+- [ ] Chemistry (BS) ACS Cert
+- [ ] Chinese
+- [ ] Cinema and Media Studies
+- [x] Civil Engineering
+- [ ] Classical Studies
+- [ ] Classics
+- [ ] Clinical Health Services
+- [x] Communication
+- [x] Communication: Journalism and Public Interest
+- [ ] Communications (Not admitting see COM)
+- [ ] Community, Environment & Planning
+- [ ] Comparative History of Ideas
+- [ ] Comparative Literature
+- [ ] Comparative Literature: Cinema Studies
+- [ ] Computational Finance and Risk Management
+- [ ] Computational Finance and Risk Mgmt: Data Science
+- [x] Computer Engineering
+- [x] Computer Science
+- [ ] Computer Science: Data Science Option
+- [ ] Construction Management
+- [ ] Construction Mgmt w/Arch Design (fmr Arch Studies)
+- [ ] Dance
+- [ ] Danish
+- [ ] Drama
+- [ ] Drama: Design
+- [ ] Drama: Performance
+- [ ] ESRM: General (BS)
+- [ ] ESRM: Natural Res and Envir Mgmt (BS) (Prev LEC)
+- [ ] ESRM: Restoration Ecol & Envir Horticulture (BS)
+- [ ] ESRM: Sustainable Forest Management (BS)
+- [ ] ESRM: Wildlife Conservation (BS)
+- [ ] Early Care and Educ: T&L (Online) (Not admitting)
+- [ ] Early Care and Education (Online Program)
+- [ ] Early Childhood & Family Studies (Not admitting)
+- [ ] Early Childhood & Family Studies: Teach & Learning
+- [ ] Earth and Space Sciences (BA)
+- [ ] Earth and Space Sciences: Biology Option
+- [ ] Earth and Space Sciences: Geology Option
+- [ ] Earth and Space Sciences: Geoscience Option
+- [ ] Earth and Space Sciences: Physics Option
+- [ ] Eastern European Lang, Lit, & Culture
+- [x] Economics (BA)
+- [x] Economics (BS)
+- [x] Economics: Data Science (BS)
+- [x] Economics: Financial (BS)
+- [x] Economics: International (BA)
+- [x] Economics: Strategy (BS)
+- [ ] Edu Studies: Wellness & Social Emotional Learning
+- [ ] Education, Communities and Organizations
+- [ ] Educational Studies: Early Childhood
+- [ ] Educational Studies: Education Research and Policy
+- [ ] Educational Studies: Foundations of Teaching
+- [ ] Educational Studies: Multilingual/Language in Educ
+- [ ] Educational Studies: Sports and Education
+- [ ] Educational Studies:Liberatory Eductation
+- [ ] Electrical Engineering (Not admitting)
+- [x] Electrical and Computer Engineering
+- [ ] English
+- [ ] English: Creative Writing
+- [ ] Envir Studies: Environmental Studies
+- [ ] Environmental Design and Sustainability
+- [ ] Environmental Engineering
+- [ ] Environmental Public Health
+- [ ] Finnish
+- [ ] Food Systems, Nutrition and Health (BA)
+- [ ] Food Systems, Nutrition and Health (BS)
+- [ ] French
+- [ ] Gender, Women & Sexuality Studies
+- [ ] Geography
+- [ ] Geography: Data Science
+- [ ] German Studies
+- [ ] German Studies: Cultural Studies
+- [ ] Global Literary Studies
+- [ ] Greek
+- [ ] HCDE: Data Science (Not admitting)
+- [ ] HCDE: Human Centered Design and Engineering
+- [ ] HCDE: Human-Cmptr Interaction (Not admitting)
+- [ ] Health Informatics & Health Info Mgmt
+- [ ] History
+- [ ] History and Philosophy of Science
+- [ ] History: Empire and Colonialism
+- [ ] History: Race, Gender and Power
+- [ ] History: Religion and Society
+- [ ] History: War and Society
+- [ ] Individualized Studies (BA)
+- [ ] Individualized Studies (BS)
+- [ ] Industrial Engineering
+- [ ] Industrial Engineering: Data Science
+- [x] Informatics
+- [x] Informatics: Biomedical and Health Informatics
+- [x] Informatics: Data Science Option
+- [ ] Informatics: HCI Option (Not admitting)
+- [ ] Informatics: IAC Option (Not admitting)
+- [ ] Integrated Social Sciences
+- [ ] International Studies: (General)
+- [ ] Intl Studies: Asian Studies
+- [ ] Intl Studies: Canadian Studies
+- [ ] Intl Studies: Comparative Religion
+- [ ] Intl Studies: European Studies
+- [ ] Intl Studies: Jewish Studies
+- [ ] Intl Studies: Lat Am/Carib Studies
+- [ ] Italian
+- [ ] Japanese
+- [ ] Korean
+- [ ] Landscape Architecture
+- [ ] Latin
+- [ ] Law, Societies & Justice
+- [ ] Linguistics
+- [ ] Marine Biology (BS)
+- [ ] Materials Science & Engineering
+- [ ] Materials Science & Engr: Nanosci/Molecular Engr
+- [ ] Mathematics: Philosophy
+- [ ] Mathematics: Standard (BA)
+- [ ] Mathematics: Standard (BS)
+- [ ] Mathematics: Teacher Prep
+- [x] Mechanical Engineering
+- [x] Mechanical Engineering: Biomechanics
+- [x] Mechanical Engineering: Mechatronics
+- [ ] Medical Laboratory Science
+- [ ] Microbiology
+- [ ] Middle Eastern Lang & Culture: Lang & Culture
+- [ ] Middle Eastern Lang & Cultures: Biblical & Ancient
+- [ ] Middle Eastern Lang & Cultures: Comp Cultures
+- [ ] Music (BA)
+- [ ] Music: American Music (BA)
+- [ ] Music: Composition (BM)
+- [ ] Music: Early Music Option (BA)
+- [ ] Music: Ethnomusicology (BA)
+- [ ] Music: Guitar (BM)
+- [ ] Music: Jazz Studies (BM)
+- [ ] Music: Music Education (BM)
+- [ ] Music: Music History Option (BA)
+- [ ] Music: Orchestral Instrument (BM)
+- [ ] Music: Organ Performance (BM)
+- [ ] Music: Percussion Mallet and Keyboard (BM)
+- [ ] Music: Percussion Orchestral (BM)
+- [ ] Music: Piano Performance (BM)
+- [ ] Music: String Performance (BM)
+- [ ] Music: Theory Option (BA)
+- [ ] Music: Vocal Performance (BM)
+- [ ] Music: Voice Option (BA)
+- [ ] Near Eastern Stdys: Lang & Culture (Not admitting)
+- [ ] Neuroscience
+- [ ] Norwegian
+- [ ] Nursing
+- [ ] Nursing: Accelerated (postbaccalaureate)
+- [ ] Oceanography (BA)
+- [ ] Oceanography (BS)
+- [ ] Paramedicine
+- [x] Philosophy
+- [x] Philosophy: Ethics
+- [ ] Physics: Applied Physics
+- [ ] Physics: Biophysics
+- [ ] Physics: Comprehensive
+- [ ] Physics: Teacher Preparation
+- [x] Political Science: General
+- [x] Political Science: International Security
+- [x] Political Science: Political Economy
+- [x] Psychology (BA)
+- [x] Psychology (BS)
+- [ ] Public Health - Global Health (BA)
+- [ ] Public Health - Global Health (BS)
+- [ ] Public Health - Global Health: Educ & Promotion
+- [ ] Public Health - Global Health: Global Health (BA)
+- [ ] Public Health - Global Health: Global Health (BS)
+- [ ] Public Health - Global Health: Nutr. Science (BS)
+- [ ] Public Service and Policy
+- [ ] Real Estate
+- [ ] Romance Linguistics
+- [ ] Russian
+- [ ] Scandinavian Area Studies
+- [ ] Social Welfare (BA)
+- [ ] Sociology
+- [ ] South Asian Languages and Cultures
+- [ ] Spanish
+- [ ] Speech Communication (Not admitting see COM)
+- [ ] Speech and Hearing Sciences
+- [ ] Speech and Hearing Sciences: Extension Postbac
+- [ ] Statistics (Not admitting)
+- [x] Statistics: Applied Statistics
+- [x] Statistics: Data Science (BS)
+- [x] Statistics: Mathematical Statistics
+- [ ] Sustainable Bioresource Sys Engr: Gen Option (BS)
+- [ ] Swedish

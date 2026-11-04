@@ -9,11 +9,11 @@ Pick your major, paste in your DARS audit, add the courses you plan to take, and
 | Area | Majors and options |
 | --- | --- |
 | Computing and data | Computer Science, Computer Engineering, Informatics (general, Biomedical & Health, Data Science), ACMS (4 options), Statistics (3 options) |
-| Arts & Sciences | Psychology (BA, BS), Biology (BA, BS), Economics (BA, BS and 4 options), Communication (general, Journalism & Public Interest), Political Science (general, International Security, Political Economy) |
+| Arts & Sciences | Psychology (BA, BS), Biology (BA, BS), Economics (BA, BS and 4 options), Communication (general, Journalism & Public Interest), Political Science (general, International Security, Political Economy), Philosophy (general, Ethics) |
 | Business | Business Administration (general and 8 majors) |
 | Engineering | Mechanical (general, Biomechanics, Mechatronics), Electrical & Computer, Civil, Bioengineering (general, Data Science, Nanoscience) |
 
-That's 44 programs, and a plan can hold up to two. Following [UW's rules](https://advising.uw.edu/degree-overview/majors/double-degree-and-double-major/), majors in different colleges need each college's general education, and majors with different degree names (a BA and a BS, for example) are a double degree, which needs 225 credits with 90 at UW.
+That's 46 programs, and a plan can hold up to two. [MAJORS.md](MAJORS.md) lists every program in DARS and which ones are supported. Following [UW's rules](https://advising.uw.edu/degree-overview/majors/double-degree-and-double-major/), majors in different colleges need each college's general education, and majors with different degree names (a BA and a BS, for example) are a double degree, which needs 225 credits with 90 at UW.
 
 **Live site:** https://husky-degree-planner.vercel.app
 
