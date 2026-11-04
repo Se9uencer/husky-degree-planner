@@ -685,12 +685,12 @@ major("pols-econ", "Political Science: Political Economy (BA)", "as", POLS_SRC, 
   note:polsNote+" Up to 25 credits can count toward both the major and the option.",
   reqs:[...polsReqs, {...all("opt","Option intro courses","ECON 200,ECON 201,POL S 270"),rule:true}, cnt("elec","6 advanced option courses",6,"Political Economy",{additional:false,rule:true})]});
 
-const PHIL_SRC = GENCAT+"Philosophy-221.html", PHIL_400 = {"PHIL 400-level":"PHIL:400-483,485-499"};
+const PHIL_SRC = GENCAT+"Philosophy-221.html", PHIL_400 = {"PHIL 400-level":"PHIL:400-483,485-497,499"};
 const philBase = [
   all("logic","Logic: PHIL 115, 120 or upper-division logic","PHIL 115|PHIL 120|PHIL 470|PHIL 471|PHIL 474"),
   all("ancient","Ancient: PHIL 320, 330, 335 or 340","PHIL 320|PHIL 330|PHIL 335|PHIL 340"),
   all("modern","Modern: PHIL 322, 332 or 342","PHIL 322|PHIL 332|PHIL 342"),
-  cnt("four","4 UW courses at 400-level, not PHIL 484",4,"PHIL 400-level",{uwOnly:true}),
+  cnt("four","4 UW courses at 400-level, not PHIL 484 or 498",4,"PHIL 400-level",{uwOnly:true}),
   rule("tot","50 philosophy credits",50,"PHIL"),
   rule("res","25 philosophy credits through UW",25,"PHIL",{uwOnly:true}),
 ];
