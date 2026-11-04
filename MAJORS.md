@@ -39,8 +39,8 @@ Every undergraduate program in the MyPlan "Audit a UW Degree Program (DARS)" dro
 - [ ] Atmospheric & Climate Science: Climate
 - [ ] Atmospheric & Climate Science: Data Science
 - [ ] Atmospheric & Climate Science: Meteorology
-- [ ] Biochemistry (BA)
-- [ ] Biochemistry (BS)
+- [x] Biochemistry (BA)
+- [x] Biochemistry (BS)
 - [x] Bioengineering
 - [x] Bioengineering: Data Science Option
 - [x] Bioengineering: Nanoscience/Molecular Engr Option
@@ -121,8 +121,8 @@ Every undergraduate program in the MyPlan "Audit a UW Degree Program (DARS)" dro
 - [ ] Educational Studies:Liberatory Eductation
 - [ ] Electrical Engineering (Not admitting)
 - [x] Electrical and Computer Engineering
-- [ ] English
-- [ ] English: Creative Writing
+- [x] English
+- [x] English: Creative Writing
 - [ ] Envir Studies: Environmental Studies
 - [ ] Environmental Design and Sustainability
 - [ ] Environmental Engineering
@@ -142,12 +142,12 @@ Every undergraduate program in the MyPlan "Audit a UW Degree Program (DARS)" dro
 - [ ] HCDE: Human Centered Design and Engineering
 - [ ] HCDE: Human-Cmptr Interaction (Not admitting)
 - [ ] Health Informatics & Health Info Mgmt
-- [ ] History
+- [x] History
 - [ ] History and Philosophy of Science
-- [ ] History: Empire and Colonialism
-- [ ] History: Race, Gender and Power
-- [ ] History: Religion and Society
-- [ ] History: War and Society
+- [x] History: Empire and Colonialism
+- [x] History: Race, Gender and Power
+- [x] History: Religion and Society
+- [x] History: War and Society
 - [ ] Individualized Studies (BA)
 - [ ] Individualized Studies (BS)
 - [ ] Industrial Engineering
@@ -175,10 +175,10 @@ Every undergraduate program in the MyPlan "Audit a UW Degree Program (DARS)" dro
 - [ ] Marine Biology (BS)
 - [ ] Materials Science & Engineering
 - [ ] Materials Science & Engr: Nanosci/Molecular Engr
-- [ ] Mathematics: Philosophy
-- [ ] Mathematics: Standard (BA)
-- [ ] Mathematics: Standard (BS)
-- [ ] Mathematics: Teacher Prep
+- [x] Mathematics: Philosophy
+- [x] Mathematics: Standard (BA)
+- [x] Mathematics: Standard (BS)
+- [x] Mathematics: Teacher Prep
 - [x] Mechanical Engineering
 - [x] Mechanical Engineering: Biomechanics
 - [x] Mechanical Engineering: Mechatronics
@@ -236,7 +236,7 @@ Every undergraduate program in the MyPlan "Audit a UW Degree Program (DARS)" dro
 - [ ] Russian
 - [ ] Scandinavian Area Studies
 - [ ] Social Welfare (BA)
-- [ ] Sociology
+- [x] Sociology
 - [ ] South Asian Languages and Cultures
 - [ ] Spanish
 - [ ] Speech Communication (Not admitting see COM)

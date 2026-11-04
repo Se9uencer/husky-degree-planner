@@ -276,7 +276,7 @@ const { MAJORS, COLLEGES, planReqs, canonCode, evalAll, isDoubleDegree } = new F
 // Every code a major names must exist in the catalog, so a typo can't slip in. Ranges like COM:201-299 cover numbers that don't exist, so only single numbers are checked.
 const catalog = new Set(list.map(c => c.code));
 // On a department's published list but not in the course catalog, checked by hand against the catalog pages. Kept so students who took them still get credit.
-const NOT_IN_CATALOG = new Set("AMATH 424,ANTH 497,ATMOS 460,BIOEN 447,BIOL 305,BIOL 325,BIOL 333,BIOL 409,BIOL 415,BIOL 419,BIOL 422,BIOL 437,BIOL 455,BIOL 472,CEE 402,CEE 403,CEE 495,CHEM 144,COM 325,COM 332,COM 426,COM 434,COM 463,CSE 466,CSE 467,CSE 471,E E 235,E E 341,E E 401,E E 414,E E 485,ESS 211,ESS 403,ESS 413,ESS 415,ESS 424,ESS 437,ESS 458,ESS 464,ESS 466,ESS 471,GEOG 349,LSJ 425,M E 406,M E 442,NEAR E 285,PGH 301,PHIL 408,PHYS 315,PHYS 424,PHYS 425,PHYS 426,PHYS 460,POL S 285,POL S 473,PSYCH 494,SCAND 402".split(","));
+const NOT_IN_CATALOG = new Set("CHEM 399,CHEM 410,ENGL 391,ENGL 411,ESRM 457,AMATH 424,ANTH 497,ATMOS 460,BIOEN 447,BIOL 305,BIOL 325,BIOL 333,BIOL 409,BIOL 415,BIOL 419,BIOL 422,BIOL 437,BIOL 455,BIOL 472,CEE 402,CEE 403,CEE 495,CHEM 144,COM 325,COM 332,COM 426,COM 434,COM 463,CSE 466,CSE 467,CSE 471,E E 235,E E 341,E E 401,E E 414,E E 485,ESS 211,ESS 403,ESS 413,ESS 415,ESS 424,ESS 437,ESS 458,ESS 464,ESS 466,ESS 471,GEOG 349,LSJ 425,M E 406,M E 442,NEAR E 285,PGH 301,PHIL 408,PHYS 315,PHYS 424,PHYS 425,PHYS 426,PHYS 460,POL S 285,POL S 473,PSYCH 494,SCAND 402".split(","));
 const RANGE_CODE = /^(INFO 35\d|COM 2\d\d|ACCTG [34]\d\d|MGMT 40\d|POL S 20\d)$/;
 const missing = new Map();
 const flag = (code, id) => { if (!catalog.has(code) && !NOT_IN_CATALOG.has(code)) missing.set(code, id); };
@@ -285,7 +285,7 @@ for (const m of Object.values(MAJORS)) {
   assert.ok(m.reqs.length, m.id + " has requirements");
   const reqs = planReqs([m.id]);
   assert.equal(new Set(reqs.map(r => r.id)).size, reqs.length, m.id + " requirement ids are unique");
-  assert.ok(reqs.some(r => r.id === "total" && r.need === 180), m.id + " total");
+  assert.ok(reqs.some(r => r.id === "total" && r.need === (m.gen?.total || 180)), m.id + " total");
   for (const r of reqs) {
     if (r.group !== m.id && r.id !== "nsc") continue;
     for (const code of [...(r.options || []).flat(2), ...(r.codes || [])]) if (!RANGE_CODE.test(code)) flag(code, m.id);
@@ -365,6 +365,14 @@ assert.ok(phil("logic").met && phil("ancient").met && phil("modern").met, "Philo
 assert.equal(phil("four").have, 2); assert.equal(phil("tot").have, 25);
 assert.equal(phil("eth").have, 15, "required ethics courses also count toward the ethics list");
 assert.equal(phil("eth4").have, 1, "only 400-level courses count toward the two");
+const hist = results("hist-war", [course("HSTAA 101", 5, "Modern"), course("HSTAA 202", 5, "Modern", "War & Society"), course("HSTEU 301", 5, "Pre-Modern", "War & Society"), course("HSTAM 111", 5, "Pre-Modern", "War & Society"), course("HSTRY 100", 5)]);
+assert.equal(hist("fields").have, 2, "one course per field, Europe counts once, and HSTRY isn't a field");
+assert.equal(hist("tot").have, 25); assert.equal(hist("pre").have, 10); assert.equal(hist("opt").have, 15); assert.equal(hist("optud").have, 5);
+const soc = results("soc", [course("STAT 290", 5), course("SOC 110", 5, "SOC Elective"), course("SOC 350", 5, "SOC Upper", "SOC Elective")]);
+assert.equal(soc("tot").have, 15, "statistics counts toward the 50 major credits"); assert.equal(soc("ud").have, 5); assert.equal(soc("intro").have, 5);
+assert.deepEqual(MAJORS["bioc-ba"].tagsFor("PHYS 117"), ["Biochem Elective"]); assert.deepEqual(MAJORS["bioc-bs"].tagsFor("PHYS 117"), []);
+for (const ids of [["bioc-bs"], ["cs", "bioc-bs"]]) assert.equal(planReqs(ids).find(r => r.id === "total").need, 193, "Biochemistry BS needs 193 credits, first or second");
+assert.equal(planReqs(["bioc-bs", "hist"]).find(r => r.id === "total").need, 225, "a double degree still needs 225");
 const asReqs = planReqs(["psych-ba"]), asE = evalAll(asReqs, [course("CSE 121", 4, "NSc")]);
 assert.equal(asE.get(asReqs.find(r => r.id === "nsc")).have, 4, "Arts & Sciences still counts any NSc course");
 
