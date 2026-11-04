@@ -38,6 +38,10 @@ for (const [name, text] of Object.entries({
 }
 console.log("parseDars: all copy formats OK");
 
+const physRows = [["MECHANICS", 4, "PHYS 114"], ["MECHANICS", 5, "PHYS 121"], ["HEAT FLUIDS E&M", 4, "PHYS 115"], ["HEAT & ELCTROMAG LAB", 1, "PHYS 118"], ["GEN LAB MODERN PHYS", 1, "PHYS 119"]];
+assert.deepEqual(parseDars(header + physRows.map(([t, cr]) => ["AU25", t, cr, "AP"].join("\n")).join("\n")).courses.map(c => c.code), physRows.map(r => r[2]), "AP physics titles");
+console.log("parseDars: AP physics titles OK");
+
 const cseTag = new Function(src.slice(src.indexOf("/*CSETAGS-START*/"), src.indexOf("/*CSETAGS-END*/")) + ";return cseTag;")();
 for (const [code, tag] of Object.entries({
   "CSE 333": "CS Core", "cse 446": "CS Core", "CSE493G": "CS Core", "EE 371": "CS Core", "E E 469": "CS Core", "STAT 391": "CS Core",
@@ -64,6 +68,15 @@ for (const [short, code] of Object.entries({
   "MECHANICS": null, "INTERMEDIATE FRENCH": null, "TRANSFER COURSE": null, "AP ENGLISH": null,
 })) assert.equal(resolveShortTitle(list, short), code, short);
 console.log("resolveShortTitle: DARS abbreviations OK");
+
+const addCatalogGen = new Function(src.slice(src.indexOf("/*MATCH-START*/"), src.indexOf("/*MATCH-END*/")) + ";return addCatalogGen;")();
+const byCode = new Map([["PHIL118", { tags: ["SSc"] }], ["PSYCH357", { tags: ["NSc", "DIV"] }], ["HCDE411", { tags: ["SSc", "A&H"] }]]);
+const gen = (code, ...tags) => { const c = { code, tags }; addCatalogGen(c, byCode); return c.tags; };
+assert.deepEqual(gen("PHIL 118", "Ethics A"), ["Ethics A", "SSc"], "fills a missing area");
+assert.deepEqual(gen("PSYCH 357", "SSc"), ["SSc", "DIV"], "keeps the DARS area but still adds DIV");
+assert.deepEqual(gen("HCDE 411", "A&H"), ["A&H"], "doesn't add a second area");
+assert.deepEqual(gen("UW 115"), [], "leaves courses outside the catalog alone");
+console.log("addCatalogGen: catalog designations OK");
 
 const block = name => src.slice(src.indexOf(`/*${name}-START*/`), src.indexOf(`/*${name}-END*/`));
 const { MAJORS, COLLEGES, planReqs, canonCode, evalAll } = new Function(
