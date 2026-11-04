@@ -19,7 +19,7 @@ That's 46 programs, and a plan can hold up to two. [MAJORS.md](MAJORS.md) lists 
 
 ## Features
 
-- **DARS import.** Copy your audit from MyPlan and paste it in. AP, transfer and in-progress courses go into the right quarters, with their gen-ed areas tagged. If UW caps your outside credit, the planner adds a matching adjustment so your total matches DARS.
+- **DARS import.** Copy your audit from MyPlan and paste it in, with a step-by-step guide on the welcome page. AP, transfer and in-progress courses go into the right quarters, with their gen-ed areas tagged. If UW caps your outside credit, the planner adds a matching adjustment so your total matches DARS.
 - **Projected graduation.** The planner finds the first quarter where all requirements are met and compares it to your target quarter. It also tells you how many credits per quarter you need to reach your target.
 - **Requirement audit.** Tracks:
   - General education: total credits, UW residency, composition, writing, diversity, and Areas of Inquiry, using the rules for your college
