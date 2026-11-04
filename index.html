@@ -315,11 +315,12 @@ const DARS_TITLE_CODES = {
   "SOFTWARE TOOLS":"CSE 391","GENERAL CHEM I":"CHEM 142","GENERAL CHEM II":"CHEM 152","GENERAL CHEM III":"CHEM 162",
   "INTRO MACROECON":"ECON 201","INTRO MICROECON":"ECON 200","INTRO TO PSYCH":"PSYCH 101",
   "INTRO AMERICAN POL":"POL S 202","SURV HIST OF U S":"HSTAA 101","ETHICS/PSYCH PRSUASN":"PHIL 118",
-  "MECHANICS|4":"PHYS 114","MECHANICS|5":"PHYS 121","HEAT FLUIDS E&M":"PHYS 115","HEAT & ELCTROMAG LAB":"PHYS 118","GEN LAB MODERN PHYS":"PHYS 119" // "|credits" tells apart courses with the same DARS title
+  "AP STATISTICS":"STAT 290","MECHANICS|4":"PHYS 114","MECHANICS|5":"PHYS 121","HEAT FLUIDS E&M":"PHYS 115","HEAT & ELCTROMAG LAB":"PHYS 118","GEN LAB MODERN PHYS":"PHYS 119" // "|credits" tells apart courses with the same DARS title
 };
 const DARS_SECTIONS = [
-  [/^English Composition/i,["C"]],[/^Writing across the curriculum/i,["W"]],[/^Diversity Course/i,["DIV"]],
-  [/^Arts and Humanities$/i,["A&H"]],[/^Social Sciences$/i,["SSc"]],[/^Natural Sciences$/i,["NSc"]],
+  [/^(\d+\. )?English Composition/i,["C"]],[/^Writing across the curriculum/i,["W"]],[/^Diversity Course/i,["DIV"]],
+  [/^Arts and Humanities\b/i,["A&H"]],[/^Social Sciences\b/i,["SSc"]],[/^Natural Sciences\b/i,["NSc"]], // Foster writes "Social Sciences 20 credits, including..."
+  [/^\d+\. /,[]], // Foster's "2. Writing, Parts A and B"; its sub-requirements carry the tag
   [/^Computer Science Requirement: Natural Science/i,["CS Sci"]],
   [/Four CSE courses from the CSE Core/i,["CS Core"]],[/Two additional courses from the entire Core/i,["CS Core"]],
   [/One additional core course or one course from the CSE Capstone/i,["Capstone"]],
@@ -330,6 +331,9 @@ const DARS_SECTIONS = [
 ];
 // DARS shows transfer credit as "TRANSFER COURSE", and the sub-requirement it fills is the only sign of which course it is.
 const DARS_SLOT_CODES = {"FIRST-QUARTER CALCULUS":"MATH 124","SECOND-QUARTER CALCULUS":"MATH 125","THIRD-QUARTER CALCULUS":"MATH 126"};
+const CALC_SEQUENCE = ["MATH 124","MATH 125","MATH 126"];
+// Engineering and Foster audits put writing and composition in numbered sub-requirements rather than sections.
+const DARS_SUB_TAGS = [[/English composition/i,["C"]],[/writing|additional composition/i,["W"]]];
 function parseDars(text){
   // Browsers copy the audit table differently: one cell per line, tab-separated rows, or whole rows on one line.
   const ROW = /^((?:AU|WI|SP|SU) ?\d{2}) (.+?) (\d{1,2}(?:\.\d+)?) (\S+)(?: (\S+))?$/;
@@ -340,7 +344,7 @@ function parseDars(text){
       return [m[1].replace(" ",""), ...(c?[c[1],c[2]]:[m[2]]), m[3], m[4], ...(m[5]?[m[5]]:[])]; });
   const out = {courses:[], catalogYear:null, earned:null, startYear:null};
   const QRE = /^(AU|WI|SP|SU)(\d{2})$/, NUM = /^-?\d+(\.\d+)?$/, CODE = /^[A-Z][A-Z& ]{0,8} ?\d{3}[A-Z]?$/;
-  let tags = [], seenTotal = false, slot = null;
+  let tags = [], subTags = [], seenTotal = false, slot = null;
   const byKey = new Map();
   for(let i=0;i<lines.length;i++){
     const l = lines[i];
@@ -350,9 +354,13 @@ function parseDars(text){
     const em = l.match(/^Earned:\s*([\d.]+) credits/i);
     if(em && seenTotal && out.earned===null) out.earned = parseFloat(em[1]);
     const sec = DARS_SECTIONS.find(([re])=>re.test(l));
-    if(sec){ tags = sec[1]; slot = null; continue; }
+    if(sec){ tags = sec[1]; subTags = []; slot = null; continue; }
     const sub = l.match(/^\d+ \)\s*(.*)$/);
-    if(sub){ slot = DARS_SLOT_CODES[sub[1].trim().toUpperCase()]||null; continue; }
+    if(sub){
+      slot = DARS_SLOT_CODES[sub[1].trim().toUpperCase()]||(/^Calculus with Analytical Geometry/i.test(sub[1])?"sequence":null);
+      subTags = (DARS_SUB_TAGS.find(([re])=>re.test(sub[1]))||[,[]])[1];
+      continue;
+    }
     const qm = l.match(QRE);
     if(!qm) continue;
     // collect up to two text lines, then a credits line, then a grade line
@@ -370,8 +378,12 @@ function parseDars(text){
     const key = qtr+"|"+code+"|"+title+"|"+credits;
     let c = byKey.get(key);
     if(!c){ c={qtr, q:["AU","WI","SP","SU"].indexOf(qm[1]), yy:+qm[2], code, title, credits, grade, tags:[]}; byKey.set(key,c); out.courses.push(c); }
-    tags.forEach(t=>{ if(!c.tags.includes(t)) c.tags.push(t); });
-    if(slot && c.code==="TRANSFER COURSE"){ c.code = slot; c.title = "Transfer credit"; }
+    [...tags,...subTags].forEach(t=>{ if(!c.tags.includes(t)) c.tags.push(t); });
+    if(slot && c.code==="TRANSFER COURSE"){
+      // ponytail: when ECE lists the whole sequence together, assume the transfer fills the gap in it. A student with two transfers in one sequence still lands in order.
+      const code = slot==="sequence" ? CALC_SEQUENCE.find(m=>!out.courses.some(x=>x.code===m)) : slot;
+      if(code){ c.code = code; c.title = "Transfer credit"; }
+    }
     i = j;
   }
   if(out.catalogYear){ const m=out.catalogYear.match(/(AU|WI|SP|SU) (\d{2})/); const yy=+m[2]; out.startYear = 2000+yy-(m[1]==="AU"?0:1); }

@@ -104,6 +104,118 @@ assert.equal(ceAudit.courses.filter(c => c.credits === 5 && c.qtr === "SU26").le
 assert.ok(!ceAudit.courses.some(c => c.code === "TRANSFER COURSE"));
 console.log("parseDars: Computer Engineering audit layout OK");
 
+// Foster writes area headers with extra words and numbers its writing sections. Made-up rows.
+const foster = parseDars(`FOSTER SCHOOL
+GENERAL EDUCATION REQUIREMENTS
+AREAS OF INQUIRY
+Arts and Humanities
+20 credits
+SP26
+ART H 201
+ART HISTORY
+5
+3.0
+Social Sciences 20 credits, including ECON 200 and :
+2 ) Introduction to Macroeconomics:
+SP26
+INTRO MACROECON
+5
+AP
+Natural Sciences 19 - 20 credits, including  or . (Note: one credit can be waived.)
+SP26
+CALC ANALYT GEOM I
+5
+AP
+Other Foster School Requirements
+1. English Composition Course
+SP26
+ENGL 131
+COMPOSITION
+5
+3.0
+2. Writing, Parts A and B
+1 ) Part A Writing: One course from , , .
+SP26
+B CMU 301
+BUSINESS WRITING
+4
+3.0
+2 ) Part B Writing: One additional approved composition or "W" course.
+SP26
+HIST 200
+HISTORY WRITING
+5
+3.0
+BUSINESS ADMINISTRATION CORE COURSES
+1 ) Business Finance () <4>
+SP26
+FIN 350
+BUSINESS FINANCE
+4
+3.0
+`);
+const fosterTags = code => foster.courses.find(c => c.code === code).tags;
+assert.deepEqual(fosterTags("ART H 201"), ["A&H"]);
+assert.deepEqual(fosterTags("ECON 201"), ["SSc"], "header with extra words still starts Social Sciences");
+assert.deepEqual(fosterTags("MATH 124"), ["NSc"], "header with extra words still starts Natural Sciences");
+assert.deepEqual(fosterTags("ENGL 131"), ["C"], "numbered composition section");
+assert.deepEqual(fosterTags("B CMU 301"), ["W"], "Part A writing");
+assert.deepEqual(fosterTags("HIST 200"), ["W"], "Part B writing");
+assert.deepEqual(fosterTags("FIN 350"), [], "major courses carry no gen-ed tag");
+
+// Engineering writing sub-requirements, ECE's whole-sequence calculus row, and AP statistics. Made-up rows.
+const eceAudit = parseDars(`ENGINEERING GENERAL EDUCATION REQUIREMENTS
+Written Communication
+1 ) 5 credits in English composition at 2.0 or better.
+SP26
+ENGL 131
+COMPOSITION
+5
+3.0
+2 ) Additional Writing
+SP26
+HIST 200
+HISTORY WRITING
+3
+3.0
+3 ) 4 credits met by coursework in the major.
+Diversity Course
+DEPARTMENTAL REQUIREMENTS
+ADMISSION NOTES
+3 ) Mathematics
+SU26
+TRANSFER COURSE
+5
+3.4
+1 ) Calculus with Analytical Geometry: MATH 124-126.  or ,  or .
+SP26
+CALC ANALYT GEOM I
+5
+AP
+SP26
+CALC ANALYT GEOM II
+5
+AP
+SU26
+TRANSFER COURSE
+5
+3.4
+2 ) Statistics:  or
+OTHER COURSES
+SP26
+AP STATISTICS
+5
+AP
+`);
+assert.deepEqual(eceAudit.courses.find(c => c.code === "ENGL 131").tags, ["C"]);
+assert.deepEqual(eceAudit.courses.find(c => c.code === "HIST 200").tags, ["W"]);
+assert.equal(eceAudit.courses.find(c => c.code === "MATH 126").title, "Transfer credit", "transfer fills the gap in the calculus sequence");
+assert.ok(!eceAudit.courses.some(c => c.code === "TRANSFER COURSE"));
+assert.equal(eceAudit.courses.find(c => c.code === "STAT 290").title, "AP STATISTICS");
+const fixedMath = parseDars("3 ) Mathematics\nSP26\nTRANSFER COURSE\n5\n3.4\n").courses[0];
+assert.equal(fixedMath.code, "TRANSFER COURSE", "an admission math row doesn't say which course it is");
+console.log("parseDars: Foster and ECE audit layouts OK");
+
 const cseTag = new Function(src.slice(src.indexOf("/*CSETAGS-START*/"), src.indexOf("/*CSETAGS-END*/")) + ";return cseTag;")();
 for (const [code, tag] of Object.entries({
   "CSE 333": "CS Core", "cse 446": "CS Core", "CSE493G": "CS Core", "EE 371": "CS Core", "E E 469": "CS Core", "STAT 391": "CS Core",
