@@ -13,7 +13,7 @@ Pick your major, paste in your DARS audit, add the courses you plan to take, and
 | Business | Business Administration (general and 8 majors) |
 | Engineering | Mechanical (general, Biomechanics, Mechatronics), Electrical & Computer, Civil, Bioengineering (general, Data Science, Nanoscience) |
 
-That's 44 programs, and a plan can hold more than one. Following [UW's rules](https://advising.uw.edu/degree-overview/majors/double-degree-and-double-major/), majors in different colleges need each college's general education, and majors with different degree names (a BA and a BS, for example) are a double degree, which needs 225 credits with 90 at UW.
+That's 44 programs, and a plan can hold up to two. Following [UW's rules](https://advising.uw.edu/degree-overview/majors/double-degree-and-double-major/), majors in different colleges need each college's general education, and majors with different degree names (a BA and a BS, for example) are a double degree, which needs 225 credits with 90 at UW.
 
 **Live site:** https://husky-degree-planner.vercel.app
 

@@ -946,6 +946,7 @@ const supa = window.supabase.createClient("https://hazmlvijljrqqocbzbvv.supabase
 let session = null, guestDirty = false, nudged = false;
 const HANDOFF = "husky-degree-planner-oauth-handoff";
 const QN = ["Autumn","Winter","Spring","Summer"];
+const MAX_MAJORS = 2;
 const GEN_TAGS = ["C","W","A&H","SSc","NSc","DIV"];
 const AREAS = ["A&H","SSc","NSc","DIV","C"], ETH_TAGS = ["Ethics A","Ethics B"];
 const ETH_TERMS = "<b>List A</b> courses are normative-thinking and conceptual-analysis courses. <b>List B</b> courses are values-laden issue courses.";
@@ -968,7 +969,7 @@ const addAutoTags = (c,p) => {
 };
 // Switches a plan's majors: drops tags only the old majors used, adds the new ones, and rebuilds requirements. Edited numbers stay unless the college changed.
 function setMajors(p,ids){
-  ids=[...new Set(ids)];
+  ids=[...new Set(ids)].slice(0,MAX_MAJORS);
   const keep=new Set(ids.flatMap(id=>MAJORS[id].tags)), drop=new Set(p.majors.flatMap(id=>MAJORS[id].tags).filter(t=>!keep.has(t)));
   const courses=[...p.prior,...Object.values(p.quarters).flat()];
   courses.forEach(c=>{ c.tags=(c.tags||[]).filter(t=>!drop.has(t)); });
@@ -1013,7 +1014,7 @@ function examplePlan(){
 function normalizePlan(p){
   if(!p||typeof p!=="object"||!Array.isArray(p.prior)||typeof p.quarters!=="object") return null;
   p.id = p.id||("p"+uid()); p.name = p.name||"Imported plan"; p.years=p.years||4; p.startYear=p.startYear||2026;
-  p.majors = (Array.isArray(p.majors)?p.majors:["cs"]).filter(id=>MAJORS[id]); if(!p.majors.length) p.majors=["cs"]; // plans made before multiple majors are CS
+  p.majors = (Array.isArray(p.majors)?p.majors:["cs"]).filter(id=>MAJORS[id]).slice(0,MAX_MAJORS); if(!p.majors.length) p.majors=["cs"]; // plans made before multiple majors are CS
   p.groupsOn = Object.assign({gen:true,eth:false,minor:false}, Object.fromEntries([...p.majors,...genGroups(p.majors).map(g=>g.group)].map(g=>[g,true])), p.groupsOn||{});
   if(p.groupsOn.bus!==undefined){ p.groupsOn.minor=p.groupsOn.bus; delete p.groupsOn.bus; }
   const old = Object.fromEntries((p.reqs||[]).map(r=>[r.id==="bus"?"minor":r.id,r]));
@@ -1176,7 +1177,7 @@ function renderProj(p){
     <div>
       <div class="settings">
         ${p.majors.map((id,i)=>`<div><label class="lbl" for="pmajor${i}">${i?"Also majoring in":"Major"}</label><select id="pmajor${i}" data-major="${i}" class="majorsel">${i?`<option value="">Remove this major</option>`:""}${majorOptions(id)}</select></div>`).join("")}
-        <div><label class="lbl" for="pmajoradd">Double major</label><select id="pmajoradd" class="majorsel"><option value="">Add another major</option>${majorOptions(null)}</select></div>
+        ${p.majors.length<MAX_MAJORS?`<div><label class="lbl" for="pmajoradd">Double major</label><select id="pmajoradd" class="majorsel"><option value="">Add a second major</option>${majorOptions(null)}</select></div>`:""}
         <div><label class="lbl" for="pname">Plan name</label><input type="text" id="pname" class="in-name" value="${esc(p.name)}"></div>
         <div><label class="lbl" for="ptarget">Target graduation</label><select id="ptarget">${targetOpts}</select></div>
         <div><label class="lbl" for="pstart">First autumn at UW</label><input type="number" id="pstart" class="in-year" value="${p.startYear}"></div>
@@ -1195,7 +1196,8 @@ function renderProj(p){
       </div>
     </div>`;
   document.querySelectorAll("[data-major]").forEach(s=>s.onchange=()=>{const ids=[...p.majors]; ids[+s.dataset.major]=s.value; setMajors(p,ids.filter(Boolean)); persist(); render();});
-  document.getElementById("pmajoradd").onchange=e=>{if(e.target.value){setMajors(p,[...p.majors,e.target.value]); persist(); render();}};
+  const addMajor=document.getElementById("pmajoradd");
+  if(addMajor) addMajor.onchange=e=>{if(e.target.value){setMajors(p,[...p.majors,e.target.value]); persist(); render();}};
   const pn=document.getElementById("pname");
   pn.oninput=()=>{p.name=pn.value||"Untitled plan";persist();renderTabs()};
   document.getElementById("ptarget").onchange=e=>{p.target=e.target.value;persist();render()};
