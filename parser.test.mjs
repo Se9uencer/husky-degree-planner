@@ -276,7 +276,7 @@ const { MAJORS, COLLEGES, planReqs, canonCode, evalAll, isDoubleDegree } = new F
 // Every code a major names must exist in the catalog, so a typo can't slip in. Ranges like COM:201-299 cover numbers that don't exist, so only single numbers are checked.
 const catalog = new Set(list.map(c => c.code));
 // On a department's published list but not in the course catalog, checked by hand against the catalog pages. Kept so students who took them still get credit.
-const NOT_IN_CATALOG = new Set("AMATH 424,ANTH 497,ATMOS 460,BIOEN 447,BIOL 305,BIOL 325,BIOL 333,BIOL 409,BIOL 415,BIOL 419,BIOL 422,BIOL 437,BIOL 455,BIOL 472,CEE 402,CEE 403,CEE 495,CHEM 144,COM 325,COM 332,COM 426,COM 434,COM 463,CSE 466,CSE 467,CSE 471,E E 235,E E 341,E E 401,E E 414,E E 485,ESS 211,ESS 403,ESS 413,ESS 415,ESS 424,ESS 437,ESS 458,ESS 464,ESS 466,ESS 471,GEOG 349,LSJ 425,M E 406,M E 442,NEAR E 285,PGH 301,PHYS 315,PHYS 424,PHYS 425,PHYS 426,PHYS 460,POL S 285,POL S 473,PSYCH 494,SCAND 402".split(","));
+const NOT_IN_CATALOG = new Set("AMATH 424,ANTH 497,ATMOS 460,BIOEN 447,BIOL 305,BIOL 325,BIOL 333,BIOL 409,BIOL 415,BIOL 419,BIOL 422,BIOL 437,BIOL 455,BIOL 472,CEE 402,CEE 403,CEE 495,CHEM 144,COM 325,COM 332,COM 426,COM 434,COM 463,CSE 466,CSE 467,CSE 471,E E 235,E E 341,E E 401,E E 414,E E 485,ESS 211,ESS 403,ESS 413,ESS 415,ESS 424,ESS 437,ESS 458,ESS 464,ESS 466,ESS 471,GEOG 349,LSJ 425,M E 406,M E 442,NEAR E 285,PGH 301,PHIL 408,PHYS 315,PHYS 424,PHYS 425,PHYS 426,PHYS 460,POL S 285,POL S 473,PSYCH 494,SCAND 402".split(","));
 const RANGE_CODE = /^(INFO 35\d|COM 2\d\d|ACCTG [34]\d\d|MGMT 40\d|POL S 20\d)$/;
 const missing = new Map();
 const flag = (code, id) => { if (!catalog.has(code) && !NOT_IN_CATALOG.has(code)) missing.set(code, id); };
@@ -299,6 +299,8 @@ for (const m of Object.values(MAJORS)) {
 }
 assert.deepEqual([...missing].map(([code, id]) => `${code} (${id})`).sort(), [], "codes not in the catalog");
 console.log(`majors: ${Object.keys(MAJORS).length} majors and options, course codes checked against the catalog`);
+const listed = readFileSync(new URL("./MAJORS.md", import.meta.url), "utf8");
+assert.equal((listed.match(/^- \[x\] /gm) || []).length, Object.keys(MAJORS).length, "MAJORS.md marks every program the app supports");
 
 for (const [code, want] of Object.entries({ "me323": "M E 323", "EE 215": "E E 215", "pols 203": "POL S 203", "M E 323": "M E 323", "CSE493G": "CSE 493G", "TRANSFER CAP": "TRANSFER CAP" })) assert.equal(canonCode(code), want, code);
 
@@ -326,9 +328,9 @@ for (const [ids, double] of [[["psych-bs", "biol-bs"], false], [["psych-ba", "co
 const both = planReqs(["me", "cs"]), bothE = evalAll(both, [course0("HUM 100", 5, "A&H")]);
 assert.equal(bothE.get(both.find(r => r.id === "ah")).have, 5); assert.equal(bothE.get(both.find(r => r.id === "gen-as.ah")).have, 5, "one course counts toward both colleges' sets");
 
-for (const [id, code, tag] of [["cs","CHEM 142","CS Sci"],["cs","PHYS 121","CS Sci"],["biol-bs","BIOL 472","Bio Ecology"],["biol-bs","BIOL 472","Bio Lab"],["econ-ba","ECON 482","ECON 400-level"],["com","COM 373","COM Methods"],["com","COM 373","COM Theory"],["pols","POL S 321","POL S 210+"],["ce","CSE 451","CE Systems"],["ce","CSE 331","CS Core"],["me","ME 402","ME Option"],["bioe","BIOEN 485","BioE Senior"],["cs","CSE 333","CS Core"]])
+for (const [id, code, tag] of [["cs","CHEM 142","CS Sci"],["phil","PHIL 450","PHIL 400-level"],["phil-eth","PHIL 412","PHIL Ethics"],["cs","PHYS 121","CS Sci"],["biol-bs","BIOL 472","Bio Ecology"],["biol-bs","BIOL 472","Bio Lab"],["econ-ba","ECON 482","ECON 400-level"],["com","COM 373","COM Methods"],["com","COM 373","COM Theory"],["pols","POL S 321","POL S 210+"],["ce","CSE 451","CE Systems"],["ce","CSE 331","CS Core"],["me","ME 402","ME Option"],["bioe","BIOEN 485","BioE Senior"],["cs","CSE 333","CS Core"]])
   assert.ok(MAJORS[id].tagsFor(code).includes(tag), `${id}: ${code} should be ${tag}`);
-for (const [id, code, tag] of [["econ-ba","ECON 499","ECON 400-level"],["pols","POL S 499","POL S 210+"],["ce","CSE 369","CS Core"],["acms-ds","STAT 311","ACMS Elective"]])
+for (const [id, code, tag] of [["phil","PHIL 484","PHIL 400-level"],["phil-eth","PHIL 450","PHIL Ethics"],["econ-ba","ECON 499","ECON 400-level"],["pols","POL S 499","POL S 210+"],["ce","CSE 369","CS Core"],["acms-ds","STAT 311","ACMS Elective"]])
   assert.ok(!MAJORS[id].tagsFor(code).includes(tag), `${id}: ${code} should not be ${tag}`);
 console.log("majors: tags and college gen-eds OK");
 
@@ -358,6 +360,11 @@ assert.equal(pols("up").have, 1); assert.equal(pols("elec").have, 5, "option cre
 const ceReqs = planReqs(["ce"]), ceNsc = ceReqs.find(r => r.id === "nsc");
 const ceE = evalAll(ceReqs, [course("MATH 124", 5, "NSc"), course("CHEM 142", 5, "NSc", "CE Sci"), course("CSE 121", 4, "NSc"), course("PHYS 114", 4, "NSc")]);
 assert.equal(ceE.get(ceNsc).have, 10, "Computer Engineering NSc counts math and approved science, not CSE 121 or PHYS 114");
+const phil = results("phil-eth", [course("PHIL 120", 5), course("PHIL 340", 5, "PHIL Ethics"), course("PHIL 342", 5, "PHIL Ethics"), course("PHIL 412", 5, "PHIL 400-level", "PHIL Ethics"), course("PHIL 450", 5, "PHIL 400-level")]);
+assert.ok(phil("logic").met && phil("ancient").met && phil("modern").met, "Philosophy history and logic");
+assert.equal(phil("four").have, 2); assert.equal(phil("tot").have, 25);
+assert.equal(phil("eth").have, 15, "required ethics courses also count toward the ethics list");
+assert.equal(phil("eth4").have, 1, "only 400-level courses count toward the two");
 const asReqs = planReqs(["psych-ba"]), asE = evalAll(asReqs, [course("CSE 121", 4, "NSc")]);
 assert.equal(asE.get(asReqs.find(r => r.id === "nsc")).have, 4, "Arts & Sciences still counts any NSc course");
 
