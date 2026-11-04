@@ -213,7 +213,8 @@ aside{position:sticky;top:84px;display:flex;flex-direction:column;gap:12px;max-h
 .tagpick{display:flex;flex-wrap:wrap;gap:6px}
 .dlg.find{height:100%}
 .findq{width:100%;min-height:44px;font-size:15px}
-.findres{list-style:none;margin:0 -4px;padding:0 4px;flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;border-top:1px solid var(--line)}
+.chiphead{flex-basis:100%;margin:2px 0 0}
+.findres{list-style:none;margin:0 -4px;padding:0 4px;flex:1 0 280px;min-height:0;overflow:auto;overscroll-behavior:contain;border-top:1px solid var(--line)}
 .fr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}
 .fr-main{min-width:0;display:flex;flex-direction:column;gap:3px}
 .fr-top{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}
@@ -471,7 +472,7 @@ function major(id, name, college, src, def){
 const GENCAT = "https://www.washington.edu/students/gencat/program/S/";
 
 major("cs", "Computer Science (BS)", "as", GENCAT+"ComputerScience-210.html", {
-  tags:["CS Sci"], autoTags:["CS Core","Capstone","CSE Elective"], tagOf:cseTag, filters:["Fundamentals","CS Core","Capstone","CSE Elective"],
+  lists:{"CS Sci":"PHYS:116,119,121,141;CHEM:142,143,145;BIOL:162,180"}, autoTags:["CS Core","Capstone","CSE Elective"], tagOf:cseTag, filters:["CS Sci","Fundamentals","CS Core","Capstone","CSE Elective"],
   terms:"<b>Fundamentals</b> are required intro courses. <b>CS Core</b> courses are upper-level courses you choose from. <b>Capstones</b> are team projects. <b>Electives</b> fill out the rest of the 33 credits.",
   note:`CS Core, capstone and elective tags are added automatically when you enter a course code. Double-check them against the <a href="https://www.cs.washington.edu/academics/undergraduate/degree-requirements/" target="_blank" rel="noopener">Allen School course lists</a>.`,
   reqs:[
@@ -1378,12 +1379,12 @@ const reqKeys = r => new Set((r?.options||[]).flat(2).map(c=>norm(c).replace(/ /
 function reqFilter(r){
   if(!r) return null;
   if(r.id==="fund") return {label:r.label,on:["Fundamentals"]};
-  if(r.type==="courses"){ const codes=reqKeys(r); return {label:r.label,scope:{label:r.label,test:c=>codes.has(c.key)}}; }
-  if(r.dept) return {label:r.label,scope:{label:r.dept.join(" / "),test:c=>r.dept.includes(deptOf(c.code))&&level(c.code)>=(r.min||0)&&level(c.code)<=(r.max||999)}};
+  if(r.type==="courses"){ const codes=reqKeys(r); return {id:r.id,label:r.label,scope:{label:r.label,test:c=>codes.has(c.key)}}; }
+  if(r.dept) return {id:r.id,label:r.label,scope:{label:r.dept.join(" / "),test:c=>r.dept.includes(deptOf(c.code))&&level(c.code)>=(r.min||0)&&level(c.code)<=(r.max||999)}};
   const t=r.tags||[];
   if(r.codes?.length&&!t.includes("W")&&!t.some(x=>ETH_TAGS.includes(x))){ // named courses plus any major lists it also accepts
     const codes=new Set(r.codes.map(c=>norm(c).replace(/ /g,""))), ms=Object.values(MAJORS).filter(m=>m.auto.some(x=>t.includes(x)));
-    return {label:r.label,scope:{label:r.label,test:c=>codes.has(c.key)||ms.some(m=>m.tagsFor(c.code).some(x=>t.includes(x)))}};
+    return {id:r.id,label:r.label,scope:{label:r.label,test:c=>codes.has(c.key)||ms.some(m=>m.tagsFor(c.code).some(x=>t.includes(x)))}};
   }
   if(!t.length||r.all) return null;
   if(t.every(x=>ALL_AUTO_TAGS.has(x))||t.every(x=>ETH_TAGS.includes(x))||(t.length===1&&AREAS.includes(t[0]))) return {label:r.label,on:t};
@@ -1395,18 +1396,23 @@ function openFind(key,preset){
   const p=plan(); if(!p) return;
   const dest=key||nextQuarterKey(p), on=new Set(preset?.on||[]);
   const fund=reqKeys(p.reqs.find(r=>r.id==="fund")), ethOn=p.groupsOn.eth||ETH_TAGS.some(t=>on.has(t));
-  const majorsOn=p.majors.map(id=>MAJORS[id]).filter(m=>m.filters.length&&(p.groupsOn[m.id]||m.filters.some(t=>on.has(t))));
-  const majorFilters=[...new Set(majorsOn.flatMap(m=>m.filters))];
+  const presetGroup=p.reqs.find(r=>r.id===preset?.id)?.group;
+  const majorsOn=p.majors.map(id=>MAJORS[id]).filter(m=>p.groupsOn[m.id]||presetGroup===m.id||m.filters.some(t=>on.has(t)));
+  // Each major offers its list tags, plus a chip for every other requirement the catalog can show, such as required courses.
+  const reqChips=majorsOn.map(m=>p.reqs.filter(r=>r.group===m.id).map(r=>({r,f:reqFilter(r)})).filter(x=>x.f?.scope).map(({r,f})=>({key:"req:"+r.id,label:r.label,test:f.scope.test,marks:!r.dept||r.type==="count"})));
+  const allReqChips=reqChips.flat(), majorFilters=[...new Set(majorsOn.flatMap(m=>m.filters))];
   const majorTags=c=>autoTags(majorsOn.map(m=>m.id),c.code).filter(t=>!ETH_TAGS.includes(t));
-  const filterTest=t=>t==="Fundamentals"?c=>fund.has(c.key):ETH_TAGS.includes(t)?c=>c.eth===t:c=>majorTags(c).includes(t);
+  const filterTest=t=>t==="Fundamentals"?c=>fund.has(c.key):ETH_TAGS.includes(t)?c=>c.eth===t:allReqChips.find(x=>x.key===t)?.test||(c=>majorTags(c).includes(t));
   let scope=preset?.scope||null;
-  const chip=a=>`<button type="button" aria-pressed="${on.has(a)}" data-area="${esc(a)}">${esc(a)}</button>`;
+  if(preset?.id&&allReqChips.some(x=>x.key==="req:"+preset.id)){ on.add("req:"+preset.id); scope=null; } // the requirement has its own chip, so press that
+  const chip=(a,label=a)=>`<button type="button" aria-pressed="${on.has(a)}" data-area="${esc(a)}">${esc(label)}</button>`;
+  const majorChips=majorsOn.map((m,i)=>`<div class="tagpick" role="group" aria-label="Filter by ${esc(m.name)} requirements">${majorsOn.length>1?`<span class="note chiphead">${esc(m.name)}</span>`:""}${reqChips[i].map(x=>chip(x.key,x.label)).join("")}${m.filters.map(t=>chip(t)).join("")}</div>`).join("");
   dialog(`<h3 id="dlgt">${key?"Add to "+esc(qLabel(p,key)):preset?esc(preset.label):"Find courses"}</h3>
     <input type="search" id="f-q" class="findq" placeholder="Search by code or title, like PSYCH 101 or ethics" aria-label="Search UW courses" autocomplete="off">
     <div class="findchips">
-      <div class="tagpick" role="group" aria-label="Filter by gen-ed area">${AREAS.map(chip).join("")}</div>
-      ${majorFilters.length?`<div class="tagpick" role="group" aria-label="Filter by major list">${majorFilters.map(chip).join("")}</div>`:""}
-      ${ethOn?`<div class="tagpick" role="group" aria-label="Filter by Ethics minor list">${ETH_TAGS.map(chip).join("")}</div>`:""}
+      <div class="tagpick" role="group" aria-label="Filter by gen-ed area">${AREAS.map(a=>chip(a)).join("")}</div>
+      ${majorChips}
+      ${ethOn?`<div class="tagpick" role="group" aria-label="Filter by Ethics minor list">${ETH_TAGS.map(t=>chip(t)).join("")}</div>`:""}
       <div class="tagpick" id="f-scope"></div>
     </div>
     ${majorsOn.filter(m=>m.terms).map(m=>`<p class="note" style="margin:0">${m.terms}</p>`).join("")}
@@ -1425,9 +1431,9 @@ function openFind(key,preset){
       sc.innerHTML=scope?`<button type="button" class="scope" aria-pressed="true" aria-label="Stop limiting to ${esc(scope.label)}">${esc(scope.label)} <span aria-hidden="true">×</span></button>`:"";
       if(scope) sc.firstElementChild.onclick=()=>{ scope=null; draw(); };
       if(!q.value.trim()&&!on.size&&!scope){ res.innerHTML=""; status.textContent=`Search ${cat.list.length.toLocaleString()} UW courses. Pick an area or a major list to browse.`; return; }
-      const hits=searchCatalog(cat,q.value,AREAS.filter(a=>on.has(a)),[...majorFilters,...ETH_TAGS].filter(t=>on.has(t)).map(filterTest),scope); shown=hits.slice(0,60);
+      const hits=searchCatalog(cat,q.value,AREAS.filter(a=>on.has(a)),[...allReqChips.map(x=>x.key),...majorFilters,...ETH_TAGS].filter(t=>on.has(t)).map(filterTest),scope); shown=hits.slice(0,60);
       status.textContent=!hits.length?"No courses match. Try a department code like PHIL or fewer words.":hits.length>shown.length?`Showing ${shown.length} of ${hits.length.toLocaleString()}. Type more to narrow it down.`:`${hits.length} course${hits.length>1?"s":""}`;
-      res.innerHTML=shown.map((c,i)=>{ const mt=[...(fund.has(c.key)?["Fundamentals"]:[]),...majorTags(c),...(c.eth?[c.eth]:[])]; return `<li class="fr">
+      res.innerHTML=shown.map((c,i)=>{ const mt=[...new Set([...(fund.has(c.key)?["Fundamentals"]:[]),...allReqChips.filter(x=>x.marks&&x.test(c)).map(x=>x.label),...majorTags(c),...(c.eth?[c.eth]:[])])]; return `<li class="fr">
         <div class="fr-main"><div class="fr-top"><span class="code">${esc(c.code)}</span><span class="fr-cr">${esc(c.cr)} cr</span>${inPlan.has(c.key)?`<span class="inplan">In plan</span>`:""}</div>
           <span class="fr-t">${esc(c.title)}</span>
           <div class="fr-meta">${c.gen.length||mt.length?`<span class="tags">${mt.map(t=>`<span class="tag cse">${esc(t)}</span>`).join("")}${c.gen.map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</span>`:""}<a href="${myplanUrl(c.code)}" target="_blank" rel="noopener">MyPlan</a></div></div>
@@ -1436,7 +1442,7 @@ function openFind(key,preset){
         openEditor(null,dest,{code:c.code,title:c.title,tags:[...c.tags,...majorTags(c),c.eth].filter(Boolean),...(c.credits!==null?{credits:c.credits}:{})}); });
     };
     q.addEventListener("input",draw);
-    ov.querySelectorAll("[data-area]").forEach(b=>b.onclick=()=>{ const a=b.dataset.area; on.has(a)?on.delete(a):on.add(a); b.setAttribute("aria-pressed",on.has(a)); draw(); });
+    ov.querySelectorAll("[data-area]").forEach(b=>b.onclick=()=>{ const a=b.dataset.area; on.has(a)?on.delete(a):on.add(a); ov.querySelectorAll(`[data-area="${CSS.escape(a)}"]`).forEach(x=>x.setAttribute("aria-pressed",on.has(a))); draw(); }); // two majors can share a list
     loadCatalog().then(c=>{ cat=c; draw(); },()=>{ status.textContent="Couldn't load the course catalog. Check your connection and try again."; });
     document.getElementById("f-manual").onclick=()=>{ const v=q.value.trim(); close();
       openEditor(null,dest,/^[A-Za-z][A-Za-z& ]*\s?\d{3}/.test(v)?{code:canonCode(v),tags:autoTags(p.majors,v)}:undefined); };

@@ -326,7 +326,7 @@ for (const [ids, double] of [[["psych-bs", "biol-bs"], false], [["psych-ba", "co
 const both = planReqs(["me", "cs"]), bothE = evalAll(both, [course0("HUM 100", 5, "A&H")]);
 assert.equal(bothE.get(both.find(r => r.id === "ah")).have, 5); assert.equal(bothE.get(both.find(r => r.id === "gen-as.ah")).have, 5, "one course counts toward both colleges' sets");
 
-for (const [id, code, tag] of [["biol-bs","BIOL 472","Bio Ecology"],["biol-bs","BIOL 472","Bio Lab"],["econ-ba","ECON 482","ECON 400-level"],["com","COM 373","COM Methods"],["com","COM 373","COM Theory"],["pols","POL S 321","POL S 210+"],["ce","CSE 451","CE Systems"],["ce","CSE 331","CS Core"],["me","ME 402","ME Option"],["bioe","BIOEN 485","BioE Senior"],["cs","CSE 333","CS Core"]])
+for (const [id, code, tag] of [["cs","CHEM 142","CS Sci"],["cs","PHYS 121","CS Sci"],["biol-bs","BIOL 472","Bio Ecology"],["biol-bs","BIOL 472","Bio Lab"],["econ-ba","ECON 482","ECON 400-level"],["com","COM 373","COM Methods"],["com","COM 373","COM Theory"],["pols","POL S 321","POL S 210+"],["ce","CSE 451","CE Systems"],["ce","CSE 331","CS Core"],["me","ME 402","ME Option"],["bioe","BIOEN 485","BioE Senior"],["cs","CSE 333","CS Core"]])
   assert.ok(MAJORS[id].tagsFor(code).includes(tag), `${id}: ${code} should be ${tag}`);
 for (const [id, code, tag] of [["econ-ba","ECON 499","ECON 400-level"],["pols","POL S 499","POL S 210+"],["ce","CSE 369","CS Core"],["acms-ds","STAT 311","ACMS Elective"]])
   assert.ok(!MAJORS[id].tagsFor(code).includes(tag), `${id}: ${code} should not be ${tag}`);
