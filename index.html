@@ -1089,6 +1089,8 @@ function addCatalogGen(c, byCode){
 
 (() => {
 const STORE = "husky-degree-planner-v1";
+// Vercel Analytics custom events for the signup funnel. Only actions, major ids and course counts go out, never courses, grades or names.
+const track = (name, data) => { try{ window.va("event", data ? {name, data} : {name}); }catch(e){} };
 const supa = window.supabase.createClient("https://hazmlvijljrqqocbzbvv.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhhem1sdmlqbGpycXFvY2J6YnZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MjA0MTksImV4cCI6MjEwODE5NjQxOX0.znyYBJq9AVoki1lMCSr8DVCe10dps00baUvZwJv9-bE");
 let session = null, guestDirty = false, nudged = false;
 const HANDOFF = "husky-degree-planner-oauth-handoff";
@@ -1293,6 +1295,7 @@ function renderTabs(){
   };
 }
 async function startAction(t,id=plan()?.majors[0]||"cs"){
+  track("start",{action:t,major:id});
   if(t==="dars") return openDars(id);
   if(t==="copy"){ const np=clone(plan()); np.id="p"+uid(); np.name=plan().name+" copy"; np.createdAt=Date.now(); return addPlan(np); }
   if(t==="example") return addPlan(id==="cs"?examplePlan():await majorExample(id));
@@ -1485,6 +1488,7 @@ function openAuth(nudge){
     ov.firstElementChild.classList.add("compact");
     document.getElementById("a-cancel").onclick=close;
     document.getElementById("a-google").onclick=async()=>{
+      track("sign_in_clicked");
       // ponytail: OAuth reloads the page, so guest plans ride along in sessionStorage and are removed on return
       if(plans.length) try{ sessionStorage.setItem(HANDOFF,JSON.stringify({plans,current:cur})); }catch(e){}
       const {error}=await supa.auth.signInWithOAuth({provider:"google",options:{redirectTo:window.location.origin+window.location.pathname}});
@@ -1677,6 +1681,7 @@ function openEditor(cid,key,prefill){
   });
 }
 function openTutorial(id="cs"){
+  track("tutorial_opened");
   const step=(title,text,img,w,h,alt)=>`<li><h4>${title}</h4><p class="note">${text}</p>${img?`<a href="tutorial/${img}" target="_blank" rel="noopener" aria-label="Open this screenshot at full size"><img src="tutorial/${img}" width="${w}" height="${h}" alt="${alt}" loading="lazy"></a>`:""}</li>`;
   dialog(`<h3 id="dlgt">How to import your DARS audit</h3>
     <p class="note">It takes about a minute, and it fills in your AP, transfer and current courses for you.</p>
@@ -1708,12 +1713,13 @@ function openDars(id="cs"){
     <div class="dlgfoot"><span></span><span class="hstack"><button class="btn" id="d-cancel">Cancel</button><button class="btn primary" id="d-go" disabled>Create plan</button></span></div>`,
   (ov,close)=>{
     const ta=document.getElementById("d-text"), prev=document.getElementById("d-prev"), go=document.getElementById("d-go");
-    let parsed=null;
+    let parsed=null, sentOk=false, sentFail=false;
     const update=()=>{
       parsed=parseDars(ta.value);
       if(!ta.value.trim()){prev.hidden=true;go.disabled=true;return}
       prev.hidden=false;
-      if(!parsed.courses.length){prev.innerHTML="No courses found. Make sure you copied the full audit page, including the course tables.";go.disabled=true;return}
+      if(!parsed.courses.length){ if(!sentFail){ sentFail=true; track("dars_paste_failed"); } prev.innerHTML="No courses found. Make sure you copied the full audit page, including the course tables.";go.disabled=true;return}
+      if(!sentOk){ sentOk=true; track("dars_pasted",{courses:parsed.courses.length}); }
       const ip=parsed.courses.filter(c=>c.grade==="IP").length;
       prev.innerHTML=`Found <b class="mono">${parsed.courses.length}</b> courses (${ip} in progress)${parsed.earned!==null?`, <b class="mono">${parsed.earned}</b> earned credits`:""}${parsed.catalogYear?`, catalog year ${esc(parsed.catalogYear)}`:""}.
         <div class="hstack mt-8"><label for="d-start">First autumn at UW</label><input type="number" id="d-start" class="in-year" value="${parsed.startYear||new Date().getFullYear()}"></div>`;
@@ -1726,7 +1732,7 @@ function openDars(id="cs"){
       const sy=parseInt((document.getElementById("d-start")||{}).value)||parsed.startYear||new Date().getFullYear();
       const chosen=document.getElementById("d-major").value;
       const np=planFromDars(parsed,sy,chosen);
-      close(); addPlan(np); toast("Plan created from DARS. Check the tags on AP and transfer credit, then add your future courses.");
+      close(); addPlan(np); track("dars_plan_created",{major:chosen}); toast("Plan created from DARS. Check the tags on AP and transfer credit, then add your future courses.");
       loadCatalog().then(cat=>{ [...np.prior,...Object.values(np.quarters).flat()].forEach(c=>addCatalogGen(c,cat.byCode)); persist(); render(); },()=>{}); };
     setTimeout(()=>ta.focus(),0);
   });
