@@ -560,7 +560,7 @@ major("acms-me", "ACMS: Math Economics & Quant Finance (BS)", "as", ACMS_SRC, {
   all("seq","One sequence","MATH 408,MATH 409;MATH 491|STAT 491,MATH 492|STAT 492|MATH 493|STAT 493;ECON 482,ECON 483|ECON 484"),
   crd("elec","9 credits of electives",9,"ACMS Elective")]});
 major("acms-sc", "ACMS: Scientific Computing (BS)", "as", ACMS_SRC, {lists:{"ACMS Elective":ACMS_ELEC}, note:acmsNote, reqs:[...acmsBase,
-  all("core","Option core","STAT 390|MATH 394|STAT 394,AMATH 383|MATH 381,PHYS 121,PHYS 122|PHYS 123|CHEM 142|CHEM 152|BIOL 180,CSE 163,AMATH 301,MATH 464,MATH 465,AMATH 481,AMATH 482,AMATH 483"),
+  all("core","Option core","STAT 390|MATH 394|STAT 394,AMATH 383|MATH 381,PHYS 121|PHYS 141,PHYS 122|PHYS 123|CHEM 142|CHEM 152|BIOL 180,CSE 163,AMATH 301,MATH 464,MATH 465,AMATH 481,AMATH 482,AMATH 483"),
   crd("elec","10 credits of electives",10,"ACMS Elective")]});
 
 const statBase = [
@@ -568,16 +568,16 @@ const statBase = [
   all("comp","Computing","CSE 122|CSE 123|CSE 142|CSE 160,STAT 302,CSE 123|CSE 143|CSE 163"),
   all("core","Probability and statistics core","MATH 394|STAT 394,STAT 303|INFO 351|SOC 225,STAT 311|STAT 390,STAT 341,STAT 342,STAT 423,STAT 424,STAT 435,STAT 496"),
 ];
-const STAT_SRC = GENCAT+"Statistics-294.html", STAT_LIST = {"Stat Elective":"CSE:332,373;MATH:300,318,395,396,407,408,409,491,492,493;STAT:395,396,403,421,425,427,428,441,491,492,493,498,529,534"};
+const STAT_SRC = GENCAT+"Statistics-294.html", STAT_LIST_DARS = {"Stat Elective":"CSE:373;MATH:300,318,395,396,407,408,409,491,492,493;STAT:395,396,403,421,425,427,428,491,492,493,498,534"}, STAT_LIST = {"Stat Elective":"CSE:332,373;MATH:300,318,395,396,407,408,409,491,492,493;STAT:395,396,403,421,425,427,428,441,491,492,493,498,529,534"};
 const statNote = `Elective tags follow the <a href="https://stat.uw.edu/academics/undergraduate/statistics-bs/major" target="_blank" rel="noopener">Statistics list for students enrolled in 2024 or later</a>.`;
-major("stat-app", "Statistics: Applied (BS)", "as", STAT_SRC, {lists:{...STAT_LIST,"Stat Interdisc":""},
+major("stat-app", "Statistics: Applied (BS)", "as", STAT_SRC, {lists:{...STAT_LIST_DARS,"Stat Interdisc":""},
   note:statNote+" Tag your three interdisciplinary courses as Stat Interdisc after your adviser approves them.", reqs:[...statBase,
   crd("inter","3 interdisciplinary courses, 9 credits",9,"Stat Interdisc"),
   cnt("elec","3 electives",3,"Stat Elective")]});
-major("stat-math", "Statistics: Mathematical (BS)", "as", STAT_SRC, {lists:STAT_LIST, note:statNote, reqs:[...statBase,
+major("stat-math", "Statistics: Mathematical (BS)", "as", STAT_SRC, {lists:STAT_LIST_DARS, note:statNote, reqs:[...statBase,
   all("seq","One math sequence","STAT 395|MATH 395,STAT 491|MATH 491,STAT 492|MATH 492;STAT 395|MATH 395,STAT 491|MATH 491,STAT 493|MATH 493;MATH 300,MATH 327,MATH 424"),
   cnt("elec","3 electives",3,"Stat Elective")]});
-major("stat-ds", "Statistics: Data Science (BS)", "as", STAT_SRC, {lists:{...STAT_LIST,"Stat Computing":"CSE:332,373;MATH:318,407,408,409;STAT:534"}, note:statNote, reqs:[...statBase,
+major("stat-ds", "Statistics: Data Science (BS)", "as", STAT_SRC, {lists:{...STAT_LIST,"Stat Computing":"CSE:373;MATH:318,407,408,409;STAT:534"}, note:statNote, reqs:[...statBase,
   all("ds","Visualization and databases","STAT 451|CSE 412|CSE 442|HCDE 411|INFO 474,CSE 344|CSE 414|CSE 444|INFO 330"),
   cnt("cmp","1 computing elective",1,"Stat Computing"),
   cnt("elec","3 electives",3,["Stat Elective","Stat Computing"])]});
@@ -646,7 +646,7 @@ major("econ-ba", "Economics (BA)", "as", ECON_SRC, {lists:ECON_400, note:econNot
 major("econ-ba-intl", "Economics: International (BA)", "as", ECON_SRC, {lists:ECON_400, note:econNote, reqs:[all("core","Core",ECON_BA_CORE),
   all("intl","International economics","ECON 471,ECON 472"),
   pick("two","2 of ECON 425, 448, 473, 475, 476, 490 to 493, 495",2,"ECON:425,448,473,475,476,490,491,492,493,495"),
-  cnt("up","1 more 400-level ECON course",1,"ECON 400-level"), ...econTail(15)]});
+  cnt("up","1 more 400-level ECON course",1,"ECON 400-level"), ...econTail(20)]});
 major("econ-bs", "Economics (BS)", "as", ECON_SRC, {lists:ECON_400, note:econNote, reqs:[all("core","Core",ECON_BS_CORE),
   all("a","ECON 400 or 401","ECON 400|ECON 401"),
   all("b","ECON 424, 482 or 483","ECON 424|ECON 482|ECON 483"),
@@ -674,15 +674,15 @@ major("com", "Communication (BA)", "as", COM_SRC, {
     crd("meth","Methods course",5,"COM Methods"), crd("theory","Theory course",5,"COM Theory"), crd("elec","30 credits of electives",30,"COM Elective"),
     rule("up","25 COM credits at 300-level or above",25,"COM",{min:300,max:497}), rule("up4","10 COM credits at 400-level",10,"COM",{min:400,max:497})]});
 major("com-jpic", "Communication: Journalism & Public Interest (BA)", "as", COM_SRC, {
-  lists:{"COM Methods":COM_METHODS, "JPIC Advanced":"COM:351,418,423,444,445,452,456,458,459,460,461,463,464,465,474,478,482,487,488,489"},
+  lists:{"COM Methods":COM_METHODS, "JPIC Advanced":"COM:418,423,444,445,452,456,458,459,460,461,463,464,465,474,478,482,487,488,489"},
   reqs:[...comIntro, crd("meth","Methods course",5,"COM Methods"),
-    all("core","Skills core","COM 360,COM 361,COM 362,COM 364,COM 457"),
-    all("law","Law and ethics","COM 440|POL S 461,COM 468"),
+    all("core","Skills core","COM 360,COM 361,COM 362,COM 364"),
+    all("law","Law and ethics","COM 440,COM 468"),
     crd("adv","10 credits of advanced skills",10,"JPIC Advanced")]});
 
 const POLS_SRC = GENCAT+"PoliticalScience-244.html", POLS_UP = {"POL S 210+":"POL S:210-488,490-495,497"};
 const polsNote = `You need courses in three of the five fields (theory, comparative, international relations, American, methods). The planner doesn't check fields, so confirm with your <a href="https://www.polisci.washington.edu/political-science-major-declaration-and-requirements" target="_blank" rel="noopener">Political Science adviser</a>.`;
-const polsReqs = [pick("intro","3 intro courses: POL S 101, 201 to 205",3,"POL S:101,201-205"), cnt("up","7 POL S courses numbered 210 or above",7,"POL S 210+")];
+const polsReqs = [pick("intro","3 intro courses: POL S 101, 201 to 204, 285",3,"POL S:101,201-204,285"), cnt("up","7 POL S courses numbered 210 or above",7,"POL S 210+")];
 major("pols", "Political Science (BA)", "as", POLS_SRC, {lists:POLS_UP, note:polsNote, reqs:polsReqs});
 major("pols-sec", "Political Science: International Security (BA)", "as", POLS_SRC, {
   lists:{...POLS_UP, "Intl Security":"POL S:307,325,328,331,337,340,348,349,368,419,420,425,426,428,430,431,432,434,436;RELIG:205,307;JSIS A:244,252,254,265,314,323,340,348,416,420,430,434,459,464,468,493;JSIS B:301,311,337,340,355,375,406,423,424,426,427,429,436,441;LSJ:320,425,431;ANTH:497;A S:211,212,213,431,432,433;GEOG:375;HSERV:415;G H:415;HSTAA:202,212;HSTAFM:268,314,463;HSTAM:205;HSTAS:244,254,265;HSTCMP:215,269,340,345,346;JEW ST:269;HSTEU:234,252,376,435;SOC:306,345;HUM:205;NEAR E:285;N SCI:321;PHIL:338,407"},
@@ -845,8 +845,8 @@ major("bus-abp", "Business: Accounting for Business Professionals (BA)", "biz", 
   all("acct","ACCTG 301","ACCTG 301"),
   pick("up","3 more upper-division ACCTG courses",3,ACCT_UP),
   pick("last","One more ACCTG course, or FIN 450, 453, 454, 457 or 458",1,ACCT_UP+";FIN:450,453,454,457,458;ENTRE:457")]});
-major("bus-entre", "Business: Entrepreneurship (BA)", "biz", BUS_SRC, {lists:{"Entrepreneurship":""},
-  note:busNote+" Tag your approved electives as Entrepreneurship, using the Foster list.", reqs:[...busBase,
+major("bus-entre", "Business: Entrepreneurship (BA)", "biz", BUS_SRC, {lists:{"Entrepreneurship":"ENTRE:372,422,432,440,443,445,459,472,473"},
+  note:busNote, reqs:[...busBase,
   all("ent","Entrepreneurship","ENTRE 370,FIN 457|ENTRE 457,MKTG 455|ENTRE 455"),
   crd("elec","8 credits from the approved list",8,"Entrepreneurship")]});
 major("bus-fin", "Business: Finance (BA)", "biz", BUS_SRC, {lists:{"Finance Elective":"B ECON:301,400-489,491-498;ECON:301;FIN:400-489,491-494,496-498"}, note:busNote, reqs:[...busBase,
@@ -884,8 +884,8 @@ const meNsc = `Natural sciences count your required math and science, which usua
 major("me", "Mechanical Engineering (BS)", "eng", ME_SRC, {gen:ME_GEN, lists:ME_OPTION,
   note:`ME electives follow the <a href="https://www.me.washington.edu/students/ug/requirements" target="_blank" rel="noopener">department list</a>. You can petition to count a course from another engineering department. `+meNsc,
   reqs:[...meBase, crd("elec","19 credits of engineering electives",19,"ME Option")]});
-major("me-bio", "Mechanical Engineering: Biomechanics (BS)", "eng", ME_SRC, {gen:ME_GEN, lists:{...ME_OPTION,"ME Biomech":""},
-  note:`Tag your biomechanics electives as ME Biomech, using the department's approved list. `+meNsc,
+major("me-bio", "Mechanical Engineering: Biomechanics (BS)", "eng", ME_SRC, {gen:ME_GEN, lists:{...ME_OPTION,"ME Biomech":"M E:412,415,416,445,499,527;BIOL:427;BIOEN:460,461,485,486"},
+  note:meNsc,
   reqs:[...meBase, all("opt","Option courses","M E 411,M E 419"), crd("bio","6 credits of biomechanics electives",6,"ME Biomech"),
     {k:"tot",label:"19 option credits in total",type:"credits",tags:["ME Option","ME Biomech"],codes:["M E 411","M E 419"],need:19,rule:true}]});
 major("me-mech", "Mechanical Engineering: Mechatronics (BS)", "eng", ME_SRC, {gen:ME_GEN, lists:{"ME Science":""}, note:meNsc, reqs:[...meBase,
@@ -911,13 +911,13 @@ major("ece", "Electrical & Computer Engineering (BS)", "eng", GENCAT+"Electrical
 major("civ", "Civil Engineering (BS)", "eng", GENCAT+"CivilandEnvironmentalEngineering-403.html", {
   gen:{nsc:46, nscTags:["CEE Science"], nscCodes:[...NSC_MATH,"IND E 315","Q SCI 381","STAT 290","STAT 390",...NSC_CHEM2,...NSC_PHYS3]},
   lists:{"CEE Technical":"CEE:378,402,403,409,410,412,415,416,419,420,422,424,432,433,434,436,437,451,452,453,454,457,459,462,463,465,467,473,474,475,476,477,478,480,481,482,483,484,498,499", "CEE Eng/Sci":"CEE:300-499",
-    "CEE Science":"BIOL:180;ATMOS:101,211,212;ESRM:100,101,210;ESS:101,106,201,211,212;OCEAN:102,200"},
+    "CEE Science":"BIOL:180;ATMOS:101,211,212;ESRM:100,101,210;ESS:101,106,201,211,212;OCEAN:102,200;NUTR:200"},
   note:`Technical electives must cover <a href="https://www.ce.washington.edu/current/undergrad/civil/major-coursework/technical-electives" target="_blank" rel="noopener">three of the six areas</a>, which the planner doesn't check. Tag approved courses from other departments as CEE Eng/Sci.`,
   reqs:[
     all("math","Math",ENG_MATH),
     all("sci","Chemistry, physics and statistics",ENG_CHEM2+","+PHYS3+",IND E 315|Q SCI 381|STAT 290|STAT 390"),
     crd("basic","Basic science elective",3,"CEE Science"),
-    all("fund","Engineering fundamentals and economics","AMATH 301|CSE 121|CSE 122|CSE 123|CSE 142|CSE 160,A A 210,CEE 220,M E 230,ECON 200|ECON 235|ESRM 235|ENVIR 235|IND E 250"),
+    all("fund","Engineering fundamentals and economics","AMATH 301|CSE 121|CSE 122|CSE 123|CSE 142|CSE 160,A A 210,CEE 220,M E 230,ECON 200|ECON 201|ECON 235|ESRM 235|ENVIR 235|IND E 250"),
     all("core","Civil engineering core","CEE 307,CEE 317,CEE 327,CEE 337,CEE 347,CEE 357,CEE 367,CEE 377"),
     all("cap","Professional practice and capstone","CEE 200,CEE 441|CEE 442|CEE 443|CEE 444|CEE 445"),
     crd("tech","15 credits of technical electives",15,"CEE Technical"),
@@ -925,14 +925,14 @@ major("civ", "Civil Engineering (BS)", "eng", GENCAT+"CivilandEnvironmentalEngin
   ]});
 
 const BIOE_SRC = GENCAT+"Bioengineering-745.html";
-const BIOE_GEN = {nsc:59, w:0, nscTags:[], nscCodes:[...NSC_MATH,"STAT 311","STAT 390","IND E 315","Q SCI 381",...NSC_CHEM2,"CHEM 162","CHEM 165","CHEM 223","CHEM 237","PHYS 121","PHYS 122","PHYS 141","PHYS 142","BIOL 180","BIOL 200","BIOL 220"]};
+const BIOE_GEN = {nsc:59, w:0, nscTags:[], nscCodes:[...NSC_MATH,"STAT 311","STAT 390","IND E 315","Q SCI 381",...NSC_CHEM2,"CHEM 162","CHEM 165","CHEM 223","CHEM 237","CHEM 257","PHYS 121","PHYS 122","PHYS 141","PHYS 142","BIOL 180","BIOL 200","BIOL 220"]};
 const BIOE_LISTS = {
   "BioE Senior":"BIOEN:406,415,420,423,424,425,436,437,440,445,448,449,450,451,454,455,457,460,461,463,466,468,470,472,474,475,481,482,483,484,485,486,487,488,489,490,491,494,498,546,573,576,579,599",
   "BioE Engineering":"A A:210;AMATH:422,423,424,481,482,483;CHEM E:310,326,375,445,457,465;NME:220;CEE:220,350,357,480,495;CSE:122,123,154,160,373,410,427;E E:215,233,235,242,271,341,401,484,485;IND E:250,337,351,426,470;M E:123,230,410,414,461,478,498",
 };
 const bioeBase = [
   all("math","Math and statistics",ENG_MATH.split(";").map(p => p+",STAT 390|IND E 315|STAT 311|Q SCI 381").join(";")),
-  all("sci","Chemistry, physics and biology","CHEM 142,CHEM 152,CHEM 162,CHEM 223|CHEM 237,"+PHYS2+",BIOL 180,BIOL 200,BIOL 220;CHEM 143,CHEM 153,CHEM 223|CHEM 237,"+PHYS2+",BIOL 180,BIOL 200,BIOL 220;CHEM 145,CHEM 155,CHEM 165,CHEM 223|CHEM 237,"+PHYS2+",BIOL 180,BIOL 200,BIOL 220"),
+  all("sci","Chemistry, physics and biology","CHEM 142,CHEM 152,CHEM 162,CHEM 223|CHEM 237|CHEM 257,"+PHYS2+",BIOL 180,BIOL 200,BIOL 220;CHEM 143,CHEM 153,CHEM 223|CHEM 237|CHEM 257,"+PHYS2+",BIOL 180,BIOL 200,BIOL 220;CHEM 145,CHEM 155,CHEM 165,CHEM 223|CHEM 237|CHEM 257,"+PHYS2+",BIOL 180,BIOL 200,BIOL 220"),
   all("fund","Programming","AMATH 301;CSE 121|CSE 122|CSE 123|CSE 142|CSE 160,BIOEN 217"),
   all("core","Bioengineering core","BIOEN 215|ENGR 115,BIOEN 315,BIOEN 316,BIOEN 317,BIOEN 325,BIOEN 326,BIOEN 327,BIOEN 335,BIOEN 336,BIOEN 337,BIOEN 345,BIOEN 400"),
 ];
@@ -943,11 +943,11 @@ major("bioe", "Bioengineering (BS)", "eng", BIOE_SRC, {gen:BIOE_GEN, lists:BIOE_
   crd("eng","9 credits of engineering electives",9,["BioE Senior","BioE Engineering"])]});
 major("bioe-ds", "Bioengineering: Data Science (BS)", "eng", BIOE_SRC, {gen:BIOE_GEN, lists:BIOE_LISTS,
   note:bioeNote+" You also need one course in each of two eScience data science areas, which the planner doesn't check.", reqs:[...bioeBase, bioeCap,
-  all("ds","Data science","STAT 180|CSE 180|INFO 180|INFO 201|INFO 370,CSE 123|CSE 143|CSE 163,CSE 416|STAT 416|STAT 435|INFO 371,SOC 225|B H 201|B H 311|B H 444,BIOEN 420|BIOEN 423|BIOEN 424|BIOEN 436|BIOEN 447|BIOEN 449|BIOEN 451|BIOEN 466|BIOEN 485|BIOEN 488|BIOEN 492"),
+  all("ds","Data science","STAT 180|CSE 180|INFO 180|INFO 201|INFO 370,CSE 143|CSE 163,CSE 416|STAT 416|STAT 435|INFO 371,SOC 225|B H 201|B H 311|B H 444,BIOEN 420|BIOEN 423|BIOEN 424|BIOEN 436|BIOEN 447|BIOEN 449|BIOEN 451|BIOEN 466|BIOEN 485|BIOEN 488|BIOEN 492"),
   crd("sen","15 credits of senior electives",15,"BioE Senior"),
   crd("eng","9 credits of engineering electives",9,["BioE Senior","BioE Engineering"])]});
-major("bioe-nme", "Bioengineering: Nanoscience & Molecular (BS)", "eng", BIOE_SRC, {gen:BIOE_GEN, lists:{...BIOE_LISTS,"BioE NME":""},
-  note:bioeNote+" Tag your nano-molecular courses as BioE NME, using the department's list.", reqs:[...bioeBase,
+major("bioe-nme", "Bioengineering: Nanoscience & Molecular (BS)", "eng", BIOE_SRC, {gen:BIOE_GEN, lists:{...BIOE_LISTS,"BioE NME":"BIOEN:415,423,424,425,437,438,455,457,463,467,470,472,474,481,483,485,486,487,488,489,490,491,492,493,494,576,579"},
+  note:bioeNote, reqs:[...bioeBase,
   all("cap","Capstone in a nano-molecular area","BIOEN 401,BIOEN 402"), all("nme","NME 220","NME 220"),
   crd("nano","18 credits of nano-molecular courses",18,"BioE NME"),
   crd("eng","5 credits of engineering electives",5,["BioE Senior","BioE Engineering"])]});
