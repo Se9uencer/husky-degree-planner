@@ -1,6 +1,6 @@
 # UW majors in DARS
 
-Every undergraduate program in the MyPlan "Audit a UW Degree Program (DARS)" dropdown for the Seattle campus, copied as written on November 3, 2026. A checked box means the planner supports it. The tests check that the number of checked boxes matches the number of programs in the app.
+Every undergraduate program in the MyPlan "Audit a UW Degree Program (DARS)" dropdown for the Seattle campus, copied as written on November 3, 2026. A checked box means the planner supports it, and every checked program has been compared against a real DARS audit (the last 40 on November 4, 2026). The audits came from one student whose courses barely touch most of these majors, so the comparison covers each requirement's structure, its course lists where DARS prints them, and the progress on intro courses. The tests check that the number of checked boxes matches the number of programs in the app.
 
 - [ ] ACMS: Biological and Life Sciences (Not admitting)
 - [x] ACMS: Data Science and Statistics
