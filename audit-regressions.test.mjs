@@ -39,11 +39,12 @@ assert.equal(projection(p),'0-3','graduation in the final hidden summer is still
 assert.equal(coursesUpTo(p,'0-2').length,1,'future summers do not leak into earlier quarters');
 
 // Exercise the real DARS conversion with lightweight non-UI dependencies.
-const convert=new Function('basePlan','planTags','addAutoTags','C','sumCr','canonCode',
+const {fullYear}=new Function(block('PARSER')+';return {fullYear}')();
+const convert=new Function('basePlan','planTags','addAutoTags','C','sumCr','canonCode','fullYear',
   section('function planFromDars(', '/* ---------- render ---------- */')+';return planFromDars')(
   ()=>({prior:[],quarters:{}}),()=>['CS Core'],x=>x,
   (code,credits,tags,status,title)=>c(code,credits,tags,{status,title}),
-  list=>creditCourses(list).reduce((n,c)=>n+c.credits,0),canonCode);
+  list=>creditCourses(list).reduce((n,c)=>n+c.credits,0),canonCode,fullYear);
 const imported=convert({courses:[{code:'MATH 124',credits:5,tags:[],grade:'TR',yy:26,q:1}],earned:null},2025);
 assert.equal(imported.quarters['0-1'][0].origin,'external');
 assert.equal(audit(['cs'],coursesUpTo({...imported,showSummer:false},null))('res').have,0);
@@ -132,3 +133,47 @@ imp.els['d-cancel'].onclick();
 imp.release({byCode:new Map()}); await importing;
 assert.equal(imp.calls.added,0,'cancelling during loading creates no plan');
 console.log('import regressions: edits and cancels while the catalog loads are ignored');
+
+// Review fixes: import sanitising, requirement edits, repeats, quarters, DARS filters.
+const norm5=new Function('uid',block('CSETAGS')+block('MAJORS')+block('EVAL')+'const MAX_MAJORS=2, addAutoTags=x=>x;'+section('function normalizePlan(','/* ---------- storage ---------- */')+';return normalizePlan')(()=>'fresh1');
+const bad=norm5({id:'"><img src=x onerror=alert(1)>',name:'n',years:'<b>',startYear:'x"',prior:[{id:'a"b',code:7,title:null,credits:'<i>',tags:'NSc'}],quarters:{'0-0':[{id:'ok_1',code:'MATH 124',credits:'5'}],'0-1':'junk'}});
+assert.match(bad.id,/^[A-Za-z0-9_-]+$/,'unsafe plan id is replaced');
+assert.ok(bad.years>=1&&bad.years<=12&&bad.startYear===2026,'years and start year are coerced');
+assert.deepEqual([bad.prior[0].id,bad.prior[0].code,bad.prior[0].credits,bad.prior[0].tags],['fresh1','7',0,[]],'course fields are coerced');
+assert.ok(bad.quarters['0-0'][0].credits===5&&!('0-1' in bad.quarters),'non-array quarters are dropped');
+assert.equal(norm5({prior:[],quarters:null}),null,'null quarters are rejected');
+const oldTotal=planReqs(['cs']).find(r=>r.id==='total').need;
+const mk=(schema,reqs)=>norm5({schema,prior:[],quarters:{},majors:['cs'],reqs}).reqs.find(r=>r.id==='total');
+assert.equal(mk(4,[{id:'total',need:oldTotal}]).need,oldTotal);
+assert.equal(mk(4,[{id:'total',need:oldTotal+7}]).need,oldTotal+7,'pre-flag plan: a differing number counts as edited');
+assert.equal(mk(5,[{id:'total',need:oldTotal+7}]).need,oldTotal,'current plan: an unflagged number follows the new default');
+assert.equal(mk(5,[{id:'total',need:oldTotal+7,edited:true}]).need,oldTotal+7,'edited numbers are kept');
+const dupe=[c('MATH 124',3,[],{status:'plan'}),c('MATH 124',5,[],{status:'plan',origin:'external'}),c('MATH 124',5,[],{status:'plan',origin:'uw'})];
+assert.equal(creditCourses(dupe)[0].id,dupe[2].id,'equal status: higher credit, then UW, wins');
+const titleOnly=new Function(section('const titleOnly=','function repairPlans(')+';return titleOnly')();
+assert.ok(!titleOnly({code:'Gen ed'})&&titleOnly({code:'CALC ANYL GEOM III',shortTitle:true}),'only flagged DARS rows are repaired');
+const kept=convert({courses:[{code:'CALC ANYL',credits:5,tags:[],grade:'4.0',yy:25,q:0},{code:'MATH 124',credits:5,tags:[],grade:'W',yy:25,q:0},{code:'MATH 125',credits:0,tags:[],grade:'0.0',yy:25,q:0},{code:'MATH 126',credits:5,tags:[],grade:'4.0',yy:99,q:0}],earned:null},2025);
+assert.equal(Object.values(kept.quarters).flat().length,1,'W and 0.0 rows are skipped');
+assert.ok(kept.quarters['0-0'][0].shortTitle,'title-only DARS rows are flagged');
+assert.equal(convert({courses:[{code:'MATH 124',credits:5,tags:[],grade:'4.0',yy:30,q:0}],earned:null},1995).years,12,'years cap at 12');
+assert.equal(fullYear(99),1999,'a far-future two-digit year is last century');
+assert.equal(fullYear(30),2030);
+const {nextQuarterKey}=new Function(helpers+section('function nowIdx(','function renderYears(')+section('function nextQuarterKey(','const titleOnly=')+';return {nextQuarterKey}')();
+const qp={startYear:2025,years:2,showSummer:false};
+assert.equal(nextQuarterKey(qp,new Date(2026,7,1)),'1-0','hidden summer: next visible quarter');
+assert.equal(nextQuarterKey(qp,new Date(2020,0,1)),'0-0','before the plan: first quarter');
+assert.equal(nextQuarterKey(qp,new Date(2030,0,1)),'1-2','after the plan: last quarter');
+const cat=await new Function('fetch','singleAreaTags','GEN_TAGS','ethicsTag',section('let catalogP=null;','// Areas must all match')+';return loadCatalog()')(
+  async()=>({ok:true,json:async()=>({built:'x',courses:[['BIOL 499','Research','1-20, max. 20','']]})}),singleAreaTags,[],()=>null);
+assert.deepEqual([cat.list[0].credits,cat.list[0].rep],[1,true],'variable credit starts at the low end and max. marks repeatable');
+let asked=0;
+const {switchMajors}=new Function('showConfirm','persist','render','clone',block('CSETAGS')+block('ETHICSTAGS')+block('MAJORS')+'const MAX_MAJORS=2;'+section('const addAutoTags','function majorOptions(')+';return {switchMajors}')(
+  ()=>{asked++;},()=>{},()=>{},x=>JSON.parse(JSON.stringify(x)));
+const swPlan=tags=>({majors:['cs'],groupsOn:{gen:true,cs:true},reqs:planReqs(['cs']),prior:[],quarters:{'0-0':[c('CSE 333',4,tags)]}});
+switchMajors(swPlan(['CS Core']),['psych-ba']); assert.equal(asked,0,'auto-applied tags switch without asking');
+switchMajors(swPlan(['CS Sci']),['psych-ba']); assert.equal(asked,1,'a hand-applied tag asks first');
+const editedPlan=swPlan([]); editedPlan.reqs.find(r=>r.id==='core').edited=true;
+switchMajors(editedPlan,['psych-ba']); assert.equal(asked,2,'edited requirement numbers ask first');
+const micro=audit(['micro'],[c('MICROM 443',3,['Micro Dist']),c('IMMUN 441',4,['Micro Dist']),c('MICROM 412',3,['Micro Dist']),c('ENV H 409',3,['Micro Dist']),c('MICROM 411',4,['Micro Dist'])]);
+assert.deepEqual([micro('micro.med').have,micro('micro.div').have,micro('micro.lab').have,micro('micro.dist').have,micro('micro.gene').met],[2,2,2,17,true],'Microbiology distribution groups, labs and credit total');
+console.log('review fixes: import sanitising, requirement edits, repeat ranking, quarter lookup, DARS filters OK');
