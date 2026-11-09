@@ -1294,7 +1294,7 @@ function projection(p){
   const reqs=activeReqs(p);
   const check=key=>{const res=evalAll(reqs,coursesUpTo(p,key));return reqs.every(r=>res.get(r).met)};
   if(check("prior")) return "prior";
-  for(const k of orderedKeys(p)) if(check(k)) return k; // hidden summer courses still count via coursesUpTo, but graduation lands on a shown quarter
+  for(const k of allKeys(p)) if(check(k)) return k; // the real quarter, even a hidden summer; renderYears shows that summer
   return null;
 }
 function fixTarget(p){ const ks=allKeys(p).filter(k=>p.showSummer||!k.endsWith("-3")); if(!ks.includes(p.target)) p.target=ks[ks.length-1]; }
@@ -1310,7 +1310,7 @@ function addPlan(np){
 }
 
 /* ---------- DARS → plan ---------- */
-function planFromDars(parsed, startYear, id="cs"){
+function planFromDars(parsed, startYear, id="cs", byCode){
   const p=basePlan("From DARS "+new Date().toLocaleDateString([], {month:"short",day:"numeric"}),id);
   p.startYear=startYear;
   let maxYear=3;
@@ -1319,6 +1319,8 @@ function planFromDars(parsed, startYear, id="cs"){
     const status = c.grade==="IP" ? "now" : c.grade==="PL" ? "plan" : "done";
     const course = addAutoTags(C(c.code,c.credits,c.tags.filter(t=>allowed.includes(t)),status,c.title),p);
     course.origin=/^(AP|IB|TR)$/.test(c.grade)?"external":"uw";
+    // The catalog marks courses that allow repeat credit with a limit ("1-5, max. 15"); ordinary retakes still count once.
+    if(/max\./.test(byCode?.get(canonCode(c.code).replace(/ /g,""))?.cr||"")) course.repeatable=true;
     const ay = 2000+c.yy-(c.q===0?0:1);          // academic year that quarter belongs to
     const y = ay-startYear;
     if(y<0 || /^(AP|IB)$/.test(c.grade)){ p.prior.push(course); continue; }
@@ -1328,9 +1330,6 @@ function planFromDars(parsed, startYear, id="cs"){
   }
   p.years=Math.max(4,maxYear+1);
   const done=[...p.prior,...Object.values(p.quarters).flat()].filter(c=>c.status==="done");
-  // DARS already decided which completed repeats earn credit (research, special topics), so keep them all; the cap below trims any excess.
-  const n={}; done.forEach(c=>{ const k=canonCode(c.code); n[k]=(n[k]||0)+1; });
-  done.forEach(c=>{ if(n[canonCode(c.code)]>1) c.repeatable=true; });
   const doneCr=sumCr(done);
   if(parsed.earned!==null && doneCr>parsed.earned+0.01){
     p.prior.push(C("TRANSFER CAP",-(Math.round((doneCr-parsed.earned)*10)/10),[],"done",`Outside credit over UW's limit. DARS earned: ${parsed.earned}`));
@@ -1451,11 +1450,11 @@ function nowKey(p){
   return y>=0&&y<p.years?y+"-"+q:null;
 }
 function renderYears(p){
-  const g=projection(p), tIdx=keyIndex(p,p.target), cols=p.showSummer?4:3, nk=nowKey(p);
+  const g=projection(p), tIdx=keyIndex(p,p.target), nk=nowKey(p);
   let html=`<div class="year prior"><div class="yhead"><h2>Before UW</h2><span class="muted"><span class="mono">${fmt(sumCr(p.prior))}</span> cr · AP, IB, transfer, running start</span></div>
     <div class="qgrid"><div class="q" data-k="prior"><div class="list">${p.prior.map(c=>courseHTML(c,"prior")).join("")}</div><button class="add" data-add="prior">+ Add credit</button></div></div></div>`;
   for(let y=0;y<p.years;y++){
-    const yrKeys=[0,1,2,3].filter(q=>q<3||p.showSummer).map(q=>y+"-"+q);
+    const yrKeys=[0,1,2,3].map(q=>y+"-"+q).filter(k=>p.showSummer||!k.endsWith("-3")||k===g), cols=yrKeys.length; // a hidden summer still shows when graduation lands in it
     const cum=sumCr(coursesUpTo(p,y+"-"+(p.showSummer?3:2)));
     html+=`<div class="year"><div class="yhead"><h2>Year ${y+1} · ${p.startYear+y}–${String(p.startYear+y+1).slice(2)}</h2>
       <span class="muted">After this year: <span class="mono">${fmt(cum)}</span> cr · ${standing(cum)} standing</span></div>
@@ -1819,12 +1818,14 @@ function openDars(id="cs"){
     ta.addEventListener("input",update);
     document.getElementById("d-cancel").onclick=close;
     document.getElementById("d-tutorial").onclick=()=>{ const chosen=document.getElementById("d-major").value; close(); openTutorial(chosen); };
-    go.onclick=()=>{ if(!parsed||!parsed.courses.length) return;
+    go.onclick=async()=>{ if(!parsed||!parsed.courses.length) return;
       const sy=parseInt((document.getElementById("d-start")||{}).value)||parsed.startYear||new Date().getFullYear();
       const chosen=document.getElementById("d-major").value;
-      const np=planFromDars(parsed,sy,chosen);
-      close(); addPlan(np); track("dars_plan_created",{major:chosen}); toast("Plan created from DARS. Check the tags on AP and transfer credit, then add your future courses.");
-      loadCatalog().then(cat=>{ [...np.prior,...Object.values(np.quarters).flat()].forEach(c=>addCatalogGen(c,cat.byCode)); persist(); render(); },()=>{}); };
+      go.disabled=true;
+      const cat=await loadCatalog().catch(()=>null); // repeat-credit limits and gen-ed designations; the import still works without it
+      const np=planFromDars(parsed,sy,chosen,cat?.byCode);
+      if(cat) [...np.prior,...Object.values(np.quarters).flat()].forEach(c=>addCatalogGen(c,cat.byCode));
+      close(); addPlan(np); track("dars_plan_created",{major:chosen}); toast("Plan created from DARS. Check the tags on AP and transfer credit, then add your future courses."); };
     setTimeout(()=>ta.focus(),0);
   });
 }
