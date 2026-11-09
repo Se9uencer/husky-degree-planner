@@ -237,3 +237,27 @@ finishPull({data:{data:{plans:[{id:'p1',name:'Remote edit',quarters:{}}],current
 await pull;
 assert.ok(sync.state().plans.some(p=>p.name==='Edited during pull (conflict copy)'),'edits made while pulling are preserved too');
 console.log('sync regressions: conflicting edits, unique plans, identical copies and edits during pull OK');
+
+// JSON storage may reorder every object's keys, while array order remains meaningful.
+const localPlan={id:'p1',name:'Same plan',quarters:{'0-0':[
+  {code:'MATH 124',credits:5,tags:['NSc','DIV']},
+  {code:'CSE 121',credits:4,tags:['NSc']}
+]}};
+const reorderedPlan={quarters:{'0-0':[
+  {tags:['NSc','DIV'],credits:5,code:'MATH 124'},
+  {tags:['NSc'],credits:4,code:'CSE 121'}
+]},name:'Same plan',id:'p1'};
+const cloudResponse=p=>Promise.resolve({data:{updated_at:'new',data:{plans:[p],current:'p1'}},error:null});
+sync=syncHarness([localPlan],{response:cloudResponse(reorderedPlan)});
+await sync.pull();
+assert.equal(sync.state().plans.length,1,'reordered top-level and nested object keys do not create conflicts');
+assert.equal(sync.state().dirty,false,'key-order-only changes are not queued for upload');
+for(const change of [p=>{p.quarters['0-0'][0].credits=3;},p=>p.quarters['0-0'].reverse(),p=>p.quarters['0-0'][0].tags.reverse()]){
+  const changed=structuredClone(reorderedPlan); change(changed);
+  sync=syncHarness([localPlan],{response:cloudResponse(changed)});
+  await sync.pull();
+  const copy=sync.state().plans.find(p=>p.name==='Same plan (conflict copy)');
+  assert.ok(copy,'changed values and array order must still preserve a conflict copy');
+  assert.deepEqual(copy.quarters,localPlan.quarters,'the local version remains intact');
+}
+console.log('sync equality regressions: object-key order ignored; nested values and array order preserved');

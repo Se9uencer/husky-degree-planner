@@ -1285,6 +1285,10 @@ function normalizePlan(p){
 
 /* ---------- storage ---------- */
 let plans=[], cur=null, editing=false, fromStore=false;
+// jsonb may reorder object keys. Canonicalize objects recursively, retaining array order and JSON value semantics.
+const planJSON = plan => JSON.stringify(plan, (_key,value) =>
+  value&&typeof value==="object"&&!Array.isArray(value)
+    ? Object.fromEntries(Object.keys(value).sort().map(key=>[key,value[key]])) : value);
 // Cloud sync state. cloudStamp is the updated_at last pulled or written, so a push can refuse to overwrite a newer copy from another device.
 let cloudStamp=null, pullOk=false, pulling=false, pushing=false, dirty=false, pushTimer=0, leaving=false;
 const saveEl=document.getElementById("save");
@@ -1335,7 +1339,7 @@ async function cloudPull(conflict){
       if(guestDirty||dirty||conflict) for(const p of plans){
         const remote=cloud.find(c=>c.id===p.id);
         if(!remote) extra.push(p);
-        else if(JSON.stringify(p)!==JSON.stringify(remote)){
+        else if(planJSON(p)!==planJSON(remote)){
           const copy=clone(p);
           do{ copy.id="p"+uid(); }while([...cloud,...plans,...extra].some(x=>x.id===copy.id));
           copy.name=p.name+" (conflict copy)";
