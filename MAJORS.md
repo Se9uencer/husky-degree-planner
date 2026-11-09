@@ -1,6 +1,6 @@
 # UW majors in DARS
 
-Every undergraduate program in the MyPlan "Audit a UW Degree Program (DARS)" dropdown for the Seattle campus, copied as written on November 3, 2026. A checked box means the planner supports it, and every checked program has been compared against a real DARS audit (the last 40 on November 4, 2026, and Geology and Oceanography on November 9, 2026). The audits came from one student whose courses barely touch most of these majors, so the comparison covers each requirement's structure, its course lists where DARS prints them, and the progress on intro courses. The tests check that the number of checked boxes matches the number of programs in the app.
+Every undergraduate program in the MyPlan "Audit a UW Degree Program (DARS)" dropdown for the Seattle campus, copied as written on November 3, 2026. A checked box means the planner supports it, and every checked program has been compared against a real DARS audit (the last 40 on November 4, 2026, and Geology and Oceanography on November 9, 2026). The audits came from one student whose courses barely touch most of these majors, so the comparison covers each requirement's structure, its course lists where DARS prints them, and the progress on intro courses. Microbiology (added November 9, 2026) was built from the General Catalog and the department packet and has not been compared against a DARS audit yet. The tests check that the number of checked boxes matches the number of programs in the app.
 
 - [ ] ACMS: Biological and Life Sciences (Not admitting)
 - [x] ACMS: Data Science and Statistics
@@ -183,7 +183,7 @@ Every undergraduate program in the MyPlan "Audit a UW Degree Program (DARS)" dro
 - [x] Mechanical Engineering: Biomechanics
 - [x] Mechanical Engineering: Mechatronics
 - [ ] Medical Laboratory Science
-- [ ] Microbiology
+- [x] Microbiology
 - [ ] Middle Eastern Lang & Culture: Lang & Culture
 - [ ] Middle Eastern Lang & Cultures: Biblical & Ancient
 - [ ] Middle Eastern Lang & Cultures: Comp Cultures

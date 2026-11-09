@@ -37,6 +37,9 @@ for (const [name, text] of Object.entries({
   assert.equal(r.startYear, 2025, name);
 }
 console.log("parseDars: all copy formats OK");
+// The start year is the earlier of the catalog year and the first UW-graded quarter; two-digit years far in the future are last century.
+assert.equal(parseDars(header.replace("AU 25", "AU 26") + "AU25\nCSE 121\nCOMP PROGRAMMING I\n4\n3.8").startYear, 2025, "UW course before the catalog year");
+assert.equal(parseDars(header.replace("AU 25", "AU 99") + "AU99\nCSE 121\nCOMP PROGRAMMING I\n4\n3.8").startYear, 1999, "far-future yy is 19yy");
 
 const physRows = [["MECHANICS", 4, "PHYS 114"], ["MECHANICS", 5, "PHYS 121"], ["HEAT FLUIDS E&M", 4, "PHYS 115"], ["HEAT & ELCTROMAG LAB", 1, "PHYS 118"], ["GEN LAB MODERN PHYS", 1, "PHYS 119"]];
 assert.deepEqual(parseDars(header + physRows.map(([t, cr]) => ["AU25", t, cr, "AP"].join("\n")).join("\n")).courses.map(c => c.code), physRows.map(r => r[2]), "AP physics titles");
@@ -276,7 +279,7 @@ const { MAJORS, COLLEGES, planReqs, canonCode, evalAll, isDoubleDegree } = new F
 // Every code a major names must exist in the catalog, so a typo can't slip in. Ranges like COM:201-299 cover numbers that don't exist, so only single numbers are checked.
 const catalog = new Set(list.map(c => c.code));
 // On a department's published list but not in the course catalog, checked by hand against the catalog pages. Kept so students who took them still get credit.
-const NOT_IN_CATALOG = new Set("CHEM 399,CHEM 410,ENGL 391,ENGL 411,ESRM 457,AMATH 424,ANTH 497,ATMOS 460,BIOEN 447,BIOL 305,BIOL 325,BIOL 333,BIOL 409,BIOL 415,BIOL 419,BIOL 422,BIOL 437,BIOL 455,BIOL 472,CEE 402,CEE 403,CEE 495,CHEM 144,COM 325,COM 332,COM 426,COM 434,COM 463,CSE 466,CSE 467,CSE 471,E E 235,E E 341,E E 401,E E 414,E E 485,ESS 211,ESS 213,ESS 403,ESS 413,ESS 415,ESS 424,ESS 437,ESS 458,ESS 464,ESS 466,ESS 471,GEOG 349,LSJ 425,M E 406,M E 442,NEAR E 285,PGH 301,PHIL 408,PHYS 315,PHYS 424,PHYS 425,PHYS 426,PHYS 460,POL S 285,POL S 473,PSYCH 494,SCAND 402".split(","));
+const NOT_IN_CATALOG = new Set("CHEM 399,CHEM 410,ENGL 391,ENGL 411,ESRM 457,AMATH 424,ANTH 497,ATMOS 460,BIOEN 447,BIOL 305,BIOL 325,BIOL 333,BIOL 409,BIOL 415,BIOL 419,BIOL 422,BIOL 437,BIOL 455,BIOL 472,CEE 402,CEE 403,CEE 495,CHEM 144,COM 325,COM 332,COM 426,COM 434,COM 463,CSE 466,CSE 467,CSE 471,E E 235,E E 341,E E 401,E E 414,E E 485,ESS 211,ESS 213,ESS 403,ESS 413,ESS 415,ESS 424,ESS 437,ESS 458,ESS 464,ESS 466,ESS 471,GEOG 349,LSJ 425,M E 406,M E 442,NEAR E 285,PGH 301,PHIL 408,PHYS 315,PHYS 424,PHYS 425,PHYS 426,PHYS 460,POL S 285,POL S 473,PSYCH 494,SCAND 402,CHEM 335,FISH 404,GENOME 414,NUTR 446".split(","));
 const RANGE_CODE = /^(INFO 35\d|COM 2\d\d|ACCTG [34]\d\d|MGMT 40\d|POL S 20\d)$/;
 const missing = new Map();
 const flag = (code, id) => { if (!catalog.has(code) && !NOT_IN_CATALOG.has(code)) missing.set(code, id); };
@@ -403,3 +406,10 @@ assert.equal(geoOut.have, 0, "College of the Environment: unused courses with th
 for (const m of Object.values(MAJORS)) if (COLLEGES[m.college].out) assert.ok(m.prefix, m.id + " needs a prefix for its out-of-major rule");
 assert.equal(isDoubleDegree(["ocean-ba", "ocean-bs"]), true); assert.equal(isDoubleDegree(["ocean-bs", "biol-bs"]), false);
 console.log("evalAll: additional requirements don't double-count");
+
+// DARS repeats a course's credits as ">S" fragments in other requirements; the whole row is kept and the fragments dropped (real audit: CHEM 152 as 5, 2 and 3).
+{
+  const split = "Catalog Year:\nAU 26\nSP26\nGENERAL CHEM II\n5\nAP\nSP26\nGENERAL CHEM II\n2\nAP\n>S\nSP26\nGENERAL CHEM II\n3\nAP\n>S\nSP26\nMECHANICS\n1\nAP\n>S\nSP26\nMECHANICS\n3\nAP\n>S\n";
+  assert.deepEqual(parseDars(split).courses.map(c => c.code + "|" + c.credits), ["CHEM 152|5", "MECHANICS|1", "MECHANICS|3"], "fragments of a course listed in full are dropped; ones with no full row are kept");
+  console.log("parser: >S split rows OK");
+}

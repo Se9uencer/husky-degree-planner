@@ -301,6 +301,7 @@ footer{font-size:var(--fs-sm);color:var(--muted);max-width:80ch;padding-top:var(
   </header>
   <div class="tabs" id="tabs" role="tablist"></div>
   <div id="confirm"></div>
+  <div id="toast"></div>
   <section class="welcome" id="welcome" hidden>
     <h2>Plan your UW degree, <em>quarter by quarter.</em></h2>
     <p>Start from your DARS audit so your AP, transfer and current courses are already in place. Then add the courses you plan to take, and the planner shows the first quarter where you meet every requirement.</p>
@@ -326,9 +327,10 @@ footer{font-size:var(--fs-sm);color:var(--muted);max-width:80ch;padding-top:var(
 </div>
 <div id="overlay"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js" integrity="sha384-0w2KAL2YHP6wKOkUDzkCDGgVvfmHnj02DHeQ6XcHOgTfFsGyonKOpShMH1x6nk9o" crossorigin="anonymous"></script>
 <script>
 /*PARSER-START*/
+const fullYear = yy => { const y=2000+yy; return y>new Date().getFullYear()+10?1900+yy:y; }; // a two-digit year more than 10 years ahead is last century
 /* Parses text copied from a UW DARS audit page into courses. */
 const DARS_TITLE_CODES = {
   "CALC ANALYT GEOM I":"MATH 124","CALC ANALYT GEOM II":"MATH 125","CALC ANALYT GEOM III":"MATH 126",
@@ -400,6 +402,7 @@ function parseDars(text){
     const key = qtr+"|"+code+"|"+title+"|"+credits;
     let c = byKey.get(key);
     if(!c){ c={qtr, q:["AU","WI","SP","SU"].indexOf(qm[1]), yy:+qm[2], code, title, credits, grade, tags:[]}; byKey.set(key,c); out.courses.push(c); }
+    if(/^>S$/i.test(lines[j+2]||"")) c.split=true; // DARS marks a part of a course's credits applied to another requirement with ">S"
     [...tags,...subTags].forEach(t=>{ if(!c.tags.includes(t)) c.tags.push(t); });
     if(slot && c.code==="TRANSFER COURSE"){
       // ponytail: when ECE lists the whole sequence together, assume the transfer fills the gap in it. A student with two transfers in one sequence still lands in order.
@@ -408,11 +411,13 @@ function parseDars(text){
     }
     i = j;
   }
-  if(out.catalogYear){ const m=out.catalogYear.match(/(AU|WI|SP|SU) (\d{2})/); const yy=+m[2]; out.startYear = 2000+yy-(m[1]==="AU"?0:1); }
-  else {
-    const uw = out.courses.filter(c=>!/^(AP|TR|IB|CR)$/.test(c.grade));
-    if(uw.length){ const f = uw.reduce((a,c)=>{const ay=2000+c.yy-(c.q===0?0:1);return Math.min(a,ay)},9999); out.startYear=f; }
-  }
+  // A ">S" row is a fragment of a course DARS lists in full elsewhere (CHEM 152 as 5, 2 and 3 credits). Drop it when the full row is there.
+  // ponytail: matched by quarter and title; a course that appears only as fragments keeps them.
+  const whole = new Set(out.courses.filter(c=>!c.split).map(c=>c.qtr+"|"+(c.title||c.code)));
+  out.courses = out.courses.filter(c=>!c.split||!whole.has(c.qtr+"|"+(c.title||c.code)));
+  if(out.catalogYear){ const m=out.catalogYear.match(/(AU|WI|SP|SU) (\d{2})/); out.startYear = fullYear(+m[2])-(m[1]==="AU"?0:1); }
+  const uw = out.courses.filter(c=>!/^(AP|TR|IB|CR)$/.test(c.grade)&&!/TRANSFER/i.test(c.code+" "+c.title)); // the earliest UW-graded course wins when it predates the catalog year; transfer rows are not UW quarters
+  if(uw.length){ const f = uw.reduce((a,c)=>Math.min(a,fullYear(c.yy)-(c.q===0?0:1)),9999); out.startYear = out.startYear===null?f:Math.min(out.startYear,f); }
   return out;
 }
 /*PARSER-END*/
@@ -749,6 +754,27 @@ major("bioc-bs", "Biochemistry (BS)", "as", BIOC_SRC, {
     all("bioc","Biochemistry","BIOC 426,BIOC 440|BIOC 450,BIOC 441|BIOC 451,BIOC 442"),
     crd("elec","11 credits of science electives",11,"Biochem Elective")]});
 
+// Microbiology (BS): UW General Catalog plus the department's degree packet (Spring 2026). The 28 distribution and elective credits are one total, with the group rules checked beside it.
+const MICRO_MED = "IMMUN:441;MICROM:442,443,445,460", MICRO_DIV = "MICROM:412;ENV H:409;FISH:406";
+major("micro", "Microbiology (BS)", "as", GENCAT+"Microbiology-216.html", {
+  lists:{"Micro Dist":MICRO_MED+";"+MICRO_DIV+";MICROM:411,431;GENOME:361,371",
+    "Micro Elective":"BIOEN:454,467,498;G H:401,402,410,454;BIOL:401,419,455,466,481;CEE:462,482;CHEM E:467;ENV H:440,441,442,444,447,451,452;EPI:320,527;ESRM:404,422;FISH:404;GENOME:372,373,414;MICROM:482,495,496,499,555;NUTR:446;OCEAN:330,431,530,572;PABIO:551,552"},
+  note:`Not checked: the 2.50 GPA in the admission courses (BIOL 200 needs 2.3), the 2.25 major GPA, the 1.8 minimum grade in MICROM and IMMUN courses, and 20 UW microbiology credits for transfers. Electives follow the department's <a href="https://microbiology.washington.edu/undergraduate-program/major-course-requirements" target="_blank" rel="noopener">degree packet</a>; a course not on it needs a petition. The catalog lists MICROM 413 as core, but the packet lists only 402, 410 and 450, so confirm with the adviser.`,
+  reqs:[
+    all("intro","Intro biology","BIOL 180,BIOL 200,BIOL 220"),
+    all("gchem","General chemistry","CHEM 142,CHEM 152,CHEM 162;CHEM 143,CHEM 153;CHEM 145,CHEM 155,CHEM 165"),
+    all("ochem","Organic chemistry","CHEM 223|CHEM 237|CHEM 335"),
+    all("core","Core","MICROM 402,MICROM 410,MICROM 413,MICROM 450"),
+    crd("dist","28 credits of distribution courses and electives",28,["Micro Dist","Micro Elective"],{additional:false}),
+    pick("med","Medical Microbiology: 2 courses",2,MICRO_MED,{additional:false,rule:true}),
+    pick("div","Diversity and Ecology: 2 courses",2,MICRO_DIV,{additional:false,rule:true}),
+    {...all("gene","Genetics: MICROM 411, or MICROM 431 with GENOME 361 or 371","MICROM 411;MICROM 431,GENOME 361|GENOME 371"),rule:true},
+    pick("lab","2 lab courses: MICROM 411, 431 or 443",2,"MICROM:411,431,443",{additional:false,rule:true}),
+    all("phys","Physics","PHYS 114,PHYS 115;PHYS 121,PHYS 122;PHYS 141,PHYS 142"),
+    all("quant","Calculus and statistics","MATH 124|MATH 134|Q SCI 291,BIOST 310|Q SCI 381|STAT 220|STAT 311"),
+    all("bioc","Biochemistry","BIOC 405,BIOC 406;BIOC 440,BIOC 441,BIOC 442"),
+  ]});
+
 const MATH_SRC = GENCAT+"Mathematics-206.html";
 const mathCore = all("core","Calculus and linear algebra","MATH 124,MATH 125,MATH 126,MATH 207,MATH 208;MATH 134,MATH 135,MATH 136");
 const mathRes = rule("res","18 upper-division MATH credits at UW",18,"MATH",{min:301,uwOnly:true});
@@ -1052,11 +1078,12 @@ function singleAreaTags(tags=[]){
 // Ordinary repeats earn credit once; research and other repeatable offerings can opt in.
 function creditCourses(courses){
   const best=new Map(), rank={done:0,now:1,plan:2};
+  const better=(a,b)=>rank[a.status]-rank[b.status]||(+b.credits||0)-(+a.credits||0)||(b.origin==="uw")-(a.origin==="uw"); // status, then more credit, then UW over outside
   for(const c of courses){
     const code=canonCode(c.code);
     if(c.repeatable||!/^[A-Z][A-Z& ]* \d{3}[A-Z]?$/.test(code)) continue;
     const prev=best.get(code);
-    if(!prev||rank[c.status]<rank[prev.status]) best.set(code,c);
+    if(!prev||better(c,prev)<0) best.set(code,c);
   }
   return courses.filter(c=>c.repeatable||!best.has(canonCode(c.code))||best.get(canonCode(c.code))===c);
 }
@@ -1159,7 +1186,7 @@ function addCatalogGen(c, byCode){
 const STORE = "husky-degree-planner-v1";
 // Vercel Analytics custom events for the signup funnel. Only actions, major ids and course counts go out, never courses, grades or names.
 const track = (name, data) => { try{ window.va("event", data ? {name, data} : {name}); }catch(e){} };
-const supa = window.supabase.createClient("https://hazmlvijljrqqocbzbvv.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhhem1sdmlqbGpycXFvY2J6YnZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MjA0MTksImV4cCI6MjEwODE5NjQxOX0.znyYBJq9AVoki1lMCSr8DVCe10dps00baUvZwJv9-bE");
+const supa = !window.supabase ? null : window.supabase.createClient("https://hazmlvijljrqqocbzbvv.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhhem1sdmlqbGpycXFvY2J6YnZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MjA0MTksImV4cCI6MjEwODE5NjQxOX0.znyYBJq9AVoki1lMCSr8DVCe10dps00baUvZwJv9-bE"); // if the CDN script is blocked, the app still runs as a guest and sign-in says it is unavailable
 let session = null, guestDirty = false, nudged = false;
 const HANDOFF = "husky-degree-planner-oauth-handoff";
 const QN = ["Autumn","Winter","Spring","Summer"];
@@ -1192,12 +1219,19 @@ function setMajors(p,ids){
   const keep=new Set(ids.flatMap(id=>MAJORS[id].tags)), drop=new Set(p.majors.flatMap(id=>MAJORS[id].tags).filter(t=>!keep.has(t)));
   const courses=[...p.prior,...Object.values(p.quarters).flat()];
   courses.forEach(c=>{ c.tags=(c.tags||[]).filter(t=>!drop.has(t)); });
-  const old=Object.fromEntries(p.reqs.map(r=>[r.id,r])), defaults=Object.fromEntries(planReqs(p.majors).map(r=>[r.id,r.need])), sameCollege=MAJORS[ids[0]].college===MAJORS[p.majors[0]].college;
+  const old=Object.fromEntries(p.reqs.map(r=>[r.id,r])), sameCollege=MAJORS[ids[0]].college===MAJORS[p.majors[0]].college;
   p.majors=ids;
   [...ids,...genGroups(ids).map(g=>g.group)].forEach(g=>{ if(p.groupsOn[g]===undefined) p.groupsOn[g]=true; });
   courses.forEach(c=>addAutoTags(c,p));
-  const edited=r=>old[r.id]&&typeof old[r.id].need==="number"&&old[r.id].need!==defaults[r.id];
-  p.reqs=planReqs(ids).map(r=>edited(r)&&(r.group!=="gen"||sameCollege)?{...r,need:old[r.id].need}:r);
+  p.reqs=planReqs(ids).map(r=>old[r.id]?.edited&&typeof old[r.id].need==="number"&&(r.group!=="gen"||sameCollege)?{...r,need:old[r.id].need,edited:true}:r);
+}
+// Switches majors, asking first when that would drop tags the user applied by hand or requirement numbers they edited. Cancelling re-renders to restore the selects.
+function switchMajors(p,ids){
+  const t=clone(p); setMajors(t,ids);
+  const mine=[...p.prior,...Object.values(p.quarters).flat()], theirs=[...t.prior,...Object.values(t.quarters).flat()];
+  const lost=mine.some((c,i)=>(c.tags||[]).some(x=>!theirs[i].tags.includes(x)&&!p.majors.some(id=>MAJORS[id].tagsFor(c.code).includes(x))))||p.reqs.some(r=>r.edited&&!t.reqs.some(x=>x.id===r.id&&x.edited));
+  const go=()=>{ setMajors(p,ids); persist(); render(); };
+  if(lost) showConfirm("Switching majors will clear tags you added by hand or requirement numbers you edited. Switch anyway?","Switch",go,render); else go();
 }
 function majorOptions(selected){
   return Object.entries(COLLEGES).map(([k,col])=>`<optgroup label="${esc(col.name)}">${Object.values(MAJORS).filter(m=>m.college===k).map(m=>`<option value="${m.id}" ${m.id===selected?"selected":""}>${esc(m.name)}</option>`).join("")}</optgroup>`).join("");
@@ -1206,7 +1240,7 @@ function majorOptions(selected){
 function basePlan(name,id="cs"){
   const y=new Date().getFullYear(), m=new Date().getMonth();
   const start = m>=8 ? y : y-1;
-  return {id:"p"+uid(),name,schema:4,createdAt:Date.now(),startYear:start,years:4,showSummer:false,target:"3-2",majors:[id],
+  return {id:"p"+uid(),name,schema:5,createdAt:Date.now(),startYear:start,years:4,showSummer:false,target:"3-2",majors:[id],
     groupsOn:{gen:true,[id]:true,eth:false,minor:false},reqs:planReqs([id]),prior:[],quarters:{}};
 }
 // Other majors get their required courses laid out in order, so students can see how the planner treats their major.
@@ -1221,7 +1255,7 @@ async function majorExample(id){
   return p;
 }
 function examplePlan(){
-  const p=basePlan("Example plan"); p.startYear=2026;
+  const p=basePlan("Example plan");
   p.prior=[C("MATH 124",5,["NSc"],"done","Example · AP Calc"),C("MATH 125",5,["NSc"],"done","Example · AP Calc"),
     C("CSE 121",4,["NSc"],"done","Example · AP CS A"),C("PSYCH 101",5,["SSc"],"done","Example · AP Psych"),C("ENGL 131",5,["C"],"done","Example · composition")];
   p.quarters={"0-0":[C("CSE 122",4,[],"now","Example"),C("MATH 126",5,["NSc"],"now","Example"),C("CHEM 142",5,["NSc","CS Sci"],"now","Example")],
@@ -1231,47 +1265,99 @@ function examplePlan(){
 }
 /* Normalize plans from older versions or other files. */
 function normalizePlan(p){
-  if(!p||typeof p!=="object"||!Array.isArray(p.prior)||typeof p.quarters!=="object") return null;
-  p.id = p.id||("p"+uid()); p.name = p.name||"Imported plan"; p.years=p.years||4; p.startYear=p.startYear||2026;
+  if(!p||typeof p!=="object"||!Array.isArray(p.prior)||!p.quarters||typeof p.quarters!=="object"||Array.isArray(p.quarters)) return null;
+  const SAFE=/^[A-Za-z0-9_-]+$/, yr=Math.trunc(+p.startYear); // ids, years and credits reach innerHTML, so imported files get coerced here
+  p.id = typeof p.id==="string"&&SAFE.test(p.id)?p.id:"p"+uid(); p.name = String(p.name||"Imported plan"); p.years=Math.min(12,Math.max(1,Math.trunc(+p.years)||4)); p.startYear=yr>=1990&&yr<=2100?yr:2026;
+  p.prior=p.prior.filter(c=>c&&typeof c==="object"); for(const k of Object.keys(p.quarters)){ if(Array.isArray(p.quarters[k])) p.quarters[k]=p.quarters[k].filter(c=>c&&typeof c==="object"); else delete p.quarters[k]; }
   p.majors = (Array.isArray(p.majors)?p.majors:["cs"]).filter(id=>MAJORS[id]).slice(0,MAX_MAJORS); if(!p.majors.length) p.majors=["cs"]; // plans made before multiple majors are CS
   p.groupsOn = Object.assign({gen:true,eth:false,minor:false}, Object.fromEntries([...p.majors,...genGroups(p.majors).map(g=>g.group)].map(g=>[g,true])), p.groupsOn||{});
   if(p.groupsOn.bus!==undefined){ p.groupsOn.minor=p.groupsOn.bus; delete p.groupsOn.bus; }
   const old = Object.fromEntries((p.reqs||[]).map(r=>[r.id==="bus"?"minor":r.id,r]));
-  p.reqs = planReqs(p.majors).map(r=>old[r.id]&&typeof old[r.id].need==="number"?{...r,need:old[r.id].need,label:r.group==="minor"&&old[r.id].label?old[r.id].label:r.label}:r);
-  const fixTags = c => { c.id=c.id||uid(); c.tags=singleAreaTags((c.tags||[]).map(t=>t==="Business"?"Minor":t==="Core"?"CS Core":t)); c.status=["done","now","plan"].includes(c.status)?c.status:"plan"; return c; };
+  // A saved number is kept only when the user edited it. Plans from before schema 5 have no flag, so a number that differs from today's default counts as edited.
+  p.reqs = planReqs(p.majors).map(r=>{ const o=old[r.id], ed=o&&typeof o.need==="number"&&(o.edited||((p.schema||1)<5&&o.need!==r.need)); return {...r,...(ed?{need:o.need,edited:true}:{}),label:r.group==="minor"&&o&&o.label?String(o.label):r.label}; });
+  const fixTags = c => { c.id=typeof c.id==="string"&&SAFE.test(c.id)?c.id:uid(); c.code=String(c.code??""); c.title=String(c.title??""); const n=parseFloat(c.credits); c.credits=Number.isFinite(n)?n:0;
+    c.tags=singleAreaTags((Array.isArray(c.tags)?c.tags:[]).map(t=>t==="Business"?"Minor":t==="Core"?"CS Core":String(t))); c.status=["done","now","plan"].includes(c.status)?c.status:"plan"; return c; };
   p.prior.forEach(c=>{fixTags(c); c.origin=c.origin||"external";}); Object.values(p.quarters).forEach(l=>l.forEach(c=>{fixTags(c); c.origin=c.origin||"uw";}));
   if((p.schema||1)<3){ const tag=c=>addAutoTags(c,p); p.prior.forEach(tag); Object.values(p.quarters).forEach(l=>l.forEach(tag)); } // plans made before auto-tagging
-  if(p.target===undefined) p.target=(p.years-1)+"-2";
-  p.schema=4; return p;
+  if(typeof p.target!=="string"||!/^\d+-[0-3]$/.test(p.target)) p.target=(p.years-1)+"-2";
+  p.schema=5; return p;
 }
 
 /* ---------- storage ---------- */
-let plans=[], cur=null, editing=false;
+let plans=[], cur=null, editing=false, fromStore=false;
+// jsonb may reorder object keys. Canonicalize objects recursively, retaining array order and JSON value semantics.
+const planJSON = plan => JSON.stringify(plan, (_key,value) =>
+  value&&typeof value==="object"&&!Array.isArray(value)
+    ? Object.fromEntries(Object.keys(value).sort().map(key=>[key,value[key]])) : value);
+// Cloud sync state. cloudStamp is the updated_at last pulled or written, so a push can refuse to overwrite a newer copy from another device.
+let cloudStamp=null, pullOk=false, pulling=false, pushing=false, dirty=false, pushTimer=0, leaving=false;
 const saveEl=document.getElementById("save");
-function load(){ try{ const d=JSON.parse(localStorage.getItem(STORE)||"null"); if(d&&Array.isArray(d.plans)){ plans=d.plans.map(normalizePlan).filter(Boolean); cur=d.current; } }catch(e){ saveEl.textContent="This browser is blocking storage. Export your plans to keep them."; } }
-function persist(){
-  if(!session){ guestDirty=true; try{ localStorage.removeItem(STORE); }catch(e){} saveEl.textContent="Sign in to save — nothing is kept if you leave or refresh."; return; }
-  const time=new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"});
-  try{ localStorage.setItem(STORE,JSON.stringify({plans,current:cur})); saveEl.textContent="Synced as "+session.user.email+" · "+time; }
-  catch(e){ saveEl.textContent="Could not save in this browser. Export your plans to keep them."; }
-  cloudPush();
-}
-async function cloudPush(){
-  const { error } = await supa.from("plans").upsert({user_id:session.user.id, data:{plans,current:cur}, updated_at:new Date().toISOString()});
-  if(error) saveEl.textContent="Could not sync to your account · saved in this browser only";
-}
-async function cloudPull(){
-  const { data, error } = await supa.from("plans").select("data").eq("user_id",session.user.id).maybeSingle();
-  if(error){ toast("Could not load your synced plans."); return; }
-  if(data&&data.data){
-    const cloud=(data.data.plans||[]).map(normalizePlan).filter(Boolean);
-    const extra=guestDirty?plans.filter(p=>!cloud.some(c=>c.id===p.id)):[];
-    plans=[...cloud,...extra]; if(!extra.length) cur=data.data.current;
-    if(!plans.find(p=>p.id===cur)) cur=plans[0]?.id||null;
+const local=()=>{ try{ localStorage.setItem(STORE,JSON.stringify({plans,current:cur,stamp:cloudStamp,unsent:dirty||pushing})); return true; }catch(e){ return false; } };
+function load(){ try{ const d=JSON.parse(localStorage.getItem(STORE)||"null"); if(d&&Array.isArray(d.plans)){ plans=d.plans.map(normalizePlan).filter(Boolean); cur=d.current; fromStore=true; cloudStamp=d.stamp||null; dirty=!!d.unsent; } }catch(e){ saveEl.textContent="This browser is blocking storage. Export your plans to keep them."; } }
+function persist(noPush){
+  if(!session){
+    guestDirty=true;
+    if(fromStore){ dirty=true; local(); } // plans restored for a signed-in user: an edit before the session returns must survive
+    else try{ localStorage.removeItem(STORE); }catch(e){}
+    saveEl.textContent="Sign in to save — nothing is kept if you leave or refresh."; return;
   }
-  guestDirty=false;
-  persist(); render(); repairPlans();
+  if(!noPush) dirty=true;
+  const time=new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"});
+  saveEl.textContent=!local()?"Could not save in this browser. Export your plans to keep them.":pullOk?"Synced as "+session.user.email+" · "+time:"Saved in this browser only · your account copy has not loaded yet";
+  if(!noPush) cloudPush();
 }
+// Pushes wait 800 ms so typing a plan name sends one request, and never overlap.
+function cloudPush(){ clearTimeout(pushTimer); pushTimer=setTimeout(flush,800); }
+async function flush(){
+  if(!session||pushing||!dirty) return;
+  if(!pullOk) return cloudPull(); // never overwrite a cloud copy we have not read
+  pushing=true; dirty=false;
+  const s=session, row={data:{plans,current:cur},updated_at:new Date().toISOString()};
+  const q=cloudStamp===null ? supa.from("plans").insert({user_id:s.user.id,...row}) : supa.from("plans").update(row).eq("user_id",s.user.id).eq("updated_at",cloudStamp);
+  const {data,error}=await q.select("updated_at");
+  pushing=false;
+  if(session?.user.id!==s.user.id) return;
+  if(!error&&data?.length){ cloudStamp=data[0].updated_at; local(); if(dirty) cloudPush(); }
+  else if(!error||error.code==="23505"){ dirty=true; await cloudPull(true); toast("This plan changed on another device. We loaded that copy and preserved unsent edits as conflict copies."); } // no row matched: someone else wrote first
+  else { dirty=true; saveEl.textContent="Could not sync to your account · saved in this browser only"; }
+}
+async function cloudPull(conflict){
+  const s=session; if(!s||pulling) return; pulling=true;
+  const {data:row,error}=await supa.from("plans").select("data,updated_at").eq("user_id",s.user.id).maybeSingle();
+  pulling=false;
+  if(session?.user.id!==s.user.id) return;
+  if(error){ pullOk=false; saveEl.textContent="Could not load your account copy · changes are saved in this browser only"; toast("Could not load your synced plans. Your changes are saved in this browser only; we will retry."); return; }
+  const same=!!row&&row.updated_at===cloudStamp;
+  if(same&&!guestDirty&&!conflict){ pullOk=true; if(dirty) flush(); return; } // nothing new in the cloud
+  let unsent=false;
+  if(row&&row.data){
+    const cloud=(row.data.plans||[]).map(normalizePlan).filter(Boolean);
+    if(same&&guestDirty&&fromStore) unsent=true; // the restored copy came from exactly this cloud copy, so its edits stand
+    else{
+      // Preserve both versions of an edited plan; never replace unsent work with the remote copy.
+      const extra=[];
+      if(guestDirty||dirty||conflict) for(const p of plans){
+        const remote=cloud.find(c=>c.id===p.id);
+        if(!remote) extra.push(p);
+        else if(planJSON(p)!==planJSON(remote)){
+          const copy=clone(p);
+          do{ copy.id="p"+uid(); }while([...cloud,...plans,...extra].some(x=>x.id===copy.id));
+          copy.name=p.name+" (conflict copy)";
+          extra.push(copy); if(cur===p.id) cur=copy.id;
+        }
+      }
+      plans=[...cloud,...extra]; unsent=extra.length>0; if(!extra.length) cur=row.data.current;
+    }
+    if(!plans.find(p=>p.id===cur)) cur=plans[0]?.id||null;
+  } else unsent=plans.length>0;
+  cloudStamp=row?.updated_at??null; pullOk=true; guestDirty=false; dirty=unsent;
+  persist(!unsent); render(); repairPlans();
+}
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState!=="visible"||!session) return;
+  if(dirty||pushing||!pullOk) flush(); else if(!document.querySelector(".dlg")) cloudPull(); // pull only when nothing is unsent and no dialog is open
+});
+window.addEventListener("beforeunload",e=>{ if(!session&&!leaving&&plans.length){ e.preventDefault(); e.returnValue=""; } });
 
 /* ---------- plan helpers ---------- */
 const plan = () => plans.find(p=>p.id===cur);
@@ -1316,19 +1402,21 @@ function planFromDars(parsed, startYear, id="cs", byCode){
   let maxYear=3;
   const allowed=planTags(p); // the parser's CS section tags mean nothing on another major's plan
   for(const c of parsed.courses){
+    if(/^(W|HW|NC|NS)$/.test(c.grade)||(c.credits===0&&c.grade==="0.0")) continue; // not completed credit
     const status = c.grade==="IP" ? "now" : c.grade==="PL" ? "plan" : "done";
     const course = addAutoTags(C(c.code,c.credits,c.tags.filter(t=>allowed.includes(t)),status,c.title),p);
-    course.origin=/^(AP|IB|TR)$/.test(c.grade)?"external":"uw";
+    const ay = fullYear(c.yy)-(c.q===0?0:1);     // academic year that quarter belongs to
+    const y = Math.min(ay-startYear,11);         // plans hold 12 years at most
+    course.origin=/^(AP|IB|TR)$/.test(c.grade)||y<0?"external":"uw"; // anything before the first UW autumn (Running Start, summer transfer) is not UW credit
+    if(!/\d{3}/.test(c.code)) course.shortTitle=true; // DARS gave only an abbreviated title; repairPlans looks up the real code
     // The catalog marks courses that allow repeat credit with a limit ("1-5, max. 15"); ordinary retakes still count once.
     if(/max\./.test(byCode?.get(canonCode(c.code).replace(/ /g,""))?.cr||"")) course.repeatable=true;
-    const ay = 2000+c.yy-(c.q===0?0:1);          // academic year that quarter belongs to
-    const y = ay-startYear;
     if(y<0 || /^(AP|IB)$/.test(c.grade)){ p.prior.push(course); continue; }
     const key=y+"-"+c.q; (p.quarters[key]=p.quarters[key]||[]).push(course);
     if(c.q===3) p.showSummer=true;
     maxYear=Math.max(maxYear,y);
   }
-  p.years=Math.max(4,maxYear+1);
+  p.years=Math.min(12,Math.max(4,maxYear+1));
   const done=[...p.prior,...Object.values(p.quarters).flat()].filter(c=>c.status==="done");
   const doneCr=sumCr(done);
   if(parsed.earned!==null && doneCr>parsed.earned+0.01){
@@ -1350,7 +1438,7 @@ function render(){
 function renderTabs(){
   const el=document.getElementById("tabs");
   el.hidden=!plans.length;
-  el.innerHTML=plans.map(p=>`<button class="tab" role="tab" aria-selected="${p.id===cur}" data-tab="${p.id}">${esc(p.name)}</button>`).join("")+
+  el.innerHTML=plans.map(p=>`<button class="tab" role="tab" aria-selected="${p.id===cur}" data-tab="${esc(p.id)}">${esc(p.name)}</button>`).join("")+
    `<div class="newmenu"><button class="btn small" id="findbtn">Find courses</button><button class="btn small" id="newbtn" aria-haspopup="true">+ New plan</button></div>`;
   el.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{cur=b.dataset.tab;clearConfirm();persist();render()});
   const fb=document.getElementById("findbtn"); if(fb) fb.onclick=()=>openFind();
@@ -1404,8 +1492,8 @@ function renderProj(p){
         ${p.majors.length<MAX_MAJORS?`<div><label class="lbl" for="pmajoradd">Double major</label><select id="pmajoradd" class="majorsel"><option value="">Add a second major</option>${majorOptions(null)}</select></div>`:""}
         <div><label class="lbl" for="pname">Plan name</label><input type="text" id="pname" class="in-name" value="${esc(p.name)}"></div>
         <div><label class="lbl" for="ptarget">Target graduation</label><select id="ptarget">${targetOpts}</select></div>
-        <div><label class="lbl" for="pstart">First autumn at UW</label><input type="number" id="pstart" class="in-year" value="${p.startYear}"></div>
-        <div><label class="lbl">Years shown</label><div class="stepper"><button class="btn small" id="ym" aria-label="Remove a year">−</button><span class="mono">${p.years}</span><button class="btn small" id="yp" aria-label="Add a year">+</button></div></div>
+        <div><label class="lbl" for="pstart">First autumn at UW</label><input type="number" id="pstart" class="in-year" min="1990" max="2100" value="${esc(p.startYear)}"></div>
+        <div><label class="lbl">Years shown</label><div class="stepper"><button class="btn small" id="ym" aria-label="Remove a year">−</button><span class="mono">${esc(p.years)}</span><button class="btn small" id="yp" aria-label="Add a year">+</button></div></div>
         <div><label class="lbl" for="psum">Summers</label><input type="checkbox" class="switch" id="psum" ${p.showSummer?"checked":""}></div>
         <div class="push"><label class="lbl">&nbsp;</label><button class="btn danger small" id="pdel">Delete plan</button></div>
       </div>
@@ -1419,13 +1507,13 @@ function renderProj(p){
         <span>Total <span class="mono">${fmt(tot)} / ${totalNeed}</span></span>
       </div>
     </div>`;
-  document.querySelectorAll("[data-major]").forEach(s=>s.onchange=()=>{const ids=[...p.majors]; ids[+s.dataset.major]=s.value; setMajors(p,ids.filter(Boolean)); persist(); render();});
+  document.querySelectorAll("[data-major]").forEach(s=>s.onchange=()=>{const ids=[...p.majors]; ids[+s.dataset.major]=s.value; switchMajors(p,ids.filter(Boolean));});
   const addMajor=document.getElementById("pmajoradd");
-  if(addMajor) addMajor.onchange=e=>{if(e.target.value){setMajors(p,[...p.majors,e.target.value]); persist(); render();}};
+  if(addMajor) addMajor.onchange=e=>{if(e.target.value) switchMajors(p,[...p.majors,e.target.value]);};
   const pn=document.getElementById("pname");
   pn.oninput=()=>{p.name=pn.value||"Untitled plan";persist();renderTabs()};
   document.getElementById("ptarget").onchange=e=>{p.target=e.target.value;persist();render()};
-  document.getElementById("pstart").onchange=e=>{const v=parseInt(e.target.value);if(v>1990&&v<2100){p.startYear=v;persist();render()}};
+  document.getElementById("pstart").onchange=e=>{const v=parseInt(e.target.value);if(v>=1990&&v<=2100){p.startYear=v;persist();render()}};
   document.getElementById("yp").onclick=()=>{if(p.years<8){p.years++;persist();render()}};
   document.getElementById("ym").onclick=()=>{
     if(p.years<=1) return;
@@ -1437,22 +1525,20 @@ function renderProj(p){
   document.getElementById("pdel").onclick=()=>showConfirm(`Delete “${p.name}”? Export first if you want a backup.`,"Delete plan",()=>{plans=plans.filter(x=>x!==p);cur=plans[0]?.id||null;persist();render()});
 }
 
-function courseHTML(c,key){
+function courseHTML(c,key,dup){
   const label=c.status==="done"?"Completed":c.status==="now"?"In progress":"Planned";
-  return `<button class="course ${c.status}" draggable="true" data-c="${c.id}" data-k="${key}" aria-label="${esc((c.code||"Untitled")+", "+fmt(+c.credits||0)+" credits, "+label)}">
+  return `<button class="course ${c.status}" draggable="true" data-c="${esc(c.id)}" data-k="${esc(key)}" aria-label="${esc((c.code||"Untitled")+", "+fmt(+c.credits||0)+" credits, "+label)}">
     <span class="r1"><span class="code">${esc(c.code||"Untitled")}</span><span class="cr">${fmt(+c.credits||0)} cr</span></span>
     ${c.title?`<span class="ttl">${esc(c.title)}</span>`:""}
-    ${(c.tags||[]).length?`<span class="tags">${c.tags.map(t=>`<span class="tag${ALL_AUTO_TAGS.has(t)?" cse":""}">${esc(t)}</span>`).join("")}</span>`:""}
+    ${(c.tags||[]).length||dup?`<span class="tags">${dup?`<span class="tag" title="Repeats a course already counted, so it earns no credit unless the course permits repeats">Repeat · no credit</span>`:""}${(c.tags||[]).map(t=>`<span class="tag${ALL_AUTO_TAGS.has(t)?" cse":""}">${esc(t)}</span>`).join("")}</span>`:""}
   </button>`;
 }
-function nowKey(p){
-  const d=new Date(), m=d.getMonth(), q=m>=8?0:m<=2?1:m<=5?2:3, y=(q===0?d.getFullYear():d.getFullYear()-1)-p.startYear;
-  return y>=0&&y<p.years?y+"-"+q:null;
-}
+function nowIdx(p,d=new Date()){ const m=d.getMonth(), q=m>=8?0:m<=2?1:m<=5?2:3; return ((q===0?d.getFullYear():d.getFullYear()-1)-p.startYear)*4+q; } // quarters since the plan's first autumn
+function nowKey(p){ const i=nowIdx(p); return i>=0&&i<p.years*4?(i>>2)+"-"+(i&3):null; }
 function renderYears(p){
-  const g=projection(p), tIdx=keyIndex(p,p.target), nk=nowKey(p);
+  const g=projection(p), tIdx=keyIndex(p,p.target), nk=nowKey(p), kept=new Set(creditCourses(allCourses(p))); // courses outside kept are ignored repeats
   let html=`<div class="year prior"><div class="yhead"><h2>Before UW</h2><span class="muted"><span class="mono">${fmt(sumCr(p.prior))}</span> cr · AP, IB, transfer, running start</span></div>
-    <div class="qgrid"><div class="q" data-k="prior"><div class="list">${p.prior.map(c=>courseHTML(c,"prior")).join("")}</div><button class="add" data-add="prior">+ Add credit</button></div></div></div>`;
+    <div class="qgrid"><div class="q" data-k="prior"><div class="list">${p.prior.map(c=>courseHTML(c,"prior",!kept.has(c))).join("")}</div><button class="add" data-add="prior">+ Add credit</button></div></div></div>`;
   for(let y=0;y<p.years;y++){
     const yrKeys=[0,1,2,3].map(q=>y+"-"+q).filter(k=>p.showSummer||!k.endsWith("-3")||k===g), cols=yrKeys.length; // a hidden summer still shows when graduation lands in it
     const cum=sumCr(coursesUpTo(p,y+"-3")); // through summer, shown or not: hidden summer courses still count
@@ -1465,7 +1551,7 @@ function renderYears(p){
       html+=`<div class="q ${keyIndex(p,k)>tIdx?"after":""} ${g===k?"grad":""} ${nk===k?"current":""}" data-k="${k}">
         <div class="qh"><strong>${qLabel(p,k)}${nk===k?` <span class="nowtag">· Now</span>`:""}</strong>${list.length?`<span class="load ${ld}"><span class="mono">${fmt(cr)}</span> · ${ldt}</span>`:""}</div>
         ${g===k?`<div class="gradflag">Graduate here</div>`:""}
-        ${list.map(c=>courseHTML(c,k)).join("")}
+        ${list.map(c=>courseHTML(c,k,!kept.has(c))).join("")}
         <button class="add" data-add="${k}">+ Add course</button></div>`;
     }
     html+=`</div></div>`;
@@ -1519,25 +1605,26 @@ function renderAudit(p){
   el.querySelectorAll("[data-find]").forEach(d=>{ const go=()=>openFind(null,reqFilter(p.reqs.find(r=>r.id===d.dataset.find)));
     d.onclick=go; d.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); go(); } }; });
   el.querySelectorAll("[data-grp]").forEach(s=>s.onchange=()=>{p.groupsOn[s.dataset.grp]=s.checked;persist();render()});
-  el.querySelectorAll("[data-need]").forEach(i=>i.onchange=()=>{const r=p.reqs.find(r=>r.id===i.dataset.need);const v=parseFloat(i.value);if(r&&v>=0){r.need=v;persist();render()}});
-  el.querySelectorAll("[data-label]").forEach(i=>i.onchange=()=>{const r=p.reqs.find(r=>r.id===i.dataset.label);if(r&&i.value.trim()){r.label=i.value.trim();persist()}});
+  el.querySelectorAll("[data-need]").forEach(i=>i.onchange=()=>{const r=p.reqs.find(r=>r.id===i.dataset.need);const v=parseFloat(i.value);if(r&&v>=0){r.need=v;r.edited=true;persist();render()}});
+  el.querySelectorAll("[data-label]").forEach(i=>i.onchange=()=>{const r=p.reqs.find(r=>r.id===i.dataset.label);if(r&&i.value.trim()){r.label=i.value.trim();r.edited=true;persist()}});
   document.getElementById("editneeds").onclick=()=>{editing=!editing;renderAudit(p)};
   document.getElementById("resetreqs").onclick=()=>showConfirm("Reset this plan's requirement numbers to the defaults?","Reset",()=>{p.reqs=planReqs(p.majors);persist();render()});
 }
 
 /* ---------- confirm bar ---------- */
 function clearConfirm(){document.getElementById("confirm").innerHTML=""}
-function showConfirm(msg,label,fn){
+function showConfirm(msg,label,fn,no){
   const el=document.getElementById("confirm");
   el.innerHTML=`<div class="confirmbar" role="alert"><span>${esc(msg)}</span><span class="hstack push"><button class="btn small" id="cno">Cancel</button><button class="btn small danger armed" id="cyes">${esc(label)}</button></span></div>`;
-  document.getElementById("cno").onclick=clearConfirm;
+  document.getElementById("cno").onclick=()=>{clearConfirm();if(no)no()};
   document.getElementById("cyes").onclick=()=>{clearConfirm();fn()};
   el.scrollIntoView({block:"nearest"});
 }
+let toastT;
 function toast(msg){
-  const el=document.getElementById("confirm");
+  const el=document.getElementById("toast"); // its own element, so a toast never wipes a pending confirm
   el.innerHTML=`<div class="toast" role="status">${esc(msg)}</div>`;
-  setTimeout(()=>{ if(el.querySelector(".toast")) el.innerHTML=""; },4000);
+  clearTimeout(toastT); toastT=setTimeout(()=>{ el.innerHTML=""; },4000);
 }
 
 /* ---------- auth ---------- */
@@ -1547,7 +1634,7 @@ function renderAccount(){
     ? `<span class="who" title="${esc(session.user.email)}"><span class="avatar" aria-hidden="true">${esc((session.user.email||"?")[0].toUpperCase())}</span><span class="em">${esc(session.user.email)}</span></span><button class="btn small" id="signout">Sign out</button>`
     : `<button class="btn small primary" id="signin">Sign in to save</button>`;
   const si=document.getElementById("signin"); if(si) si.onclick=()=>openAuth();
-  const so=document.getElementById("signout"); if(so) so.onclick=()=>supa.auth.signOut();
+  const so=document.getElementById("signout"); if(so) so.onclick=()=>supa?.auth.signOut();
 }
 function openAuth(nudge){
   dialog(`<h3 id="dlgt">${nudge?"Save your plan":"Sign in"}</h3>
@@ -1560,19 +1647,21 @@ function openAuth(nudge){
     document.getElementById("a-cancel").onclick=close;
     document.getElementById("a-google").onclick=async()=>{
       track("sign_in_clicked");
+      if(!supa){ document.getElementById("a-err").textContent="Sign-in is unavailable right now. Your plans still work here; use Export to keep a copy."; return; }
       // ponytail: OAuth reloads the page, so guest plans ride along in sessionStorage and are removed on return
       if(plans.length) try{ sessionStorage.setItem(HANDOFF,JSON.stringify({plans,current:cur})); }catch(e){}
+      leaving=true; // the redirect is not the user abandoning unsaved plans
       const {error}=await supa.auth.signInWithOAuth({provider:"google",options:{redirectTo:window.location.origin+window.location.pathname}});
-      if(error) document.getElementById("a-err").textContent="Couldn't reach Google sign-in. Try again.";
+      if(error){ leaving=false; document.getElementById("a-err").textContent="Couldn't reach Google sign-in. Try again."; }
     };
     setTimeout(()=>document.getElementById("a-google").focus(),0);
   });
 }
-supa.auth.onAuthStateChange((_evt,s)=>{
+if(supa) supa.auth.onAuthStateChange((_evt,s)=>{
   const justIn=!session&&s, justOut=session&&!s;
   session=s; renderAccount();
-  if(justIn) cloudPull();
-  if(justOut){ plans=[]; cur=null; try{ localStorage.removeItem(STORE); }catch(e){} render(); }
+  if(justIn){ pullOk=false; cloudPull(); }
+  if(justOut){ plans=[]; cur=null; fromStore=false; cloudStamp=null; pullOk=false; dirty=false; clearTimeout(pushTimer); try{ localStorage.removeItem(STORE); }catch(e){} render(); }
 });
 
 /* ---------- course catalog ---------- */
@@ -1581,7 +1670,7 @@ function loadCatalog(){
   return catalogP ||= fetch("catalog.json").then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); }).then(d=>{
     const list=d.courses.map(([code,title,cr,gen])=>{
       const m=cr.match(/(\d+)(?:-(\d+))?/);
-      return {code,title,cr,gen:gen?gen.split(" "):[],credits:m?+(m[2]||m[1]):null,tags:singleAreaTags((gen||"").split(" ").filter(t=>GEN_TAGS.includes(t))),
+      return {code,title,cr,rep:/max\./.test(cr),gen:gen?gen.split(" "):[],credits:m?+m[1]:null,tags:singleAreaTags((gen||"").split(" ").filter(t=>GEN_TAGS.includes(t))),
         eth:ethicsTag(code),key:code.replace(/ /g,""),hay:(code+" "+code.replace(/ /g,"")+" "+title).toUpperCase()};
     });
     return {built:d.built,list,byCode:new Map(list.map(c=>[c.key,c]))};
@@ -1596,8 +1685,9 @@ function searchCatalog(cat,q,areas,cs=[],scope=null){
   return hits.sort((a,b)=>rank(b)-rank(a));
 }
 const myplanUrl=code=>"https://myplan.washington.edu/course/#/courses/"+encodeURIComponent(code.replace(/ (?=\d{3}[A-Z]?$)/,""));
-function nextQuarterKey(p){ const ks=orderedKeys(p), i=ks.indexOf(nowKey(p)); return ks[i+1]||ks[0]; }
-const titleOnly=c=>!/\d{3}/.test(c.code||"")&&c.code!=="TRANSFER CAP";
+function nextQuarterKey(p,d){ const ks=orderedKeys(p), i=nowIdx(p,d); return ks.find(k=>keyIndex(p,k)>i)||ks[ks.length-1]; } // first visible quarter after now; the plan's first if it hasn't started, last if over
+// Only DARS rows flagged shortTitle are rewritten; a placeholder the user typed ("Gen ed") is theirs. ponytail: plans imported before the flag are not repaired.
+const titleOnly=c=>c.shortTitle&&!/\d{3}/.test(c.code||"");
 // Give DARS courses that arrived as abbreviated titles their real course code, so code-based requirements and 400-level counts see them.
 function repairPlans(){
   if(!plans.some(p=>allCourses(p).some(titleOnly))) return;
@@ -1606,7 +1696,7 @@ function repairPlans(){
     for(const p of plans) for(const c of allCourses(p).filter(titleOnly)){
       const code=resolveShortTitle(cat.list,c.code); if(!code) continue;
       if(!c.title) c.title=cat.byCode.get(code.replace(/ /g,""))?.title||c.code;
-      c.code=code; addAutoTags(c,p); addCatalogGen(c,cat.byCode); n++;
+      c.code=code; delete c.shortTitle; addAutoTags(c,p); addCatalogGen(c,cat.byCode); n++;
     }
     if(n){ persist(); render(); }
   },()=>{});
@@ -1676,7 +1766,7 @@ function openFind(key,preset){
           <div class="fr-meta">${c.gen.length||mt.length?`<span class="tags">${mt.map(t=>`<span class="tag cse">${esc(t)}</span>`).join("")}${c.gen.map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</span>`:""}<a href="${myplanUrl(c.code)}" target="_blank" rel="noopener">MyPlan</a></div></div>
         <button class="btn small" data-pick="${i}" aria-label="Add ${esc(c.code)} to plan">Add</button></li>`; }).join("");
       res.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{ const c=shown[+b.dataset.pick]; close();
-        openEditor(null,dest,{code:c.code,title:c.title,tags:[...c.tags,...majorTags(c),c.eth].filter(Boolean),...(c.credits!==null?{credits:c.credits}:{})}); });
+        openEditor(null,dest,{code:c.code,title:c.title,tags:[...c.tags,...majorTags(c),c.eth].filter(Boolean),...(c.credits!==null?{credits:c.credits}:{}),...(c.rep?{repeatable:true}:{})}); });
     };
     q.addEventListener("input",draw);
     ov.querySelectorAll("[data-area]").forEach(b=>b.onclick=()=>{ const a=b.dataset.area; on.has(a)?on.delete(a):on.add(a); ov.querySelectorAll(`[data-area="${CSS.escape(a)}"]`).forEach(x=>x.setAttribute("aria-pressed",on.has(a))); draw(); }); // two majors can share a list
@@ -1703,7 +1793,7 @@ function openEditor(cid,key,prefill){
   const keys=["prior",...allKeys(p).filter(k=>p.showSummer||!k.endsWith("-3"))];
   dialog(`<h3 id="dlgt">${existing?"Edit course":"Add course"} <span class="muted sub">· ${qLabel(p,key)}</span></h3>
     <div class="row"><div><label class="lbl" for="e-code">Course code</label><input type="text" id="e-code" value="${esc(c.code)}" placeholder="MATH 124"></div>
-      <div><label class="lbl" for="e-cr">Credits</label><input type="number" id="e-cr" value="${c.credits}" step="0.5"></div></div>
+      <div><label class="lbl" for="e-cr">Credits</label><input type="number" id="e-cr" value="${esc(c.credits)}" step="0.5"><span class="note" id="e-crhint"></span></div></div>
     <div><label class="lbl" for="e-title">Title or note</label><input type="text" id="e-title" class="w-full" value="${esc(c.title)}" placeholder="Calculus with Analytic Geometry I"></div>
     <div class="row"><div><label class="lbl" for="e-st">Status</label><select id="e-st">
       <option value="plan" ${c.status==="plan"?"selected":""}>Planned</option><option value="now" ${c.status==="now"?"selected":""}>In progress</option><option value="done" ${c.status==="done"?"selected":""}>Completed</option></select></div>
@@ -1729,6 +1819,7 @@ function openEditor(cid,key,prefill){
       c.status=document.getElementById("e-st").value;
       c.origin=document.getElementById("e-origin").value;
       c.repeatable=document.getElementById("e-repeat").checked;
+      if(existing&&c.code!==existing.code){ delete c.shortTitle; delete existing.shortTitle; } // the user replaced the DARS title with their own code
       c.tags=singleAreaTags([...ov.querySelectorAll("[data-t][aria-pressed=true]")].map(b=>b.dataset.t));
       const to=document.getElementById("e-q").value;
       if(existing){ Object.assign(existing,c); if(to!==key) moveCourse(p,existing.id,key,to); }
@@ -1743,24 +1834,36 @@ function openEditor(cid,key,prefill){
       else { b.classList.add("armed"); b.textContent="Click again to delete"; }
     };
     const codeIn=document.getElementById("e-code");
+    const repeatIn=document.getElementById("e-repeat");
+    let repeatCode=canonCode(c.code), repeatManual=true; // preserve a saved choice until the code changes
+    repeatIn.onchange=()=>{repeatManual=true;};
+    const resetRepeat=()=>{
+      const code=canonCode(codeIn.value);
+      if(code!==repeatCode){ repeatIn.checked=false; repeatManual=false; repeatCode=code; }
+    };
     const pick=(t,on)=>ov.querySelector(`[data-t="${CSS.escape(t)}"]`)?.setAttribute("aria-pressed",String(on));
     const pressed=t=>ov.querySelector(`[data-t="${CSS.escape(t)}"]`)?.getAttribute("aria-pressed")==="true";
     // Gen-ed tags that belong to the current code (saved with it or filled from the catalog). Only these clear when the code changes; tags clicked here stay.
     let catTags=c.tags.filter(t=>GEN_TAGS.includes(t));
     const clearCat=()=>{ catTags.forEach(t=>pick(t,false)); catTags=[]; };
     let auto=autoTags(p.majors,c.code), catalogCode=canonCode(c.code), lookupVersion=0;
+    const crHint=hit=>{ const h=document.getElementById("e-crhint"), cr=String(hit?.cr||""); if(h) h.textContent=/[-,]/.test(cr)?"Catalog: "+cr:""; }; // a variable-credit course starts at its low end
+    if(c.code) loadCatalog().then(cat=>crHint(cat.byCode.get(canonCode(c.code).replace(/ /g,""))),()=>{});
     codeIn.addEventListener("input",()=>{
+      resetRepeat(); // saving before the catalog responds must not retain the old course's permission
       if(canonCode(codeIn.value)!==catalogCode) clearCat();
       const t=autoTags(p.majors,codeIn.value);
       auto.filter(x=>!t.includes(x)).forEach(x=>pick(x,false)); t.filter(x=>!auto.includes(x)).forEach(x=>pick(x,true));
       auto=t;
     });
     codeIn.addEventListener("change",async()=>{
+      resetRepeat();
       const code=canonCode(codeIn.value), version=++lookupVersion;
       const hit=await loadCatalog().then(cat=>cat.byCode.get(code.replace(/ /g,"")),()=>null);
       if(document.getElementById("e-code")!==codeIn||version!==lookupVersion||code!==canonCode(codeIn.value)) return;
       if(code!==catalogCode) clearCat();
-      catalogCode=code;
+      catalogCode=code; crHint(hit);
+      if(!repeatManual) repeatIn.checked=!!hit?.rep;
       if(!hit) return;
       const t=document.getElementById("e-title"); if(!t.value.trim()) t.value=hit.title;
       if(hit.credits!==null) document.getElementById("e-cr").value=hit.credits;
@@ -1812,14 +1915,14 @@ function openDars(id="cs"){
       if(!sentOk){ sentOk=true; track("dars_pasted",{courses:parsed.courses.length}); }
       const ip=parsed.courses.filter(c=>c.grade==="IP").length;
       prev.innerHTML=`Found <b class="mono">${parsed.courses.length}</b> courses (${ip} in progress)${parsed.earned!==null?`, <b class="mono">${parsed.earned}</b> earned credits`:""}${parsed.catalogYear?`, catalog year ${esc(parsed.catalogYear)}`:""}.
-        <div class="hstack mt-8"><label for="d-start">First autumn at UW</label><input type="number" id="d-start" class="in-year" value="${parsed.startYear||new Date().getFullYear()}"></div>`;
+        <div class="hstack mt-8"><label for="d-start">First autumn at UW</label><input type="number" id="d-start" class="in-year" min="1990" max="2100" value="${parsed.startYear||new Date().getFullYear()}"></div>`;
       go.disabled=false;
     };
     ta.addEventListener("input",update);
     document.getElementById("d-cancel").onclick=close;
     document.getElementById("d-tutorial").onclick=()=>{ const chosen=document.getElementById("d-major").value; close(); openTutorial(chosen); };
     go.onclick=async()=>{ if(!parsed||!parsed.courses.length) return;
-      const audit=parsed, sy=parseInt((document.getElementById("d-start")||{}).value)||audit.startYear||new Date().getFullYear();
+      const audit=parsed, sy=[parseInt((document.getElementById("d-start")||{}).value),audit.startYear,new Date().getFullYear()].find(v=>v>=1990&&v<=2100);
       const chosen=document.getElementById("d-major").value;
       ta.disabled=go.disabled=true; // no edits while the catalog loads
       const cat=await loadCatalog().catch(()=>null); // repeat-credit limits and gen-ed designations; the import still works without it
@@ -1855,7 +1958,7 @@ fileIn.onchange=async()=>{
 load();
 try{
   const h=JSON.parse(sessionStorage.getItem(HANDOFF)||"null"); sessionStorage.removeItem(HANDOFF);
-  if(h&&Array.isArray(h.plans)&&h.plans.length){ plans=h.plans.map(normalizePlan).filter(Boolean); cur=h.current; guestDirty=true; nudged=true; }
+  if(h&&Array.isArray(h.plans)&&h.plans.length){ plans=h.plans.map(normalizePlan).filter(Boolean); cur=h.current; guestDirty=true; nudged=true; fromStore=false; }
 }catch(e){}
 if(!plans.find(p=>p.id===cur)) cur=plans[0]?.id||null;
 render();
