@@ -1043,6 +1043,23 @@ function planReqs(ids){
 const norm = s => (s||"").toUpperCase().replace(/\s+/g," ").trim();
 const level = code => { const m = norm(code).match(/\b(\d{3})\b/); return m?+m[1]:0; };
 const deptOf = code => (norm(code).match(/^([A-Z][A-Z& ]*?) ?\d{3}/)||[])[1]||"";
+// One selected area per course. DARS assignments and manually selected areas keep priority.
+const AOI_TAGS = ["A&H","SSc","NSc"];
+function singleAreaTags(tags=[]){
+  const area=tags.find(t=>AOI_TAGS.includes(t));
+  return tags.filter(t=>!AOI_TAGS.includes(t)||t===area);
+}
+// Ordinary repeats earn credit once; research and other repeatable offerings can opt in.
+function creditCourses(courses){
+  const best=new Map(), rank={done:0,now:1,plan:2};
+  for(const c of courses){
+    const code=canonCode(c.code);
+    if(c.repeatable||!/^[A-Z][A-Z& ]* \d{3}[A-Z]?$/.test(code)) continue;
+    const prev=best.get(code);
+    if(!prev||rank[c.status]<rank[prev.status]) best.set(code,c);
+  }
+  return courses.filter(c=>c.repeatable||!best.has(canonCode(c.code))||best.get(canonCode(c.code))===c);
+}
 let PRIOR = new Set();
 function evalReq(r,courses,taken){
   const st={done:0,now:0,plan:0};
@@ -1050,7 +1067,7 @@ function evalReq(r,courses,taken){
   if(r.type==="credits"||r.type==="count"){
     const codes=(r.codes||[]).map(norm);
     let hit=r.all?courses.slice():courses.filter(c=>(c.tags||[]).some(t=>(r.tags||[]).includes(t))||codes.includes(norm(c.code))||(r.dept&&r.dept.includes(deptOf(c.code))));
-    if(r.uwOnly) hit=hit.filter(c=>!PRIOR.has(c.id));
+    if(r.uwOnly) hit=hit.filter(c=>c.origin ? c.origin==="uw" : !PRIOR.has(c.id));
     if(r.min) hit=hit.filter(c=>level(c.code)>=r.min);
     if(r.max) hit=hit.filter(c=>level(c.code)<=r.max);
     if(r.additional&&taken) hit=hit.filter(c=>!taken.has(c.id));
@@ -1086,6 +1103,7 @@ function evalReq(r,courses,taken){
 }
 // Evaluates requirements so a course used for one requirement isn't counted again by a later "additional" one in the same major.
 function evalAll(reqs,courses){
+  courses=creditCourses(courses).map(c=>({...c,tags:singleAreaTags(c.tags)}));
   const out=new Map(), taken={};
   const run=r=>{
     const t=taken[r.group]||(taken[r.group]=new Set()), e=evalReq(r,courses,t);
@@ -1132,6 +1150,8 @@ function addCatalogGen(c, byCode){
   const hit = byCode.get(String(c.code).toUpperCase().replace(/ /g,"")); if(!hit) return;
   const AOI = ["A&H","SSc","NSc"], hasArea = c.tags.some(t => AOI.includes(t));
   hit.tags.forEach(t => { if(!c.tags.includes(t) && !(hasArea && AOI.includes(t))) c.tags.push(t); });
+  const area=c.tags.find(t=>AOI.includes(t));
+  c.tags=c.tags.filter(t=>!AOI.includes(t)||t===area);
 }
 /*MATCH-END*/
 
@@ -1157,7 +1177,7 @@ const C = (code,credits,tags,status,title) => ({id:uid(),code,credits,tags:tags|
 const reportUrl = p => "https://docs.google.com/forms/d/e/1FAIpQLSc2wzpJp2gNpXXm0gyblS04vB3k3UT-YEmIt-09-zhsj17DRg/viewform?"+new URLSearchParams({usp:"pp_url", "entry.2042688286":p.majors.map(id=>MAJORS[id].name).join(" + ")});
 const esc = s => String(s??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
 const fmt = n => Number.isInteger(n)?String(n):(+n).toFixed(1);
-const sumCr = list => list.reduce((s,c)=>s+(+c.credits||0),0);
+const sumCr = list => creditCourses(list).reduce((s,c)=>s+(+c.credits||0),0);
 const autoTags = (ids,code) => [...new Set([...ids.flatMap(id=>MAJORS[id].tagsFor(code)),ethicsTag(code)].filter(Boolean))];
 // Adds the tags for each of the plan's majors and the Ethics minor list, unless the course already carries one from that list set.
 const addAutoTags = (c,p) => {
@@ -1218,8 +1238,8 @@ function normalizePlan(p){
   if(p.groupsOn.bus!==undefined){ p.groupsOn.minor=p.groupsOn.bus; delete p.groupsOn.bus; }
   const old = Object.fromEntries((p.reqs||[]).map(r=>[r.id==="bus"?"minor":r.id,r]));
   p.reqs = planReqs(p.majors).map(r=>old[r.id]&&typeof old[r.id].need==="number"?{...r,need:old[r.id].need,label:r.group==="minor"&&old[r.id].label?old[r.id].label:r.label}:r);
-  const fixTags = c => { c.id=c.id||uid(); c.tags=(c.tags||[]).map(t=>t==="Business"?"Minor":t==="Core"?"CS Core":t); c.status=["done","now","plan"].includes(c.status)?c.status:"plan"; return c; };
-  p.prior.forEach(fixTags); Object.values(p.quarters).forEach(l=>l.forEach(fixTags));
+  const fixTags = c => { c.id=c.id||uid(); c.tags=singleAreaTags((c.tags||[]).map(t=>t==="Business"?"Minor":t==="Core"?"CS Core":t)); c.status=["done","now","plan"].includes(c.status)?c.status:"plan"; return c; };
+  p.prior.forEach(c=>{fixTags(c); c.origin=c.origin||"external";}); Object.values(p.quarters).forEach(l=>l.forEach(c=>{fixTags(c); c.origin=c.origin||"uw";}));
   if((p.schema||1)<3){ const tag=c=>addAutoTags(c,p); p.prior.forEach(tag); Object.values(p.quarters).forEach(l=>l.forEach(tag)); } // plans made before auto-tagging
   if(p.target===undefined) p.target=(p.years-1)+"-2";
   p.schema=4; return p;
@@ -1264,7 +1284,7 @@ function standing(cr){ return cr>=135?"Senior":cr>=90?"Junior":cr>=45?"Sophomore
 function coursesUpTo(p,stopKey){
   PRIOR=new Set(p.prior.map(c=>c.id));
   const out=[...p.prior]; if(stopKey==="prior") return out;
-  for(const k of orderedKeys(p)){ out.push(...(p.quarters[k]||[])); if(k===stopKey) break; }
+  for(const k of allKeys(p)){ out.push(...(p.quarters[k]||[])); if(k===stopKey) break; }
   return out;
 }
 const allCourses = p => coursesUpTo(p,null);
@@ -1274,7 +1294,7 @@ function projection(p){
   const reqs=activeReqs(p);
   const check=key=>{const res=evalAll(reqs,coursesUpTo(p,key));return reqs.every(r=>res.get(r).met)};
   if(check("prior")) return "prior";
-  for(const k of orderedKeys(p)) if(check(k)) return k;
+  for(const k of allKeys(p)) if(check(k)) return k; // the real quarter, even a hidden summer; renderYears shows that summer
   return null;
 }
 function fixTarget(p){ const ks=allKeys(p).filter(k=>p.showSummer||!k.endsWith("-3")); if(!ks.includes(p.target)) p.target=ks[ks.length-1]; }
@@ -1290,7 +1310,7 @@ function addPlan(np){
 }
 
 /* ---------- DARS → plan ---------- */
-function planFromDars(parsed, startYear, id="cs"){
+function planFromDars(parsed, startYear, id="cs", byCode){
   const p=basePlan("From DARS "+new Date().toLocaleDateString([], {month:"short",day:"numeric"}),id);
   p.startYear=startYear;
   let maxYear=3;
@@ -1298,6 +1318,9 @@ function planFromDars(parsed, startYear, id="cs"){
   for(const c of parsed.courses){
     const status = c.grade==="IP" ? "now" : c.grade==="PL" ? "plan" : "done";
     const course = addAutoTags(C(c.code,c.credits,c.tags.filter(t=>allowed.includes(t)),status,c.title),p);
+    course.origin=/^(AP|IB|TR)$/.test(c.grade)?"external":"uw";
+    // The catalog marks courses that allow repeat credit with a limit ("1-5, max. 15"); ordinary retakes still count once.
+    if(/max\./.test(byCode?.get(canonCode(c.code).replace(/ /g,""))?.cr||"")) course.repeatable=true;
     const ay = 2000+c.yy-(c.q===0?0:1);          // academic year that quarter belongs to
     const y = ay-startYear;
     if(y<0 || /^(AP|IB)$/.test(c.grade)){ p.prior.push(course); continue; }
@@ -1356,7 +1379,7 @@ document.getElementById("tutorialbtn").onclick=()=>openTutorial(wmajor.value);
 
 function renderProj(p){
   const g=projection(p), all=allCourses(p), tot=sumCr(all);
-  const st={done:0,now:0,plan:0}; all.forEach(c=>st[c.status]+=(+c.credits||0));
+  const st={done:0,now:0,plan:0}; creditCourses(all).forEach(c=>st[c.status]+=(+c.credits||0));
   const totalNeed=(p.reqs.find(r=>r.id==="total")||{need:180}).need;
   const tIdx=keyIndex(p,p.target), gIdx=g?keyIndex(p,g):Infinity;
   const pill = !g?`<span class="pill bad">Not finished in this plan yet</span>`:gIdx<tIdx?`<span class="pill ok">Ahead of target</span>`:gIdx===tIdx?`<span class="pill ok">Right on target</span>`:`<span class="pill warn">Later than target</span>`;
@@ -1427,12 +1450,12 @@ function nowKey(p){
   return y>=0&&y<p.years?y+"-"+q:null;
 }
 function renderYears(p){
-  const g=projection(p), tIdx=keyIndex(p,p.target), cols=p.showSummer?4:3, nk=nowKey(p);
+  const g=projection(p), tIdx=keyIndex(p,p.target), nk=nowKey(p);
   let html=`<div class="year prior"><div class="yhead"><h2>Before UW</h2><span class="muted"><span class="mono">${fmt(sumCr(p.prior))}</span> cr · AP, IB, transfer, running start</span></div>
     <div class="qgrid"><div class="q" data-k="prior"><div class="list">${p.prior.map(c=>courseHTML(c,"prior")).join("")}</div><button class="add" data-add="prior">+ Add credit</button></div></div></div>`;
   for(let y=0;y<p.years;y++){
-    const yrKeys=[0,1,2,3].filter(q=>q<3||p.showSummer).map(q=>y+"-"+q);
-    const cum=sumCr(coursesUpTo(p,y+"-"+(p.showSummer?3:2)));
+    const yrKeys=[0,1,2,3].map(q=>y+"-"+q).filter(k=>p.showSummer||!k.endsWith("-3")||k===g), cols=yrKeys.length; // a hidden summer still shows when graduation lands in it
+    const cum=sumCr(coursesUpTo(p,y+"-3")); // through summer, shown or not: hidden summer courses still count
     html+=`<div class="year"><div class="yhead"><h2>Year ${y+1} · ${p.startYear+y}–${String(p.startYear+y+1).slice(2)}</h2>
       <span class="muted">After this year: <span class="mono">${fmt(cum)}</span> cr · ${standing(cum)} standing</span></div>
       <div class="qgrid" style="--cols:${cols}">`;
@@ -1558,7 +1581,7 @@ function loadCatalog(){
   return catalogP ||= fetch("catalog.json").then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); }).then(d=>{
     const list=d.courses.map(([code,title,cr,gen])=>{
       const m=cr.match(/(\d+)(?:-(\d+))?/);
-      return {code,title,cr,gen:gen?gen.split(" "):[],credits:m?+(m[2]||m[1]):null,tags:(gen||"").split(" ").filter(t=>GEN_TAGS.includes(t)),
+      return {code,title,cr,gen:gen?gen.split(" "):[],credits:m?+(m[2]||m[1]):null,tags:singleAreaTags((gen||"").split(" ").filter(t=>GEN_TAGS.includes(t))),
         eth:ethicsTag(code),key:code.replace(/ /g,""),hay:(code+" "+code.replace(/ /g,"")+" "+title).toUpperCase()};
     });
     return {built:d.built,list,byCode:new Map(list.map(c=>[c.key,c]))};
@@ -1685,19 +1708,28 @@ function openEditor(cid,key,prefill){
     <div class="row"><div><label class="lbl" for="e-st">Status</label><select id="e-st">
       <option value="plan" ${c.status==="plan"?"selected":""}>Planned</option><option value="now" ${c.status==="now"?"selected":""}>In progress</option><option value="done" ${c.status==="done"?"selected":""}>Completed</option></select></div>
       <div><label class="lbl" for="e-q">Quarter</label><select id="e-q">${keys.map(k=>`<option value="${k}" ${k===key?"selected":""}>${qLabel(p,k)}</option>`).join("")}</select></div></div>
+    <div class="row"><div><label class="lbl" for="e-origin">Credit earned at</label><select id="e-origin"><option value="uw" ${(c.origin||(key==="prior"?"external":"uw"))==="uw"?"selected":""}>UW</option><option value="external" ${(c.origin||(key==="prior"?"external":"uw"))==="external"?"selected":""}>Outside UW / AP / IB</option></select></div>
+      <div><label class="lbl" for="e-repeat">Course permits repeat credit</label><input type="checkbox" id="e-repeat" ${c.repeatable?"checked":""}></div></div>
     <div><label class="lbl">Counts toward</label><div class="tagpick">${planTags(p).map(t=>`<button type="button" aria-pressed="${c.tags.includes(t)}" data-t="${esc(t)}">${esc(t)}</button>`).join("")}</div>
-      <p class="note mt-8">Required courses match by course code, so they need no tag.</p></div>
+      <p class="note mt-8">Choose at most one of A&H, SSc and NSc. Ordinary repeats earn credit once; enable repeat credit only when the course permits it. Required courses match by course code, so they need no tag.</p></div>
     <div class="dlgfoot"><span>${existing?`<button class="btn danger" id="e-del">Delete</button>`:""}</span>
       <span class="hstack"><button class="btn" id="e-cancel">Cancel</button><button class="btn primary" id="e-save">${existing?"Save":"Add"}</button></span></div>`,
   (ov,close)=>{
-    ov.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>b.setAttribute("aria-pressed",b.getAttribute("aria-pressed")!=="true"));
+    ov.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{
+      const on=b.getAttribute("aria-pressed")!=="true";
+      catTags=catTags.filter(t=>t!==b.dataset.t); // a clicked tag is the user's choice now
+      if(on&&AOI_TAGS.includes(b.dataset.t)) ov.querySelectorAll("[data-t]").forEach(x=>{if(AOI_TAGS.includes(x.dataset.t)) x.setAttribute("aria-pressed","false");});
+      b.setAttribute("aria-pressed",String(on));
+    });
     document.getElementById("e-cancel").onclick=close;
     const save=()=>{
       c.code=canonCode(document.getElementById("e-code").value);
       c.title=document.getElementById("e-title").value.trim();
       c.credits=parseFloat(document.getElementById("e-cr").value)||0;
       c.status=document.getElementById("e-st").value;
-      c.tags=[...ov.querySelectorAll("[data-t][aria-pressed=true]")].map(b=>b.dataset.t);
+      c.origin=document.getElementById("e-origin").value;
+      c.repeatable=document.getElementById("e-repeat").checked;
+      c.tags=singleAreaTags([...ov.querySelectorAll("[data-t][aria-pressed=true]")].map(b=>b.dataset.t));
       const to=document.getElementById("e-q").value;
       if(existing){ Object.assign(existing,c); if(to!==key) moveCourse(p,existing.id,key,to); }
       else if(to==="prior") p.prior.push(c); else (p.quarters[to]=p.quarters[to]||[]).push(c);
@@ -1712,18 +1744,28 @@ function openEditor(cid,key,prefill){
     };
     const codeIn=document.getElementById("e-code");
     const pick=(t,on)=>ov.querySelector(`[data-t="${CSS.escape(t)}"]`)?.setAttribute("aria-pressed",String(on));
-    let auto=autoTags(p.majors,c.code);
+    const pressed=t=>ov.querySelector(`[data-t="${CSS.escape(t)}"]`)?.getAttribute("aria-pressed")==="true";
+    // Gen-ed tags that belong to the current code (saved with it or filled from the catalog). Only these clear when the code changes; tags clicked here stay.
+    let catTags=c.tags.filter(t=>GEN_TAGS.includes(t));
+    const clearCat=()=>{ catTags.forEach(t=>pick(t,false)); catTags=[]; };
+    let auto=autoTags(p.majors,c.code), catalogCode=canonCode(c.code), lookupVersion=0;
     codeIn.addEventListener("input",()=>{
+      if(canonCode(codeIn.value)!==catalogCode) clearCat();
       const t=autoTags(p.majors,codeIn.value);
       auto.filter(x=>!t.includes(x)).forEach(x=>pick(x,false)); t.filter(x=>!auto.includes(x)).forEach(x=>pick(x,true));
       auto=t;
     });
     codeIn.addEventListener("change",async()=>{
-      const hit=await loadCatalog().then(cat=>cat.byCode.get(canonCode(codeIn.value).replace(/ /g,"")),()=>null);
+      const code=canonCode(codeIn.value), version=++lookupVersion;
+      const hit=await loadCatalog().then(cat=>cat.byCode.get(code.replace(/ /g,"")),()=>null);
+      if(document.getElementById("e-code")!==codeIn||version!==lookupVersion||code!==canonCode(codeIn.value)) return;
+      if(code!==catalogCode) clearCat();
+      catalogCode=code;
       if(!hit) return;
       const t=document.getElementById("e-title"); if(!t.value.trim()) t.value=hit.title;
       if(hit.credits!==null) document.getElementById("e-cr").value=hit.credits;
-      hit.tags.forEach(tag=>pick(tag,true));
+      // An area the user already chose wins over the catalog's.
+      hit.tags.filter(tag=>!pressed(tag)&&!(AOI_TAGS.includes(tag)&&AOI_TAGS.some(pressed))).forEach(tag=>{ pick(tag,true); catTags.push(tag); });
     });
     setTimeout(()=>(prefill?document.getElementById("e-q"):codeIn).focus(),0);
   });
@@ -1776,12 +1818,15 @@ function openDars(id="cs"){
     ta.addEventListener("input",update);
     document.getElementById("d-cancel").onclick=close;
     document.getElementById("d-tutorial").onclick=()=>{ const chosen=document.getElementById("d-major").value; close(); openTutorial(chosen); };
-    go.onclick=()=>{ if(!parsed||!parsed.courses.length) return;
-      const sy=parseInt((document.getElementById("d-start")||{}).value)||parsed.startYear||new Date().getFullYear();
+    go.onclick=async()=>{ if(!parsed||!parsed.courses.length) return;
+      const audit=parsed, sy=parseInt((document.getElementById("d-start")||{}).value)||audit.startYear||new Date().getFullYear();
       const chosen=document.getElementById("d-major").value;
-      const np=planFromDars(parsed,sy,chosen);
-      close(); addPlan(np); track("dars_plan_created",{major:chosen}); toast("Plan created from DARS. Check the tags on AP and transfer credit, then add your future courses.");
-      loadCatalog().then(cat=>{ [...np.prior,...Object.values(np.quarters).flat()].forEach(c=>addCatalogGen(c,cat.byCode)); persist(); render(); },()=>{}); };
+      ta.disabled=go.disabled=true; // no edits while the catalog loads
+      const cat=await loadCatalog().catch(()=>null); // repeat-credit limits and gen-ed designations; the import still works without it
+      if(!go.isConnected) return; // cancelled, or another dialog replaced this one
+      const np=planFromDars(audit,sy,chosen,cat?.byCode);
+      if(cat) [...np.prior,...Object.values(np.quarters).flat()].forEach(c=>addCatalogGen(c,cat.byCode));
+      close(); addPlan(np); track("dars_plan_created",{major:chosen}); toast("Plan created from DARS. Check the tags on AP and transfer credit, then add your future courses."); };
     setTimeout(()=>ta.focus(),0);
   });
 }

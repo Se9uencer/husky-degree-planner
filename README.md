@@ -72,3 +72,15 @@ This is an unofficial student project. It is not affiliated with or endorsed by 
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+### Credit accounting
+
+Each course uses one selected Area of Inquiry (A&H, SSc, or NSc). When adding a course with multiple designations, the first is selected by default; use **Counts toward** in the course editor to choose another area for your plan. Diversity and writing may still overlap with the selected area.
+
+Ordinary repeated course codes earn credit once, with completed entries taking priority over in-progress or planned entries. For offerings that permit repeat credit, enable **Course permits repeat credit** on each applicable entry. Equivalent courses with different codes are not automatically deduplicated.
+
+**Credit earned at** controls UW residency independently of the quarter. New DARS imports preserve AP, IB, and TR credit as outside UW. Older saved plans did not retain these markers: check the credit origin of transfer courses already placed in UW quarters, and UW courses placed in Before UW. Reimporting DARS also restores the available origin markers.
+
+Summer courses remain part of the audit when summers are hidden.
+
+Run regression checks with `node parser.test.mjs` and `node audit-regressions.test.mjs`.
