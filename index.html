@@ -476,6 +476,7 @@ const COLLEGES = {
   eng:{name:"College of Engineering", w:7, ah:10, ssc:10, nsc:40, aoi:24},
   biz:{name:"Foster School of Business", w:8, wLabel:"Additional writing (2 courses)", wCodes:["B CMU 301","ENGL 281","ENGL 381"], ah:20, ssc:20, nsc:19},
   info:{name:"Information School", w:10, ah:20, ssc:20, nsc:20},
+  env:{name:"College of the Environment", w:10, ah:10, ssc:20, nsc:20, aoi:60, out:10}, // out: SSc and NSc credits that must come from outside the major
 };
 const MAJORS = {};
 function major(id, name, college, src, def){
@@ -952,19 +953,63 @@ major("bioe-nme", "Bioengineering: Nanoscience & Molecular (BS)", "eng", BIOE_SR
   crd("nano","18 credits of nano-molecular courses",18,"BioE NME"),
   crd("eng","5 credits of engineering electives",5,["BioE Senior","BioE Engineering"])]});
 
+const ESS_SRC = GENCAT+"EarthandSpaceSciences-1068.html";
+major("ess-geo", "Earth & Space Sciences: Geology (BS)", "env", ESS_SRC, {
+  lists:{"ESS Upper":"ESS:313,314,402-488"},
+  note:`PHYS 116 counts as a supporting science elective only with its lab, PHYS 119, and AMATH 351 and MATH 207 count as one choice, which the planner doesn't check. The catalog still lists MATH 307 and 308, the old numbers for MATH 207 and 208. The 2.0 GPA in ESS courses isn't checked.`,
+  reqs:[
+    all("chem","Chemistry","CHEM 142|CHEM 143|CHEM 145"),
+    all("calc","Calculus","MATH 124,MATH 125;MATH 134,MATH 135"),
+    all("phys","Physics","PHYS 114,PHYS 117;PHYS 121;PHYS 141"),
+    all("calc2","MATH 126 or ESS 310","MATH 126|ESS 310"),
+    all("phys2","PHYS 115 with lab, or PHYS 122","PHYS 115,PHYS 118;PHYS 122"),
+    pick("sci","2 supporting science electives",2,"PHYS:116,123;CHEM:152;AMATH:351;MATH:207,208;STAT:290,311,390"),
+    all("intro","Intro: ESS 211, 212 and 213","ESS 211,ESS 212,ESS 213"),
+    all("core","Core: ESS 311, 312 and 316","ESS 311,ESS 312,ESS 316"),
+    pick("rock","One of ESS 439, 441, 455, 456 or 463",1,"ESS:439,441,455,456,463"),
+    pick("surf","One of ESS 425, 426, 427, 447, 454, 457 or 482",1,"ESS:425,426,427,447,454,457,482"),
+    all("field","Field geology: ESS 400 or 401","ESS 400|ESS 401"),
+    all("comm","ESS 418","ESS 418"),
+    crd("ud","10 credits of ESS 402-488, 313 or 314",10,"ESS Upper"),
+  ]});
+
+const OCEAN_SRC = GENCAT+"SchoolofOceanography-1077.html";
+const OCEAN_LISTS = {"OCEAN 300+":"OCEAN:300-499", // the science list DARS prints: 300- to 500-level, plus 200-level CHEM, MATH and PHYS
+  "Upper-div Science":"A A:300-599;AMATH:300-599;ASTR:300-599;ATMOS:300-599;B STR:300-599;BIOC:300-599;BIOL:300-599;CEWA:300-599;CFRM:400-599;CHEM:200-599;CHEM E:300-599;CSE:300-599;E E:300-599;ENGR:300-599;ESS:300-599;FD SC:300-599;FHL:300-599;FISH:300-599;GENOME:400-599;HCDE:300-599;IND E:300-599;M E:300-599;MATH:200-599;MICROM:300-599;MSE:300-599;OCEAN:300-599;PHYS:200-599;Q SCI:300-599;SMEA:500-699"};
+const oceanNote = `Your mentor approves the 300- and 400-level OCEAN courses and the upper-division science. The science list follows DARS, which also counts 200-level CHEM, MATH and PHYS courses. PHYS 114 doesn't count for physics.`;
+const oceanBase = [
+  all("math","Calculus","MATH 124,MATH 125;MATH 134,MATH 135"),
+  all("phys","Physics: PHYS 121 or 141","PHYS 121|PHYS 141"),
+  all("chem","Chemistry: CHEM 120 or 142","CHEM 120|CHEM 142"),
+  all("bio","Biology","BIOL 180,BIOL 200"),
+  all("geo","Geology: ESS 101","ESS 101"),
+  all("core","Oceanography core","OCEAN 200,OCEAN 201,OCEAN 210,OCEAN 215|CSE 160,OCEAN 220,OCEAN 285,OCEAN 286,OCEAN 295,OCEAN 310,OCEAN 320,OCEAN 330,OCEAN 351"),
+  pick("found","One of PHYS 122, MATH 126, CHEM 152, BIOL 220 or OCEAN 270",1,"PHYS:122;MATH:126;CHEM:152;BIOL:220;OCEAN:270"),
+];
+major("ocean-ba", "Oceanography (BA)", "env", OCEAN_SRC, {lists:OCEAN_LISTS, note:oceanNote, reqs:[...oceanBase,
+  crd("ocean","10 credits of 300- or 400-level OCEAN",10,"OCEAN 300+"),
+  crd("ud","10 credits of upper-division science, math or engineering",10,"Upper-div Science")]});
+major("ocean-bs", "Oceanography (BS)", "env", OCEAN_SRC, {lists:OCEAN_LISTS, note:oceanNote, reqs:[...oceanBase,
+  all("thesis","Senior thesis: OCEAN 443, 444 and 445","OCEAN 443,OCEAN 444,OCEAN 445"),
+  crd("ocean","9 credits of 300- or 400-level OCEAN",9,"OCEAN 300+"),
+  crd("ud","15 credits of upper-division science, math or engineering",15,"Upper-div Science")]});
+
 /* The requirement list for a set of majors. General education follows the first major's college. */
 function genReqs(m){
   const g = {...COLLEGES[m.college], ...m.gen}, r = [
     {id:"total",group:"gen",label:"Total credits",type:"total",need:g.total||180},
     {id:"res",group:"gen",label:"Credits taken at UW (residency)",type:"credits",all:true,uwOnly:true,tags:[],need:45},
     {id:"comp",group:"gen",label:"English composition (C), 2.0+",type:"credits",tags:["C"],need:5},
-    g.w && {id:"w",group:"gen",label:g.wLabel||(m.college==="as"?"Writing (W) or more composition":"Writing (W)"),type:"credits",tags:["W"],...(g.wCodes?{codes:g.wCodes}:{}),need:g.w},
+    g.w && {id:"w",group:"gen",label:g.wLabel||(["as","env"].includes(m.college)?"Writing (W) or more composition":"Writing (W)"),type:"credits",tags:["W"],...(g.wCodes?{codes:g.wCodes}:{}),need:g.w},
     {id:"div",group:"gen",label:"Diversity (DIV)",type:"credits",tags:["DIV"],need:5},
     {id:"ah",group:"gen",label:"Arts & Humanities (A&H)",type:"credits",tags:["A&H"],need:g.ah},
     {id:"ssc",group:"gen",label:"Social Sciences (SSc)",type:"credits",tags:["SSc"],need:g.ssc},
     {id:"nsc",group:"gen",label:g.nscTags?"Natural Sciences: math and approved science":"Natural Sciences (NSc)",type:"credits",tags:g.nscTags||["NSc"],...(g.nscCodes?{codes:g.nscCodes}:{}),need:g.nsc},
     m.college==="as" && {id:"aoi",group:"gen",label:"Areas of Inquiry total, max 35 per area",type:"credits",tags:["A&H","SSc","NSc"],need:g.aoi,capPerTag:35},
     m.college==="eng" && {id:"aoi",group:"gen",label:"A&H and SSc total",type:"credits",tags:["A&H","SSc"],need:g.aoi},
+    m.college==="env" && {id:"aoi",group:"gen",label:"Areas of Inquiry total",type:"credits",tags:["A&H","SSc","NSc"],need:g.aoi},
+    g.out && {id:"sscOut",group:"gen",label:"SSc outside the major",type:"credits",tags:["SSc"],need:g.out,outside:[m.id]},
+    g.out && {id:"nscOut",group:"gen",label:"NSc outside the major",type:"credits",tags:["NSc"],need:g.out,outside:[m.id]},
   ];
   return r.filter(Boolean);
 }
@@ -983,7 +1028,7 @@ function genGroups(ids){
   return ids.map(id => MAJORS[id]).filter(m => !seen.has(m.college) && seen.add(m.college)).map((m, i) => ({group: i ? "gen-"+m.college : "gen", college: m.college, major: m}));
 }
 // Majors with different degree names are a double degree. Arts & Sciences degrees are BA or BS, and other colleges name the degree after the major.
-const degreeName = m => m.college==="as" ? (m.name.match(/\((BA|BS)\)$/)||[])[1] : m.id.split("-")[0];
+const degreeName = m => ["as","env"].includes(m.college) ? (m.name.match(/\((BA|BS)\)$/)||[])[1] : m.id.split("-")[0];
 const isDoubleDegree = ids => new Set(ids.map(id => degreeName(MAJORS[id]))).size > 1;
 function planReqs(ids){
   const gen = genGroups(ids).flatMap(({group, major:m}, i) => genReqs(m).filter(r => !i || !["total","res"].includes(r.id)).map(r => i ? {...r, id:group+"."+r.id, group} : r));
@@ -1047,8 +1092,10 @@ function evalAll(reqs,courses){
     out.set(r,e);
     if(!r.rule) (e.claims||[]).forEach(c=>t.add(c.id));
   };
-  reqs.filter(r=>!r.additional).forEach(run);
+  reqs.filter(r=>!r.additional&&!r.outside).forEach(run);
   reqs.filter(r=>r.additional).forEach(run);
+  // Credits that must come from outside the major skip every course the major's requirements used.
+  reqs.filter(r=>r.outside).forEach(r=>out.set(r,evalReq({...r,additional:true},courses,new Set(r.outside.flatMap(g=>[...(taken[g]||[])])))));
   return out;
 }
 /*EVAL-END*/

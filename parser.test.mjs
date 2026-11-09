@@ -276,7 +276,7 @@ const { MAJORS, COLLEGES, planReqs, canonCode, evalAll, isDoubleDegree } = new F
 // Every code a major names must exist in the catalog, so a typo can't slip in. Ranges like COM:201-299 cover numbers that don't exist, so only single numbers are checked.
 const catalog = new Set(list.map(c => c.code));
 // On a department's published list but not in the course catalog, checked by hand against the catalog pages. Kept so students who took them still get credit.
-const NOT_IN_CATALOG = new Set("CHEM 399,CHEM 410,ENGL 391,ENGL 411,ESRM 457,AMATH 424,ANTH 497,ATMOS 460,BIOEN 447,BIOL 305,BIOL 325,BIOL 333,BIOL 409,BIOL 415,BIOL 419,BIOL 422,BIOL 437,BIOL 455,BIOL 472,CEE 402,CEE 403,CEE 495,CHEM 144,COM 325,COM 332,COM 426,COM 434,COM 463,CSE 466,CSE 467,CSE 471,E E 235,E E 341,E E 401,E E 414,E E 485,ESS 211,ESS 403,ESS 413,ESS 415,ESS 424,ESS 437,ESS 458,ESS 464,ESS 466,ESS 471,GEOG 349,LSJ 425,M E 406,M E 442,NEAR E 285,PGH 301,PHIL 408,PHYS 315,PHYS 424,PHYS 425,PHYS 426,PHYS 460,POL S 285,POL S 473,PSYCH 494,SCAND 402".split(","));
+const NOT_IN_CATALOG = new Set("CHEM 399,CHEM 410,ENGL 391,ENGL 411,ESRM 457,AMATH 424,ANTH 497,ATMOS 460,BIOEN 447,BIOL 305,BIOL 325,BIOL 333,BIOL 409,BIOL 415,BIOL 419,BIOL 422,BIOL 437,BIOL 455,BIOL 472,CEE 402,CEE 403,CEE 495,CHEM 144,COM 325,COM 332,COM 426,COM 434,COM 463,CSE 466,CSE 467,CSE 471,E E 235,E E 341,E E 401,E E 414,E E 485,ESS 211,ESS 213,ESS 403,ESS 413,ESS 415,ESS 424,ESS 437,ESS 458,ESS 464,ESS 466,ESS 471,GEOG 349,LSJ 425,M E 406,M E 442,NEAR E 285,PGH 301,PHIL 408,PHYS 315,PHYS 424,PHYS 425,PHYS 426,PHYS 460,POL S 285,POL S 473,PSYCH 494,SCAND 402".split(","));
 const RANGE_CODE = /^(INFO 35\d|COM 2\d\d|ACCTG [34]\d\d|MGMT 40\d|POL S 20\d)$/;
 const missing = new Map();
 const flag = (code, id) => { if (!catalog.has(code) && !NOT_IN_CATALOG.has(code)) missing.set(code, id); };
@@ -396,4 +396,7 @@ for (const [c, want] of [["MATH 124", true], ["MATH 111", false], ["PHYS 200", t
   assert.equal(MAJORS.ece.tagsFor(c).includes("ECE Science"), want, c + " on the ECE science list");
 const cs = planReqs(["cs"]), csE = evalAll(cs, [course("CSE 333", 4, "CS Core")]);
 assert.equal(csE.get(cs.find(r => r.id === "core")).have, 1); assert.equal(csE.get(cs.find(r => r.id === "elec")).have, 4, "CS electives still include core");
+const oc = planReqs(["ocean-ba"]), ocOut = cs => evalAll(oc, cs).get(oc.find(r => r.id === "nscOut")).have;
+assert.equal(ocOut([course0("MATH 124", 5, "NSc"), course0("MATH 125", 5, "NSc"), course0("CHEM 162", 5, "NSc")]), 5, "College of the Environment: courses the major used don't count as NSc outside the major");
+assert.equal(isDoubleDegree(["ocean-ba", "ocean-bs"]), true); assert.equal(isDoubleDegree(["ocean-bs", "biol-bs"]), false);
 console.log("evalAll: additional requirements don't double-count");
