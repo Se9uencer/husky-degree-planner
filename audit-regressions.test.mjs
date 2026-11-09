@@ -62,6 +62,7 @@ console.log('audit regressions: area assignment, repeats, residency, summer and 
 // Mount the actual editor handlers against a small DOM stand-in, including a delayed catalog response.
 const editorPlan={majors:['cs'],prior:[],quarters:{'0-0':[c('ENGL 131',5,['C'])]}};
 const original=editorPlan.quarters['0-0'][0];
+original.darsGen=true; original.darsAreaCredits={'NSc':3};
 const elements=new Map();
 const element=(id,value='')=>{
   const e={value,checked:false,handlers:{},addEventListener(name,fn){this.handlers[name]=fn;},focus(){}};
@@ -85,6 +86,7 @@ elements.get('e-code').handlers.input();
 const lookup=elements.get('e-code').handlers.change();
 elements.get('e-save').onclick();
 assert.ok(!original.tags.includes('C'),'saving before lookup resolves cannot preserve old composition credit');
+assert.ok(!original.darsGen&&!original.darsAreaCredits,'editing the imported course clears its old DARS allocation');
 resolveCatalog({byCode:new Map([['MATH124',{title:'Calculus',credits:5,tags:['NSc']}],['CSE499',{title:'Research',credits:3,tags:[],rep:true}]])});
 await lookup;
 assert.equal(buttons.find(b=>b.dataset.t==='NSc').pressed,'true');
