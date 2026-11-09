@@ -4,9 +4,9 @@ const src=readFileSync(new URL('./index.html',import.meta.url),'utf8');
 const block=n=>src.slice(src.indexOf(`/*${n}-START*/`),src.indexOf(`/*${n}-END*/`));
 const section=(a,b)=>src.slice(src.indexOf(a),src.indexOf(b));
 const helpers=section('function orderedKeys(', 'function fixTarget(');
-const {planReqs,evalAll,creditCourses,singleAreaTags,coursesUpTo,projection}=new Function(
+const {planReqs,evalAll,creditCourses,singleAreaTags,coursesUpTo,projection,canonCode}=new Function(
   block('CSETAGS')+block('MAJORS')+block('EVAL')+helpers+
-  ';return {planReqs,evalAll,creditCourses,singleAreaTags,coursesUpTo,projection}')();
+  ';return {planReqs,evalAll,creditCourses,singleAreaTags,coursesUpTo,projection,canonCode}')();
 let nextId=0;
 const c=(code,credits,tags=[],extra={})=>({id:String(nextId++),code,credits,tags,status:'done',...extra});
 const audit=(ids,courses)=>{
@@ -29,24 +29,27 @@ assert.equal(creditCourses([repeat,first])[0].id,first.id,'completed credit take
 const research=[c('CSE 499',3,[],{repeatable:true}),c('CSE 499',4,[],{repeatable:true})];
 assert.equal(audit(['cs'],research)('total').have,7,'explicitly repeatable offerings retain credit');
 assert.equal(creditCourses([c('TRANSFER CAP',-5),c('TRANSFER CAP',-3)]).length,2,'adjustments are not deduplicated');
-const p={years:1,showSummer:false,prior:[c('ENGL 131',5,['C'],{origin:'uw'})],
+const p={years:2,showSummer:false,prior:[c('ENGL 131',5,['C'],{origin:'uw'})],
   quarters:{'0-3':[c('MATH 124',5,['NSc'],{origin:'external'})]},
   reqs:[{id:'total',group:'gen',type:'total',need:10}],groupsOn:{gen:true}};
 result=audit(['cs'],coursesUpTo(p,null));
 assert.equal(result('total').have,10,'hidden summer credit remains in the audit');
 assert.equal(result('res').have,5,'origin controls residency independently of placement');
-assert.equal(projection(p),'0-3','graduation may fall in a hidden summer');
+assert.equal(projection(p),'1-0','hidden summer credit counts, but graduation lands on a shown quarter');
 assert.equal(coursesUpTo(p,'0-2').length,1,'future summers do not leak into earlier quarters');
 
 // Exercise the real DARS conversion with lightweight non-UI dependencies.
-const convert=new Function('basePlan','planTags','addAutoTags','C','sumCr',
+const convert=new Function('basePlan','planTags','addAutoTags','C','sumCr','canonCode',
   section('function planFromDars(', '/* ---------- render ---------- */')+';return planFromDars')(
   ()=>({prior:[],quarters:{}}),()=>[],x=>x,
   (code,credits,tags,status,title)=>c(code,credits,tags,{status,title}),
-  list=>creditCourses(list).reduce((n,c)=>n+c.credits,0));
+  list=>creditCourses(list).reduce((n,c)=>n+c.credits,0),canonCode);
 const imported=convert({courses:[{code:'MATH 124',credits:5,tags:[],grade:'TR',yy:26,q:1}],earned:null},2025);
 assert.equal(imported.quarters['0-1'][0].origin,'external');
 assert.equal(audit(['cs'],coursesUpTo({...imported,showSummer:false},null))('res').have,0);
+const research499=convert({courses:[{code:'CSE 499',credits:3,tags:[],grade:'4.0',yy:26,q:1},{code:'CSE 499',credits:3,tags:[],grade:'4.0',yy:26,q:2}],earned:6},2025);
+assert.equal(audit(['cs'],coursesUpTo({...research499,showSummer:false},null))('total').have,6,'DARS-counted repeats keep their credit');
+assert.ok(!research499.prior.length,'no cap needed when DARS earned matches');
 console.log('audit regressions: area assignment, repeats, residency, summer and DARS origin OK');
 
 // Mount the actual editor handlers against a small DOM stand-in, including a delayed catalog response.
@@ -81,4 +84,15 @@ assert.equal(buttons.find(b=>b.dataset.t==='NSc').pressed,'true');
 assert.equal(buttons.find(b=>b.dataset.t==='C').pressed,'false');
 buttons.find(b=>b.dataset.t==='SSc').onclick();
 assert.equal(buttons.find(b=>b.dataset.t==='NSc').pressed,'false','choosing another area clears the first');
+// A new course: a tag picked by hand survives typing a code and the catalog fill.
+buttons.forEach(b=>b.pressed='false'); elements.get('e-code').value='';
+editor(undefined,'0-0');
+buttons.find(b=>b.dataset.t==='W').onclick();
+elements.get('e-code').value='MATH 124'; elements.get('e-code').handlers.input();
+await elements.get('e-code').handlers.change();
+assert.equal(buttons.find(b=>b.dataset.t==='W').pressed,'true','manual tag survives a code change');
+assert.equal(buttons.find(b=>b.dataset.t==='NSc').pressed,'true','catalog tag is filled in');
+elements.get('e-code').value='MATH 125'; elements.get('e-code').handlers.input();
+assert.equal(buttons.find(b=>b.dataset.t==='NSc').pressed,'false','catalog tag clears when the code changes again');
+assert.equal(buttons.find(b=>b.dataset.t==='W').pressed,'true');
 console.log('editor regressions: code changes clear stale tags before catalog lookup and area choices are exclusive');

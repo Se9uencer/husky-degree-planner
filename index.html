@@ -1294,7 +1294,7 @@ function projection(p){
   const reqs=activeReqs(p);
   const check=key=>{const res=evalAll(reqs,coursesUpTo(p,key));return reqs.every(r=>res.get(r).met)};
   if(check("prior")) return "prior";
-  for(const k of allKeys(p)) if(check(k)) return k;
+  for(const k of orderedKeys(p)) if(check(k)) return k; // hidden summer courses still count via coursesUpTo, but graduation lands on a shown quarter
   return null;
 }
 function fixTarget(p){ const ks=allKeys(p).filter(k=>p.showSummer||!k.endsWith("-3")); if(!ks.includes(p.target)) p.target=ks[ks.length-1]; }
@@ -1328,6 +1328,9 @@ function planFromDars(parsed, startYear, id="cs"){
   }
   p.years=Math.max(4,maxYear+1);
   const done=[...p.prior,...Object.values(p.quarters).flat()].filter(c=>c.status==="done");
+  // DARS already decided which completed repeats earn credit (research, special topics), so keep them all; the cap below trims any excess.
+  const n={}; done.forEach(c=>{ const k=canonCode(c.code); n[k]=(n[k]||0)+1; });
+  done.forEach(c=>{ if(n[canonCode(c.code)]>1) c.repeatable=true; });
   const doneCr=sumCr(done);
   if(parsed.earned!==null && doneCr>parsed.earned+0.01){
     p.prior.push(C("TRANSFER CAP",-(Math.round((doneCr-parsed.earned)*10)/10),[],"done",`Outside credit over UW's limit. DARS earned: ${parsed.earned}`));
@@ -1715,6 +1718,7 @@ function openEditor(cid,key,prefill){
   (ov,close)=>{
     ov.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{
       const on=b.getAttribute("aria-pressed")!=="true";
+      catTags=catTags.filter(t=>t!==b.dataset.t); // a clicked tag is the user's choice now
       if(on&&AOI_TAGS.includes(b.dataset.t)) ov.querySelectorAll("[data-t]").forEach(x=>{if(AOI_TAGS.includes(x.dataset.t)) x.setAttribute("aria-pressed","false");});
       b.setAttribute("aria-pressed",String(on));
     });
@@ -1741,9 +1745,13 @@ function openEditor(cid,key,prefill){
     };
     const codeIn=document.getElementById("e-code");
     const pick=(t,on)=>ov.querySelector(`[data-t="${CSS.escape(t)}"]`)?.setAttribute("aria-pressed",String(on));
+    const pressed=t=>ov.querySelector(`[data-t="${CSS.escape(t)}"]`)?.getAttribute("aria-pressed")==="true";
+    // Gen-ed tags that belong to the current code (saved with it or filled from the catalog). Only these clear when the code changes; tags clicked here stay.
+    let catTags=c.tags.filter(t=>GEN_TAGS.includes(t));
+    const clearCat=()=>{ catTags.forEach(t=>pick(t,false)); catTags=[]; };
     let auto=autoTags(p.majors,c.code), catalogCode=canonCode(c.code), lookupVersion=0;
     codeIn.addEventListener("input",()=>{
-      if(canonCode(codeIn.value)!==catalogCode) GEN_TAGS.forEach(tag=>pick(tag,false));
+      if(canonCode(codeIn.value)!==catalogCode) clearCat();
       const t=autoTags(p.majors,codeIn.value);
       auto.filter(x=>!t.includes(x)).forEach(x=>pick(x,false)); t.filter(x=>!auto.includes(x)).forEach(x=>pick(x,true));
       auto=t;
@@ -1752,12 +1760,13 @@ function openEditor(cid,key,prefill){
       const code=canonCode(codeIn.value), version=++lookupVersion;
       const hit=await loadCatalog().then(cat=>cat.byCode.get(code.replace(/ /g,"")),()=>null);
       if(document.getElementById("e-code")!==codeIn||version!==lookupVersion||code!==canonCode(codeIn.value)) return;
-      if(code!==catalogCode) GEN_TAGS.forEach(tag=>pick(tag,false));
+      if(code!==catalogCode) clearCat();
       catalogCode=code;
       if(!hit) return;
       const t=document.getElementById("e-title"); if(!t.value.trim()) t.value=hit.title;
       if(hit.credits!==null) document.getElementById("e-cr").value=hit.credits;
-      hit.tags.forEach(tag=>pick(tag,true));
+      // An area the user already chose wins over the catalog's.
+      hit.tags.filter(tag=>!pressed(tag)&&!(AOI_TAGS.includes(tag)&&AOI_TAGS.some(pressed))).forEach(tag=>{ pick(tag,true); catTags.push(tag); });
     });
     setTimeout(()=>(prefill?document.getElementById("e-q"):codeIn).focus(),0);
   });
