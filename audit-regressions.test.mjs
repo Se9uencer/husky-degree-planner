@@ -102,3 +102,33 @@ elements.get('e-code').value='MATH 125'; elements.get('e-code').handlers.input()
 assert.equal(buttons.find(b=>b.dataset.t==='NSc').pressed,'false','catalog tag clears when the code changes again');
 assert.equal(buttons.find(b=>b.dataset.t==='W').pressed,'true');
 console.log('editor regressions: code changes clear stale tags before catalog lookup and area choices are exclusive');
+
+// Mount the real DARS import dialog with a delayed catalog: edits and cancels during loading must not leak into the result.
+const importDialog=()=>{
+  const els={}, mk=(id,v='')=>els[id]={id,value:v,disabled:false,isConnected:true,hidden:true,innerHTML:'',handlers:{},addEventListener(n,f){this.handlers[n]=f;}};
+  ['d-text','d-prev','d-go','d-cancel','d-tutorial'].forEach(id=>mk(id)); mk('d-major','cs'); mk('d-start','2025');
+  let release; const catalog=new Promise(r=>{release=r;});
+  const calls={built:[],added:0};
+  const close=()=>Object.values(els).forEach(e=>e.isConnected=false);
+  new Function('dialog','majorOptions','document','parseDars','track','esc','openTutorial','loadCatalog','planFromDars','addCatalogGen','addPlan','toast','setTimeout',
+    section('function openDars(', '/* ---------- export / import ---------- */')+';return openDars')(
+    (html,mount)=>mount({},close),()=>'',{getElementById:id=>els[id]},v=>({courses:[{grade:'4.0'}],earned:null,startYear:2025,src:v}),()=>{},String,()=>{},
+    ()=>catalog,(audit,sy,major)=>{calls.built.push(audit.src);return {prior:[],quarters:{}};},()=>{},()=>{calls.added++;},()=>{},()=>0)();
+  const paste=v=>{els['d-text'].value=v;els['d-text'].handlers.input();};
+  return {els,calls,paste,release};
+};
+let imp=importDialog();
+imp.paste('audit A');
+let importing=imp.els['d-go'].onclick();
+assert.ok(imp.els['d-text'].disabled,'the audit is locked while the catalog loads');
+imp.paste('audit B');
+imp.release({byCode:new Map()}); await importing;
+assert.deepEqual(imp.calls.built,['audit A'],'the plan uses the audit that was imported, not a later edit');
+assert.equal(imp.calls.added,1);
+imp=importDialog();
+imp.paste('audit A');
+importing=imp.els['d-go'].onclick();
+imp.els['d-cancel'].onclick();
+imp.release({byCode:new Map()}); await importing;
+assert.equal(imp.calls.added,0,'cancelling during loading creates no plan');
+console.log('import regressions: edits and cancels while the catalog loads are ignored');

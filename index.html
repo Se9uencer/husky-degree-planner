@@ -1455,7 +1455,7 @@ function renderYears(p){
     <div class="qgrid"><div class="q" data-k="prior"><div class="list">${p.prior.map(c=>courseHTML(c,"prior")).join("")}</div><button class="add" data-add="prior">+ Add credit</button></div></div></div>`;
   for(let y=0;y<p.years;y++){
     const yrKeys=[0,1,2,3].map(q=>y+"-"+q).filter(k=>p.showSummer||!k.endsWith("-3")||k===g), cols=yrKeys.length; // a hidden summer still shows when graduation lands in it
-    const cum=sumCr(coursesUpTo(p,y+"-"+(p.showSummer?3:2)));
+    const cum=sumCr(coursesUpTo(p,y+"-3")); // through summer, shown or not: hidden summer courses still count
     html+=`<div class="year"><div class="yhead"><h2>Year ${y+1} · ${p.startYear+y}–${String(p.startYear+y+1).slice(2)}</h2>
       <span class="muted">After this year: <span class="mono">${fmt(cum)}</span> cr · ${standing(cum)} standing</span></div>
       <div class="qgrid" style="--cols:${cols}">`;
@@ -1819,11 +1819,12 @@ function openDars(id="cs"){
     document.getElementById("d-cancel").onclick=close;
     document.getElementById("d-tutorial").onclick=()=>{ const chosen=document.getElementById("d-major").value; close(); openTutorial(chosen); };
     go.onclick=async()=>{ if(!parsed||!parsed.courses.length) return;
-      const sy=parseInt((document.getElementById("d-start")||{}).value)||parsed.startYear||new Date().getFullYear();
+      const audit=parsed, sy=parseInt((document.getElementById("d-start")||{}).value)||audit.startYear||new Date().getFullYear();
       const chosen=document.getElementById("d-major").value;
-      go.disabled=true;
+      ta.disabled=go.disabled=true; // no edits while the catalog loads
       const cat=await loadCatalog().catch(()=>null); // repeat-credit limits and gen-ed designations; the import still works without it
-      const np=planFromDars(parsed,sy,chosen,cat?.byCode);
+      if(!go.isConnected) return; // cancelled, or another dialog replaced this one
+      const np=planFromDars(audit,sy,chosen,cat?.byCode);
       if(cat) [...np.prior,...Object.values(np.quarters).flat()].forEach(c=>addCatalogGen(c,cat.byCode));
       close(); addPlan(np); track("dars_plan_created",{major:chosen}); toast("Plan created from DARS. Check the tags on AP and transfer credit, then add your future courses."); };
     setTimeout(()=>ta.focus(),0);
