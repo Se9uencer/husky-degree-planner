@@ -954,7 +954,7 @@ major("bioe-nme", "Bioengineering: Nanoscience & Molecular (BS)", "eng", BIOE_SR
   crd("eng","5 credits of engineering electives",5,["BioE Senior","BioE Engineering"])]});
 
 const ESS_SRC = GENCAT+"EarthandSpaceSciences-1068.html";
-major("ess-geo", "Earth & Space Sciences: Geology (BS)", "env", ESS_SRC, {
+major("ess-geo", "Earth & Space Sciences: Geology (BS)", "env", ESS_SRC, {prefix:"ESS",
   lists:{"ESS Upper":"ESS:313,314,402-488"},
   note:`PHYS 116 counts as a supporting science elective only with its lab, PHYS 119, and AMATH 351 and MATH 207 count as one choice, which the planner doesn't check. The catalog still lists MATH 307 and 308, the old numbers for MATH 207 and 208. The 2.0 GPA in ESS courses isn't checked.`,
   reqs:[
@@ -986,10 +986,10 @@ const oceanBase = [
   all("core","Oceanography core","OCEAN 200,OCEAN 201,OCEAN 210,OCEAN 215|CSE 160,OCEAN 220,OCEAN 285,OCEAN 286,OCEAN 295,OCEAN 310,OCEAN 320,OCEAN 330,OCEAN 351"),
   pick("found","One of PHYS 122, MATH 126, CHEM 152, BIOL 220 or OCEAN 270",1,"PHYS:122;MATH:126;CHEM:152;BIOL:220;OCEAN:270"),
 ];
-major("ocean-ba", "Oceanography (BA)", "env", OCEAN_SRC, {lists:OCEAN_LISTS, note:oceanNote, reqs:[...oceanBase,
+major("ocean-ba", "Oceanography (BA)", "env", OCEAN_SRC, {prefix:"OCEAN", lists:OCEAN_LISTS, note:oceanNote, reqs:[...oceanBase,
   crd("ocean","10 credits of 300- or 400-level OCEAN",10,"OCEAN 300+"),
   crd("ud","10 credits of upper-division science, math or engineering",10,"Upper-div Science")]});
-major("ocean-bs", "Oceanography (BS)", "env", OCEAN_SRC, {lists:OCEAN_LISTS, note:oceanNote, reqs:[...oceanBase,
+major("ocean-bs", "Oceanography (BS)", "env", OCEAN_SRC, {prefix:"OCEAN", lists:OCEAN_LISTS, note:oceanNote, reqs:[...oceanBase,
   all("thesis","Senior thesis: OCEAN 443, 444 and 445","OCEAN 443,OCEAN 444,OCEAN 445"),
   crd("ocean","9 credits of 300- or 400-level OCEAN",9,"OCEAN 300+"),
   crd("ud","15 credits of upper-division science, math or engineering",15,"Upper-div Science")]});
@@ -1008,8 +1008,8 @@ function genReqs(m){
     m.college==="as" && {id:"aoi",group:"gen",label:"Areas of Inquiry total, max 35 per area",type:"credits",tags:["A&H","SSc","NSc"],need:g.aoi,capPerTag:35},
     m.college==="eng" && {id:"aoi",group:"gen",label:"A&H and SSc total",type:"credits",tags:["A&H","SSc"],need:g.aoi},
     m.college==="env" && {id:"aoi",group:"gen",label:"Areas of Inquiry total",type:"credits",tags:["A&H","SSc","NSc"],need:g.aoi},
-    g.out && {id:"sscOut",group:"gen",label:"SSc outside the major",type:"credits",tags:["SSc"],need:g.out,outside:[m.id]},
-    g.out && {id:"nscOut",group:"gen",label:"NSc outside the major",type:"credits",tags:["NSc"],need:g.out,outside:[m.id]},
+    g.out && {id:"sscOut",group:"gen",label:"SSc outside the major",type:"credits",tags:["SSc"],need:g.out,outside:[m.id],notDept:[m.prefix]},
+    g.out && {id:"nscOut",group:"gen",label:"NSc outside the major",type:"credits",tags:["NSc"],need:g.out,outside:[m.id],notDept:[m.prefix]},
   ];
   return r.filter(Boolean);
 }
@@ -1094,8 +1094,9 @@ function evalAll(reqs,courses){
   };
   reqs.filter(r=>!r.additional&&!r.outside).forEach(run);
   reqs.filter(r=>r.additional).forEach(run);
-  // Credits that must come from outside the major skip every course the major's requirements used.
-  reqs.filter(r=>r.outside).forEach(r=>out.set(r,evalReq({...r,additional:true},courses,new Set(r.outside.flatMap(g=>[...(taken[g]||[])])))));
+  // Credits from outside the major skip the major's own prefix and every course its requirements used.
+  // ponytail: cross-listed courses with an outside prefix still count, since the catalog has no cross-listings.
+  reqs.filter(r=>r.outside).forEach(r=>out.set(r,evalReq({...r,additional:true},courses.filter(c=>!(r.notDept||[]).includes(deptOf(c.code))),new Set(r.outside.flatMap(g=>[...(taken[g]||[])])))));
   return out;
 }
 /*EVAL-END*/

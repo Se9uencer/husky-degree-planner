@@ -398,5 +398,8 @@ const cs = planReqs(["cs"]), csE = evalAll(cs, [course("CSE 333", 4, "CS Core")]
 assert.equal(csE.get(cs.find(r => r.id === "core")).have, 1); assert.equal(csE.get(cs.find(r => r.id === "elec")).have, 4, "CS electives still include core");
 const oc = planReqs(["ocean-ba"]), ocOut = cs => evalAll(oc, cs).get(oc.find(r => r.id === "nscOut")).have;
 assert.equal(ocOut([course0("MATH 124", 5, "NSc"), course0("MATH 125", 5, "NSc"), course0("CHEM 162", 5, "NSc")]), 5, "College of the Environment: courses the major used don't count as NSc outside the major");
+const geo = planReqs(["ess-geo"]), geoOut = evalAll(geo, [course0("ESS 101", 5, "NSc"), course0("ESS 102", 5, "NSc")]).get(geo.find(r => r.id === "nscOut"));
+assert.equal(geoOut.have, 0, "College of the Environment: unused courses with the major's prefix don't count as NSc outside the major"); assert.equal(geoOut.met, false);
+for (const m of Object.values(MAJORS)) if (COLLEGES[m.college].out) assert.ok(m.prefix, m.id + " needs a prefix for its out-of-major rule");
 assert.equal(isDoubleDegree(["ocean-ba", "ocean-bs"]), true); assert.equal(isDoubleDegree(["ocean-bs", "biol-bs"]), false);
 console.log("evalAll: additional requirements don't double-count");
