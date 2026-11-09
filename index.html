@@ -1314,7 +1314,7 @@ async function flush(){
   pushing=false;
   if(session?.user.id!==s.user.id) return;
   if(!error&&data?.length){ cloudStamp=data[0].updated_at; local(); if(dirty) cloudPush(); }
-  else if(!error||error.code==="23505"){ dirty=true; await cloudPull(true); toast("This plan changed on another device. We loaded that copy and kept plans that were only here."); } // no row matched: someone else wrote first
+  else if(!error||error.code==="23505"){ dirty=true; await cloudPull(true); toast("This plan changed on another device. We loaded that copy and preserved unsent edits as conflict copies."); } // no row matched: someone else wrote first
   else { dirty=true; saveEl.textContent="Could not sync to your account · saved in this browser only"; }
 }
 async function cloudPull(conflict){
@@ -1330,8 +1330,18 @@ async function cloudPull(conflict){
     const cloud=(row.data.plans||[]).map(normalizePlan).filter(Boolean);
     if(same&&guestDirty&&fromStore) unsent=true; // the restored copy came from exactly this cloud copy, so its edits stand
     else{
-      // ponytail: edits to a plan the cloud also has lose to the cloud copy; only plans the cloud lacks are kept
-      const extra=guestDirty||dirty||conflict?plans.filter(p=>!cloud.some(c=>c.id===p.id)):[];
+      // Preserve both versions of an edited plan; never replace unsent work with the remote copy.
+      const extra=[];
+      if(guestDirty||dirty||conflict) for(const p of plans){
+        const remote=cloud.find(c=>c.id===p.id);
+        if(!remote) extra.push(p);
+        else if(JSON.stringify(p)!==JSON.stringify(remote)){
+          const copy=clone(p);
+          do{ copy.id="p"+uid(); }while([...cloud,...plans,...extra].some(x=>x.id===copy.id));
+          copy.name=p.name+" (conflict copy)";
+          extra.push(copy); if(cur===p.id) cur=copy.id;
+        }
+      }
       plans=[...cloud,...extra]; unsent=extra.length>0; if(!extra.length) cur=row.data.current;
     }
     if(!plans.find(p=>p.id===cur)) cur=plans[0]?.id||null;
@@ -1820,6 +1830,13 @@ function openEditor(cid,key,prefill){
       else { b.classList.add("armed"); b.textContent="Click again to delete"; }
     };
     const codeIn=document.getElementById("e-code");
+    const repeatIn=document.getElementById("e-repeat");
+    let repeatCode=canonCode(c.code), repeatManual=true; // preserve a saved choice until the code changes
+    repeatIn.onchange=()=>{repeatManual=true;};
+    const resetRepeat=()=>{
+      const code=canonCode(codeIn.value);
+      if(code!==repeatCode){ repeatIn.checked=false; repeatManual=false; repeatCode=code; }
+    };
     const pick=(t,on)=>ov.querySelector(`[data-t="${CSS.escape(t)}"]`)?.setAttribute("aria-pressed",String(on));
     const pressed=t=>ov.querySelector(`[data-t="${CSS.escape(t)}"]`)?.getAttribute("aria-pressed")==="true";
     // Gen-ed tags that belong to the current code (saved with it or filled from the catalog). Only these clear when the code changes; tags clicked here stay.
@@ -1829,19 +1846,21 @@ function openEditor(cid,key,prefill){
     const crHint=hit=>{ const h=document.getElementById("e-crhint"), cr=String(hit?.cr||""); if(h) h.textContent=/[-,]/.test(cr)?"Catalog: "+cr:""; }; // a variable-credit course starts at its low end
     if(c.code) loadCatalog().then(cat=>crHint(cat.byCode.get(canonCode(c.code).replace(/ /g,""))),()=>{});
     codeIn.addEventListener("input",()=>{
+      resetRepeat(); // saving before the catalog responds must not retain the old course's permission
       if(canonCode(codeIn.value)!==catalogCode) clearCat();
       const t=autoTags(p.majors,codeIn.value);
       auto.filter(x=>!t.includes(x)).forEach(x=>pick(x,false)); t.filter(x=>!auto.includes(x)).forEach(x=>pick(x,true));
       auto=t;
     });
     codeIn.addEventListener("change",async()=>{
+      resetRepeat();
       const code=canonCode(codeIn.value), version=++lookupVersion;
       const hit=await loadCatalog().then(cat=>cat.byCode.get(code.replace(/ /g,"")),()=>null);
       if(document.getElementById("e-code")!==codeIn||version!==lookupVersion||code!==canonCode(codeIn.value)) return;
       if(code!==catalogCode) clearCat();
       catalogCode=code; crHint(hit);
+      if(!repeatManual) repeatIn.checked=!!hit?.rep;
       if(!hit) return;
-      if(hit.rep) document.getElementById("e-repeat").checked=true; // the catalog allows repeat credit
       const t=document.getElementById("e-title"); if(!t.value.trim()) t.value=hit.title;
       if(hit.credits!==null) document.getElementById("e-cr").value=hit.credits;
       // An area the user already chose wins over the catalog's.

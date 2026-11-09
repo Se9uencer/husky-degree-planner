@@ -85,7 +85,7 @@ elements.get('e-code').handlers.input();
 const lookup=elements.get('e-code').handlers.change();
 elements.get('e-save').onclick();
 assert.ok(!original.tags.includes('C'),'saving before lookup resolves cannot preserve old composition credit');
-resolveCatalog({byCode:new Map([['MATH124',{title:'Calculus',credits:5,tags:['NSc']}]])});
+resolveCatalog({byCode:new Map([['MATH124',{title:'Calculus',credits:5,tags:['NSc']}],['CSE499',{title:'Research',credits:3,tags:[],rep:true}]])});
 await lookup;
 assert.equal(buttons.find(b=>b.dataset.t==='NSc').pressed,'true');
 assert.equal(buttons.find(b=>b.dataset.t==='C').pressed,'false');
@@ -177,3 +177,63 @@ switchMajors(editedPlan,['psych-ba']); assert.equal(asked,2,'edited requirement 
 const micro=audit(['micro'],[c('MICROM 443',3,['Micro Dist']),c('IMMUN 441',4,['Micro Dist']),c('MICROM 412',3,['Micro Dist']),c('ENV H 409',3,['Micro Dist']),c('MICROM 411',4,['Micro Dist'])]);
 assert.deepEqual([micro('micro.med').have,micro('micro.div').have,micro('micro.lab').have,micro('micro.dist').have,micro('micro.gene').met],[2,2,2,17,true],'Microbiology distribution groups, labs and credit total');
 console.log('review fixes: import sanitising, requirement edits, repeat ranking, quarter lookup, DARS filters OK');
+
+// Repeat permission belongs to the current code, including while its lookup is pending.
+elements.get('e-code').value=''; elements.get('e-repeat').checked=false;
+editor(undefined,'0-0');
+elements.get('e-code').value='CSE 499'; elements.get('e-code').handlers.input();
+await elements.get('e-code').handlers.change();
+assert.equal(elements.get('e-repeat').checked,true);
+elements.get('e-code').value='MATH 124'; elements.get('e-code').handlers.input();
+assert.equal(elements.get('e-repeat').checked,false,'the old permission clears synchronously');
+const ordinaryLookup=elements.get('e-code').handlers.change();
+elements.get('e-save').onclick();
+assert.equal(editorPlan.quarters['0-0'].at(-1).repeatable,false,'saving during lookup cannot grant repeat credit');
+await ordinaryLookup;
+assert.equal(elements.get('e-repeat').checked,false,'ordinary catalog course stays nonrepeatable');
+elements.get('e-code').value='CSE 499'; elements.get('e-code').handlers.input();
+await elements.get('e-code').handlers.change();
+elements.get('e-code').value='UNKNOWN 123'; elements.get('e-code').handlers.input();
+await elements.get('e-code').handlers.change();
+assert.equal(elements.get('e-repeat').checked,false,'unknown codes do not inherit permission');
+elements.get('e-code').value='MATH 124'; elements.get('e-code').handlers.input();
+elements.get('e-repeat').checked=true; elements.get('e-repeat').onchange();
+await elements.get('e-code').handlers.change();
+assert.equal(elements.get('e-repeat').checked,true,'a deliberate override for the new code survives lookup');
+console.log('repeat permission regressions: code changes, immediate saves, unknown codes and manual overrides OK');
+
+// Exercise the real sync functions, including the conditional-write conflict path.
+function syncHarness(initial,{dirty=true,guest=false,stamp='old',response}={}){
+  let id=0, saved;
+  const cloud={data:{plans:[{id:'p1',name:'Cloud copy',quarters:{}}],current:'p1'},updated_at:'new'};
+  const remote={select(){return this;},eq(){return this;},maybeSingle:()=>response||Promise.resolve({data:cloud,error:null}),update(){return {eq(){return this;},select:async()=>({data:[],error:null})};}};
+  const storage=section('let plans=[], cur=null','/* ---------- plan helpers ---------- */');
+  const api=new Function('document','window','localStorage','session','supa','normalizePlan','render','repairPlans','toast','STORE','guestDirty','clone','uid','setTimeout','clearTimeout',
+    storage+`;return {init:(p,d,s)=>{plans=p;cur=p[0]?.id;dirty=d;cloudStamp=s;pullOk=true;},pull:()=>cloudPull(true),flush,state:()=>({plans,cur,dirty,cloudStamp}),edit:()=>{plans[0].name='Edited during pull';dirty=true;}};`)(
+    {getElementById:()=>({}),addEventListener(){}},{addEventListener(){}},
+    {setItem:(key,value)=>{saved=JSON.parse(value);}}, {user:{id:'u1',email:'test'}},{from:()=>remote},x=>structuredClone(x),()=>{},()=>{},()=>{},'test',guest,
+    x=>structuredClone(x),()=>String(++id),()=>0,()=>{});
+  api.init(structuredClone(initial),dirty,stamp);
+  return {...api,saved:()=>saved};
+}
+let sync=syncHarness([{id:'p1',name:'Local work',quarters:{'0-0':[{code:'MATH 124'}]}},{id:'local-only',name:'New plan'}]);
+await sync.flush();
+let synced=sync.state();
+assert.equal(synced.plans.find(p=>p.id==='p1').name,'Cloud copy');
+const conflictCopy=synced.plans.find(p=>p.name==='Local work (conflict copy)');
+assert.ok(conflictCopy&&conflictCopy.id!=='p1','a conditional-write conflict preserves unsent work under a fresh ID');
+assert.equal(conflictCopy.quarters['0-0'][0].code,'MATH 124');
+assert.equal(synced.cur,conflictCopy.id,'the user remains on their preserved version');
+assert.ok(synced.plans.some(p=>p.id==='local-only'));
+assert.equal(synced.dirty,true,'preserved copies are queued for upload');
+assert.deepEqual(sync.saved().plans,synced.plans,'both versions are saved locally');
+sync=syncHarness([{id:'p1',name:'Cloud copy',quarters:{}}]);
+await sync.pull();
+assert.equal(sync.state().plans.length,1,'identical versions do not need conflict copies');
+let finishPull;
+sync=syncHarness([{id:'p1',name:'Before pull',quarters:{}}],{dirty:false,response:new Promise(resolve=>{finishPull=resolve;})});
+const pull=sync.pull(); sync.edit();
+finishPull({data:{data:{plans:[{id:'p1',name:'Remote edit',quarters:{}}],current:'p1'},updated_at:'new'},error:null});
+await pull;
+assert.ok(sync.state().plans.some(p=>p.name==='Edited during pull (conflict copy)'),'edits made while pulling are preserved too');
+console.log('sync regressions: conflicting edits, unique plans, identical copies and edits during pull OK');
