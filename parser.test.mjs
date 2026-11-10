@@ -429,5 +429,13 @@ console.log("evalAll: additional requirements don't double-count");
   assert.ok(!run([mk("BIOL 499", 3, ["MCD Research"])])("mlab").met, "3 research credits are not enough");
   assert.equal(run([mk("BIOL 499", 3, ["MCD Research"])])("labs").have, 0, "3 research credits do not count as a lab either");
   assert.ok(!run([mk("BIOL 499", 4)])("mlab").met, "untagged research does not count");
+  r = run([mk("BIOL 499", 4, ["MCD Research"]), mk("MICROM 499", 4, ["MCD Research"])]);
+  assert.equal(r("labs").have, 1, "two research projects substitute for only one lab");
+  assert.ok(!r("labs").met, "two research projects do not satisfy both labs");
+  r = run([mk("BIOL 499", 4, ["MCD Research"]), mk("BIOL 402", 4)]);
+  assert.ok(r("labs").met && r("mlab").met, "one research project plus one taught lab satisfies both labs");
+  r = run([mk("BIOL 499", 4, ["MCD Research"])]);
+  assert.ok(r("mlab").met && r("labs").have === 1 && r("adv").have === 4, "approved research counts as the MCD lab, one lab and 4 advanced credits together");
+  assert.equal(run([mk("BIOL 499", 3, ["MCD Research"])])("adv").have, 0, "research under 4 credits earns no advanced credit");
   console.log("biol-mcd: surplus natural history, Marine Botany labs and research substitution OK");
 }
