@@ -9,7 +9,7 @@ Pick your major, paste in your DARS audit, add the courses you plan to take, and
 | Area | Majors and options |
 | --- | --- |
 | Computing and data | Computer Science, Computer Engineering, Informatics (general, Biomedical & Health, Data Science), ACMS (4 options), Statistics (3 options) |
-| Arts & Sciences | Psychology (BA, BS), Biology (BA, BS), Economics (BA, BS and 4 options), Communication (general, Journalism & Public Interest), Political Science (general, International Security, Political Economy), Philosophy (general, Ethics), Sociology, Biochemistry (BA, BS), Microbiology (BS), Mathematics (BA, BS, Philosophy, Teacher Preparation), English (general, Creative Writing), History (general and 4 options) |
+| Arts & Sciences | Psychology (BA, BS), Biology (BA, BS, Molecular Cellular & Developmental), Economics (BA, BS and 4 options), Communication (general, Journalism & Public Interest), Political Science (general, International Security, Political Economy), Philosophy (general, Ethics), Sociology, Biochemistry (BA, BS), Microbiology (BS), Mathematics (BA, BS, Philosophy, Teacher Preparation), English (general, Creative Writing), History (general and 4 options) |
 | Business | Business Administration (general and 8 majors) |
 | Engineering | Mechanical (general, Biomechanics, Mechatronics), Electrical & Computer, Civil, Bioengineering (general, Data Science, Nanoscience) |
 | Environment | Earth & Space Sciences: Geology, Oceanography (BA, BS) |

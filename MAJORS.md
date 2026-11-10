@@ -47,7 +47,7 @@ Every undergraduate program in the MyPlan "Audit a UW Degree Program (DARS)" dro
 - [x] Biology (BA)
 - [x] Biology (BS)
 - [ ] Biology: Ecology, Evolution & Conserv (No admit)
-- [ ] Biology: Mlcr, Cell, Dvp (Not admitting)
+- [x] Biology: Mlcr, Cell, Dvp (Not admitting)
 - [ ] Biology: Physiology (Not admitting)
 - [ ] Biology: Plant Biol (Not admitting)
 - [ ] Bioresource Sci & Engineering: General Option (BS)
