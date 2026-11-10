@@ -365,12 +365,20 @@ function parseDars(text){
     .map(l=>l.replace(/\s+/g," ").trim()).filter(Boolean)
     .flatMap(l=>{ const m=l.match(ROW); if(!m) return [l]; const c=m[2].match(SPLITCODE);
       return [m[1].replace(" ",""), ...(c?[c[1],c[2]]:[m[2]]), m[3], m[4], ...(m[5]?[m[5]]:[])]; });
-  const out = {courses:[], catalogYear:null, earned:null, startYear:null};
+  const out = {courses:[], catalogYear:null, earned:null, startYear:null, hasGenEd:false, areaCredits:{}};
   const QRE = /^(AU|WI|SP|SU)(\d{2})$/, NUM = /^-?\d+(\.\d+)?$/, CODE = /^[A-Z][A-Z& ]{0,8} ?\d{3}[A-Z]?$/;
   let tags = [], subTags = [], seenTotal = false, slot = null;
   const byKey = new Map();
   for(let i=0;i<lines.length;i++){
     const l = lines[i];
+    if(/^(GENERAL EDUCATION REQUIREMENTS|AREAS OF INQUIRY)$/i.test(l)) out.hasGenEd=true;
+    if(tags.length===1&&["A&H","SSc","NSc"].includes(tags[0])){
+      const earned=l.match(/Earned:\s*([\d.]+) credits/i), progress=l.match(/In-progress:\s*([\d.]+) credits/i);
+      if(earned||progress){
+        const totals=out.areaCredits[tags[0]]||(out.areaCredits[tags[0]]={done:0,now:0});
+        if(earned) totals.done=+earned[1]; if(progress) totals.now=+progress[1];
+      }
+    }
     if(/^Catalog Year:?$/i.test(l) && lines[i+1]) { const m=lines[i+1].match(/(AU|WI|SP|SU)\s?(\d{2})/); if(m) out.catalogYear=m[1]+" "+m[2]; }
     const cy = l.match(/^Catalog Year:?\s*(AU|WI|SP|SU)\s?(\d{2})/i); if(cy) out.catalogYear=cy[1].toUpperCase()+" "+cy[2];
     if(/minimum of 180 academic credits/i.test(l)) seenTotal = true;
@@ -754,12 +762,12 @@ major("bioc-bs", "Biochemistry (BS)", "as", BIOC_SRC, {
     all("bioc","Biochemistry","BIOC 426,BIOC 440|BIOC 450,BIOC 441|BIOC 451,BIOC 442"),
     crd("elec","11 credits of science electives",11,"Biochem Elective")]});
 
-// Microbiology (BS): UW General Catalog plus the department's degree packet (Spring 2026). The 28 distribution and elective credits are one total, with the group rules checked beside it.
+// Microbiology (BS): UW General Catalog, department packet, and a November 2026 DARS audit. The 28 distribution and elective credits are one total, with the group rules checked beside it.
 const MICRO_MED = "IMMUN:441;MICROM:442,443,445,460", MICRO_DIV = "MICROM:412;ENV H:409;FISH:406";
 major("micro", "Microbiology (BS)", "as", GENCAT+"Microbiology-216.html", {
   lists:{"Micro Dist":MICRO_MED+";"+MICRO_DIV+";MICROM:411,431;GENOME:361,371",
     "Micro Elective":"BIOEN:454,467,498;G H:401,402,410,454;BIOL:401,419,455,466,481;CEE:462,482;CHEM E:467;ENV H:440,441,442,444,447,451,452;EPI:320,527;ESRM:404,422;FISH:404;GENOME:372,373,414;MICROM:482,495,496,499,555;NUTR:446;OCEAN:330,431,530,572;PABIO:551,552"},
-  note:`Not checked: the 2.50 GPA in the admission courses (BIOL 200 needs 2.3), the 2.25 major GPA, the 1.8 minimum grade in MICROM and IMMUN courses, and 20 UW microbiology credits for transfers. Electives follow the department's <a href="https://microbiology.washington.edu/undergraduate-program/major-course-requirements" target="_blank" rel="noopener">degree packet</a>; a course not on it needs a petition. The catalog lists MICROM 413 as core, but the packet lists only 402, 410 and 450, so confirm with the adviser.`,
+  note:`Not checked: the 2.50 GPA in the admission courses (BIOL 200 needs 2.3), the 2.25 major GPA, the 1.8 minimum grade in MICROM and IMMUN courses, and numerical-grade rules. Transfer residency counts required or approved elective MICROM and IMMUN courses taken at UW. Electives follow the department's <a href="https://microbiology.washington.edu/undergraduate-program/major-course-requirements" target="_blank" rel="noopener">degree packet</a>; a course not on it needs a petition. The catalog lists MICROM 413 as core, but the packet lists only 402, 410 and 450, so confirm with the adviser.`,
   reqs:[
     all("intro","Intro biology","BIOL 180,BIOL 200,BIOL 220"),
     all("gchem","General chemistry","CHEM 142,CHEM 152,CHEM 162;CHEM 143,CHEM 153;CHEM 145,CHEM 155,CHEM 165"),
@@ -773,6 +781,7 @@ major("micro", "Microbiology (BS)", "as", GENCAT+"Microbiology-216.html", {
     all("phys","Physics","PHYS 114,PHYS 115;PHYS 121,PHYS 122;PHYS 141,PHYS 142"),
     all("quant","Calculus and statistics","MATH 124|MATH 134|Q SCI 291,BIOST 310|Q SCI 381|STAT 220|STAT 311"),
     all("bioc","Biochemistry","BIOC 405,BIOC 406;BIOC 440,BIOC 441,BIOC 442"),
+    rule("res","20 UW microbiology credits (transfer residency)",20,[],{uwOnly:true,codes:[...parseList(MICRO_MED+";MICROM:402,410,411,412,413,431,450,482,495,496,499,555")]}),
   ]});
 
 const MATH_SRC = GENCAT+"Mathematics-206.html";
@@ -1087,6 +1096,11 @@ function creditCourses(courses){
   }
   return courses.filter(c=>c.repeatable||!best.has(canonCode(c.code))||best.get(canonCode(c.code))===c);
 }
+// Keep a DARS-applied partial credit separate from the full course credit used by the major and total.
+function areaCredit(c,tag){
+  const credits=Math.max(0,+c.credits||0), applied=c.darsAreaCredits?.[tag];
+  return Number.isFinite(applied)?Math.min(credits,Math.max(0,applied)):credits;
+}
 let PRIOR = new Set();
 function evalReq(r,courses,taken){
   const st={done:0,now:0,plan:0};
@@ -1101,9 +1115,10 @@ function evalReq(r,courses,taken){
     const used=r.upperOnly?hit.filter(c=>level(c.code)>=300):hit;
     if(r.capPerTag){
       const per={};
-      used.forEach(c=>{const t=(c.tags||[]).find(t=>r.tags.includes(t));if(!t)return;per[t]=per[t]||{done:0,now:0,plan:0};per[t][c.status]+=(+c.credits||0)});
-      Object.values(per).forEach(s=>{const tot=s.done+s.now+s.plan,f=tot>r.capPerTag?r.capPerTag/tot:1;for(const k in s) st[k]+=s[k]*f});
-      const have=st.done+st.now+st.plan; return {have,need:r.need,met:have>=r.need,st};
+      used.forEach(c=>{const t=(c.tags||[]).find(t=>r.tags.includes(t));if(!t)return;per[t]=per[t]||{done:0,now:0,plan:0,applied:0};const cr=areaCredit(c,t);per[t][c.status]+=cr;if(Number.isFinite(c.darsAreaCredits?.[t])) per[t].applied+=cr;});
+      // Preserve credit DARS explicitly applied above the standard cap; this does not grant a new waiver to a blank plan.
+      Object.values(per).forEach(s=>{let left=Math.max(r.capPerTag,s.applied);for(const k of ["done","now","plan"]){const cr=Math.min(s[k],left);st[k]+=cr;left-=cr;}});
+      const have=st.done+st.now+st.plan; return {have,need:r.need,met:have>=r.need,st,extra:Object.values(per).some(s=>s.applied>r.capPerTag)?"Includes DARS-applied credit above the standard area cap.":""};
     }
     if(r.type==="count"){
       if(r.distinct){ // one course per field: a field is its department unless the map says otherwise
@@ -1114,7 +1129,9 @@ function evalReq(r,courses,taken){
       const have=used.length, n400=used.filter(c=>level(c.code)>=400).length;
       return {have,need:r.need,met:have>=r.need&&(!r.need400||n400>=r.need400),st,extra:r.need400?`${n400}/${r.need400} at 400-level`:"",claims:used.slice(0,r.need)};
     }
-    used.forEach(c=>st[c.status]+=(+c.credits||0));
+    const weight=c=>String(r.group||"").startsWith("gen")&&r.tags?.some(t=>AOI_TAGS.includes(t))
+      ? areaCredit(c,(c.tags||[]).find(t=>r.tags.includes(t))) : (+c.credits||0);
+    used.forEach(c=>st[c.status]+=weight(c));
     let sum=0; const claims=used.filter(c=>{ if(sum>=r.need) return false; sum+=(+c.credits||0); return true; });
     const have=st.done+st.now+st.plan, n300=used.filter(c=>level(c.code)>=300).length;
     return {have,need:r.need,met:have>=r.need&&(!r.need300||n300>=r.need300),st,extra:r.need300?`${n300}/${r.need300} at 300-level`:"",claims};
@@ -1172,8 +1189,9 @@ function resolveShortTitle(list, short){
   }
   return tie ? null : best;
 }
-// DARS lists a course under one section, so it can miss designations the catalog has. An area tag from DARS wins; C, DIV and W are always added.
+// Full audits retain their applied gen-ed designations. For manual/legacy rows, the catalog fills missing designations and an existing area wins.
 function addCatalogGen(c, byCode){
+  if(c.darsGen) return; // a full audit's applied gen-ed designations take precedence over catalog eligibility
   const hit = byCode.get(String(c.code).toUpperCase().replace(/ /g,"")); if(!hit) return;
   const AOI = ["A&H","SSc","NSc"], hasArea = c.tags.some(t => AOI.includes(t));
   hit.tags.forEach(t => { if(!c.tags.includes(t) && !(hasArea && AOI.includes(t))) c.tags.push(t); });
@@ -1400,11 +1418,21 @@ function planFromDars(parsed, startYear, id="cs", byCode){
   const p=basePlan("From DARS "+new Date().toLocaleDateString([], {month:"short",day:"numeric"}),id);
   p.startYear=startYear;
   let maxYear=3;
+  const areaLeft=Object.fromEntries(Object.entries(parsed.areaCredits||{}).map(([tag,totals])=>[tag,{...totals}]));
   const allowed=planTags(p); // the parser's CS section tags mean nothing on another major's plan
   for(const c of parsed.courses){
     if(/^(W|HW|NC|NS)$/.test(c.grade)||(c.credits===0&&c.grade==="0.0")) continue; // not completed credit
     const status = c.grade==="IP" ? "now" : c.grade==="PL" ? "plan" : "done";
     const course = addAutoTags(C(c.code,c.credits,c.tags.filter(t=>allowed.includes(t)),status,c.title),p);
+    if(parsed.hasGenEd) course.darsGen=true;
+    for(const tag of c.tags.filter(t=>["A&H","SSc","NSc"].includes(t))){
+      const left=areaLeft[tag]?.[status];
+      if(Number.isFinite(left)){
+        const applied=Math.max(0,Math.min(c.credits,left));
+        (course.darsAreaCredits||(course.darsAreaCredits={}))[tag]=applied;
+        areaLeft[tag][status]-=applied;
+      }
+    }
     const ay = fullYear(c.yy)-(c.q===0?0:1);     // academic year that quarter belongs to
     const y = Math.min(ay-startYear,11);         // plans hold 12 years at most
     course.origin=/^(AP|IB|TR)$/.test(c.grade)||y<0?"external":"uw"; // anything before the first UW autumn (Running Start, summer transfer) is not UW credit
@@ -1821,6 +1849,11 @@ function openEditor(cid,key,prefill){
       c.repeatable=document.getElementById("e-repeat").checked;
       if(existing&&c.code!==existing.code){ delete c.shortTitle; delete existing.shortTitle; } // the user replaced the DARS title with their own code
       c.tags=singleAreaTags([...ov.querySelectorAll("[data-t][aria-pressed=true]")].map(b=>b.dataset.t));
+      // Editing the course or its gen-ed assignment replaces the imported allocation with the user's choice.
+      if(existing&&(c.code!==existing.code||c.credits!==existing.credits||c.status!==existing.status||
+        JSON.stringify(c.tags.filter(t=>GEN_TAGS.includes(t)).sort())!==JSON.stringify((existing.tags||[]).filter(t=>GEN_TAGS.includes(t)).sort()))){
+        delete c.darsGen; delete c.darsAreaCredits; delete existing.darsGen; delete existing.darsAreaCredits;
+      }
       const to=document.getElementById("e-q").value;
       if(existing){ Object.assign(existing,c); if(to!==key) moveCourse(p,existing.id,key,to); }
       else if(to==="prior") p.prior.push(c); else (p.quarters[to]=p.quarters[to]||[]).push(c);

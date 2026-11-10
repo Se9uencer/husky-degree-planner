@@ -62,6 +62,7 @@ console.log('audit regressions: area assignment, repeats, residency, summer and 
 // Mount the actual editor handlers against a small DOM stand-in, including a delayed catalog response.
 const editorPlan={majors:['cs'],prior:[],quarters:{'0-0':[c('ENGL 131',5,['C'])]}};
 const original=editorPlan.quarters['0-0'][0];
+original.darsGen=true; original.darsAreaCredits={'NSc':3};
 const elements=new Map();
 const element=(id,value='')=>{
   const e={value,checked:false,handlers:{},addEventListener(name,fn){this.handlers[name]=fn;},focus(){}};
@@ -85,6 +86,7 @@ elements.get('e-code').handlers.input();
 const lookup=elements.get('e-code').handlers.change();
 elements.get('e-save').onclick();
 assert.ok(!original.tags.includes('C'),'saving before lookup resolves cannot preserve old composition credit');
+assert.ok(!original.darsGen&&!original.darsAreaCredits,'editing the imported course clears its old DARS allocation');
 resolveCatalog({byCode:new Map([['MATH124',{title:'Calculus',credits:5,tags:['NSc']}],['CSE499',{title:'Research',credits:3,tags:[],rep:true}]])});
 await lookup;
 assert.equal(buttons.find(b=>b.dataset.t==='NSc').pressed,'true');
@@ -261,3 +263,24 @@ for(const change of [p=>{p.quarters['0-0'][0].credits=3;},p=>p.quarters['0-0'].r
   assert.deepEqual(copy.quarters,localPlan.quarters,'the local version remains intact');
 }
 console.log('sync equality regressions: object-key order ignored; nested values and array order preserved');
+
+// The audit's tag order differs from the editor's button order; a title-only edit must retain applied credit.
+const parseTagOrder=new Function(block('PARSER')+';return parseDars;')();
+const orderedAudit=parseTagOrder('GENERAL EDUCATION REQUIREMENTS\nDiversity Course\nSP26\nSOC 101\n4\nAP\nSocial Sciences\nEarned: 2 credits\nSP26\nSOC 101\n4\nAP\n');
+assert.deepEqual(orderedAudit.courses[0].tags,['DIV','SSc']);
+const importedForEdit=c('SOC 101',4,orderedAudit.courses[0].tags,{origin:'external',darsGen:true,darsAreaCredits:{SSc:2}});
+editorPlan.quarters['0-0'].push(importedForEdit);
+for(const [id,value] of Object.entries({'e-code':'SOC 101','e-cr':'4','e-title':'Updated note','e-st':'done','e-origin':'external','e-q':'0-0'})) elements.get(id).value=value;
+elements.get('e-repeat').checked=false;
+buttons.forEach(b=>b.pressed=['SSc','DIV'].includes(b.dataset.t)?'true':'false');
+editor(importedForEdit.id,'0-0');
+elements.get('e-save').onclick();
+assert.deepEqual(importedForEdit.tags,['SSc','DIV'],'the editor saves in button order');
+assert.equal(importedForEdit.title,'Updated note');
+assert.equal(importedForEdit.darsGen,true,'a title-only edit preserves DARS designations');
+assert.deepEqual(importedForEdit.darsAreaCredits,{SSc:2},'tag reordering preserves partial DARS credit');
+assert.equal(audit(['micro'],[importedForEdit])('ssc').have,2,'the audited credit remains unchanged');
+buttons.find(b=>b.dataset.t==='NSc').onclick();
+elements.get('e-save').onclick();
+assert.ok(!importedForEdit.darsGen&&!importedForEdit.darsAreaCredits,'a real area change still clears the old allocation');
+console.log('DARS editor regressions: title-only saves preserve allocations regardless of tag order');

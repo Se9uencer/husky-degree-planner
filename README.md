@@ -84,3 +84,11 @@ Ordinary repeated course codes earn credit once, with completed entries taking p
 Summer courses remain part of the audit when summers are hidden.
 
 Run regression checks with `node parser.test.mjs` and `node audit-regressions.test.mjs`.
+
+### DARS-applied general education
+
+Full DARS imports preserve the general-education designations actually applied by the audit, including courses left in general electives. Catalog eligibility alone does not add gen-ed credit to those imported courses. Area summaries can apply fewer credits than a full course is worth; this changes only gen-ed progress, not total, major, or UW residency credit.
+
+When an audit explicitly applies more than the standard per-area cap, that already-applied credit is preserved. Blank plans keep their normal caps. The importer does not infer or grant a new waiver. Editing an imported course's code, credits, status, or gen-ed tags clears its imported allocation so the edited course follows your selections.
+
+`node microbiology-dars.test.mjs` checks an invented anonymous audit fixture. To compare a matching Microbiology audit locally, pass its text-file path as an argument; the transcript is not bundled with the tests.
