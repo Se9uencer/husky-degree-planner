@@ -654,13 +654,14 @@ major("biol-bs", "Biology (BS)", "as", GENCAT+"Biology-112.html", {lists:BIO_LIS
 
 // Biology: Molecular, Cellular & Developmental (BS): Biology department handout dated 10/26/2025, for students declared before Autumn 2026 (not admitting).
 const MCD_DEV = "BIOL:407,411,415,416,429,442,459", MCD_LAB = "BIOL:302,400,402,412,425,428,463;BIOC:426;MICROM:402,431";
-const MCD_NH = "BIOL:280,311,331,430,432,433,434,438,439,441,443,444,445,446,447,448,450,451,452,453;FHL:430,432;ENVIR:280;ESRM:331,435;FISH:310,311,450";
+const MCD_NH = "BIOL:280,311,331,430,432,433,434,438,439,441,443,444,445,446,447,448,450,451,452,453;FHL:430,432,445;ENVIR:280;ESRM:331,435;FISH:310,311,450";
 major("biol-mcd", "Biology: Molecular, Cellular & Developmental (BS)", "as", "https://biology.washington.edu/sites/biology/files/documents/undergraduate/BS%20MCD%2010-25.pdf", {
+  tags:["MCD Research"],
   lists:{"MCD Dev":MCD_DEV, "MCD Lab":MCD_LAB, "MCD NatHist":MCD_NH,
-    "MCD Any Lab":MCD_LAB+";BIOL:311,356,413,421,424,427,430,432,433,434,438,439,441,443,444,446,447,448,450,451,452,453,468,480,481;ESRM:478;FHL:430,432;FISH:310,311,406,444;MICROM:411",
+    "MCD Any Lab":MCD_LAB+";BIOL:311,356,413,421,424,427,430,432,433,434,438,439,441,443,444,445,446,447,448,450,451,452,453,468,480,481;ESRM:478;FHL:430,432,445;FISH:310,311,406,444;MICROM:411",
     "MCD Breadth":"BIOL:315,354,356,385,423,468,469,473,476,478,480,481;BIO A:351,355;ESRM:325,458,465;FISH:330,406,444,464;ENVIR:330",
-    "MCD Advanced":MCD_DEV+";"+MCD_LAB+";BIOC:405,406,440,441,442,450,451;BIOL:305,350,355,359,396,399,401,403,404,405,413,417,418,421,424,426,427,436,454,457,461,462,464,465,466,467,469,485,488;ESRM:478;FISH:406;GENOME:372,373,465,466,475;IMMUN:441;MICROM:410,411,412,442,445,450,460;NURS:301"},
-  note:`This option is no longer admitting; the planner follows the department's <a href="https://biology.washington.edu/sites/biology/files/documents/undergraduate/BS%20MCD%2010-25.pdf" target="_blank" rel="noopener">October 2025 handout</a> for students declared before Autumn 2026. Not checked: the admission GPA, the 2.00 major GPA, the limit of one class per BIOC 405/440 and 406/441 pair as an elective, the BIOL 413/NURS 301 and BIOL 385/BIO A 351 overlaps, the 10-credit cap on internship and research credits, and the 15-of-last-60 credits limit. An approved 4-credit BIOL/DEPT 499 project can replace one lab; add the lab tag yourself. Natural history courses count here or as electives, not both.`,
+    "MCD Advanced":MCD_DEV+";"+MCD_LAB+";"+MCD_NH+";BIOC:405,406,440,441,442,450,451;BIOL:305,350,355,359,396,399,401,403,404,405,413,417,418,421,424,426,427,436,454,457,461,462,464,465,466,467,469,485,488;ESRM:478;FISH:406;GENOME:372,373,465,466,475;IMMUN:441;MICROM:410,411,412,442,445,450,460;NURS:301"},
+  note:`This option is no longer admitting; the planner follows the department's <a href="https://biology.washington.edu/sites/biology/files/documents/undergraduate/BS%20MCD%2010-25.pdf" target="_blank" rel="noopener">October 2025 handout</a> for students declared before Autumn 2026. Not checked: the admission GPA, the 2.00 major GPA, the limit of one class per BIOC 405/440 and 406/441 pair as an elective, the BIOL 413/NURS 301 and BIOL 385/BIO A 351 overlaps, the 10-credit cap on internship and research credits, and the 15-of-last-60 credits limit. An approved research project of at least 4 credits (a 499 course) can replace one lab: give it the MCD Research tag. Natural history courses count here or as electives, not both.`,
   reqs:[
     all("intro","Intro biology","BIOL 180,BIOL 200,BIOL 220"),
     all("chem","Chemistry",CHEM_BS),
@@ -671,9 +672,9 @@ major("biol-mcd", "Biology: Molecular, Cellular & Developmental (BS)", "as", "ht
     cnt("nh","Natural history or biodiversity: 1 course",1,"MCD NatHist",{additional:false}),
     {...all("bioc","Biochemistry: BIOC 405 and 406, 440 and 441, or 450 and 451","BIOC 405,BIOC 406;BIOC 440,BIOC 441;BIOC 450,BIOC 451"),rule:true},
     pick("dev","Developmental biology: 1 course",1,MCD_DEV,{additional:false,rule:true}),
-    pick("mlab","Molecular, cellular, developmental lab: 1 course",1,MCD_LAB,{additional:false,rule:true}),
+    pick("mlab","Molecular, cellular, developmental lab: 1 course",1,MCD_LAB,{additional:false,rule:true,tags:["MCD Research"],tagMin:{"MCD Research":4}}),
     crd("adv","31 credits of advanced MCD courses",31,["MCD Advanced"]),
-    cnt("labs","2 upper-division lab courses",2,"MCD Any Lab",{additional:false,rule:true,min:300}),
+    cnt("labs","2 upper-division lab courses",2,["MCD Any Lab","MCD Research"],{additional:false,rule:true,min:300,tagMin:{"MCD Research":4}}),
     rule("b400","15 400-level BIOL credits",15,"BIOL",{min:400}),
     rule("res","15 upper-division BIOL credits at UW",15,"BIOL",{min:300,uwOnly:true}),
   ]});
@@ -1138,6 +1139,7 @@ function evalReq(r,courses,taken){
     let hit=r.all?courses.slice():courses.filter(c=>(c.tags||[]).some(t=>(r.tags||[]).includes(t))||codes.includes(norm(c.code))||(r.dept&&r.dept.includes(deptOf(c.code))));
     if(r.uwOnly) hit=hit.filter(c=>c.origin ? c.origin==="uw" : !PRIOR.has(c.id));
     if(r.min) hit=hit.filter(c=>level(c.code)>=r.min);
+    if(r.tagMin) hit=hit.filter(c=>Object.entries(r.tagMin).every(([t,n])=>!(c.tags||[]).includes(t)||(+c.credits||0)>=n)); // a tag that needs a minimum credit count, e.g. approved research as a lab
     if(r.max) hit=hit.filter(c=>level(c.code)<=r.max);
     if(r.additional&&taken) hit=hit.filter(c=>!taken.has(c.id));
     const used=r.upperOnly?hit.filter(c=>level(c.code)>=300):hit;
