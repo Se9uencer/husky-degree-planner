@@ -629,10 +629,11 @@ const BIO_LISTS = {
 };
 const GEN1 = "CHEM 142|CHEM 143|CHEM 145,CHEM 152|CHEM 153|CHEM 155";
 const bioNote = `Tags follow the <a href="https://biology.washington.edu/elective-lists" target="_blank" rel="noopener">Biology elective lists</a> for students applying in Fall 2026 or later. BIOL 497 topics change each quarter, so it counts as a general elective here. Add a core-area tag if yours is on that list.`;
+const BIO_QUANT = "Q SCI 381|BIOST 310|STAT 220|STAT 311|BIOL 359,MATH 124|MATH 134|Q SCI 291";
 const bioReqs = (chem, extra, electives) => [
   all("intro","Intro biology","BIOL 180,BIOL 200,BIOL 220"),
   all("chem","Chemistry",chem),
-  all("quant","Statistics and calculus","Q SCI 381|BIOST 310|STAT 220|STAT 311|BIOL 359,MATH 124|MATH 134|Q SCI 291"),
+  all("quant","Statistics and calculus",BIO_QUANT),
   ...extra,
   all("gen","Genetics","GENOME 361|GENOME 371|BIOL 340|FISH 340"),
   all("found","Foundations: BIOL 350, 354, 355 or 356","BIOL 350|BIOL 354|BIOL 355|BIOL 356"),
@@ -646,9 +647,37 @@ const bioReqs = (chem, extra, electives) => [
 const CHEM_SHORT = "CHEM 120,CHEM 220,CHEM 221;"+GEN1+",CHEM 223,CHEM 224;";
 major("biol-ba", "Biology (BA)", "as", GENCAT+"Biology-112.html", {lists:BIO_LISTS, note:bioNote, reqs:bioReqs(
   CHEM_SHORT+"CHEM 142,CHEM 152,CHEM 162,CHEM 237|CHEM 257,CHEM 238|CHEM 258;CHEM 143,CHEM 153,CHEM 237|CHEM 257,CHEM 238|CHEM 258;CHEM 145,CHEM 155,CHEM 165,CHEM 237|CHEM 257,CHEM 238|CHEM 258", [], 23)});
+const CHEM_BS = CHEM_SHORT+"CHEM 142,CHEM 152,CHEM 162,CHEM 237|CHEM 257,CHEM 238|CHEM 258,CHEM 239|CHEM 259;CHEM 143,CHEM 153,CHEM 237|CHEM 257,CHEM 238|CHEM 258,CHEM 239|CHEM 259;CHEM 145,CHEM 155,CHEM 165,CHEM 237|CHEM 257,CHEM 238|CHEM 258,CHEM 239|CHEM 259";
 major("biol-bs", "Biology (BS)", "as", GENCAT+"Biology-112.html", {lists:BIO_LISTS, note:bioNote, reqs:bioReqs(
-  CHEM_SHORT+"CHEM 142,CHEM 152,CHEM 162,CHEM 237|CHEM 257,CHEM 238|CHEM 258,CHEM 239|CHEM 259;CHEM 143,CHEM 153,CHEM 237|CHEM 257,CHEM 238|CHEM 258,CHEM 239|CHEM 259;CHEM 145,CHEM 155,CHEM 165,CHEM 237|CHEM 257,CHEM 238|CHEM 258,CHEM 239|CHEM 259",
+  CHEM_BS,
   [all("phys","Physics","PHYS 114,PHYS 115;PHYS 121,PHYS 122;PHYS 141,PHYS 142")], 18)});
+
+// Biology: Molecular, Cellular & Developmental (BS): Biology department handout dated 10/26/2025, for students declared before Autumn 2026 (not admitting).
+const MCD_DEV = "BIOL:407,411,415,416,429,442,459", MCD_LAB = "BIOL:302,400,402,412,425,428,463;BIOC:426;MICROM:402,431";
+const MCD_NH = "BIOL:280,311,331,430,432,433,434,438,439,441,443,444,445,446,447,448,450,451,452,453;FHL:430,432,445;ENVIR:280;ESRM:331,435;FISH:310,311,450";
+major("biol-mcd", "Biology: Molecular, Cellular & Developmental (BS)", "as", "https://biology.washington.edu/sites/biology/files/documents/undergraduate/BS%20MCD%2010-25.pdf", {
+  tags:["MCD Research"],
+  lists:{"MCD Dev":MCD_DEV, "MCD Lab":MCD_LAB, "MCD NatHist":MCD_NH,
+    "MCD Any Lab":MCD_LAB+";BIOL:311,356,413,421,424,427,430,432,433,434,438,439,441,443,444,445,446,447,448,450,451,452,453,468,480,481;ESRM:478;FHL:430,432,445;FISH:310,311,406,444;MICROM:411",
+    "MCD Breadth":"BIOL:315,354,356,385,423,468,469,473,476,478,480,481;BIO A:351,355;ESRM:325,458,465;FISH:330,406,444,464;ENVIR:330",
+    "MCD Advanced":MCD_DEV+";"+MCD_LAB+";"+MCD_NH+";BIOC:405,406,440,441,442,450,451;BIOL:305,350,355,359,396,399,401,403,404,405,413,417,418,421,424,426,427,436,454,457,461,462,464,465,466,467,469,485,488;ESRM:478;FISH:406;GENOME:372,373,465,466,475;IMMUN:441;MICROM:410,411,412,442,445,450,460;NURS:301"},
+  note:`This option is no longer admitting; the planner follows the department's <a href="https://biology.washington.edu/sites/biology/files/documents/undergraduate/BS%20MCD%2010-25.pdf" target="_blank" rel="noopener">October 2025 handout</a> for students declared before Autumn 2026. Not checked: the admission GPA, the 2.00 major GPA, the limit of one class per BIOC 405/440 and 406/441 pair as an elective, the BIOL 413/NURS 301 and BIOL 385/BIO A 351 overlaps, the 10-credit cap on internship and research credits, and the 15-of-last-60 credits limit. An approved research project of at least 4 credits (a 499 course) can replace one lab and count toward the 31 advanced credits: give it the MCD Research tag. Only one such project counts as a lab. Natural history courses count here or as electives, not both.`,
+  reqs:[
+    all("intro","Intro biology","BIOL 180,BIOL 200,BIOL 220"),
+    all("chem","Chemistry",CHEM_BS),
+    all("phys","Physics","PHYS 114,PHYS 115;PHYS 121,PHYS 122"),
+    all("math","Statistics and calculus",BIO_QUANT),
+    all("gen","Genetics","GENOME 361|GENOME 371|BIOL 340|FISH 340"),
+    cnt("breadth","Breadth: 1 course",1,"MCD Breadth",{additional:false}),
+    cnt("nh","Natural history or biodiversity: 1 course",1,"MCD NatHist",{additional:false}),
+    {...all("bioc","Biochemistry: BIOC 405 and 406, 440 and 441, or 450 and 451","BIOC 405,BIOC 406;BIOC 440,BIOC 441;BIOC 450,BIOC 451"),rule:true},
+    pick("dev","Developmental biology: 1 course",1,MCD_DEV,{additional:false,rule:true}),
+    pick("mlab","Molecular, cellular, developmental lab: 1 course",1,MCD_LAB,{additional:false,rule:true,tags:["MCD Research"],tagMin:{"MCD Research":4}}),
+    crd("adv","31 credits of advanced MCD courses",31,["MCD Advanced","MCD Research"],{tagMin:{"MCD Research":4}}),
+    cnt("labs","2 upper-division lab courses",2,["MCD Any Lab","MCD Research"],{additional:false,rule:true,min:300,tagMin:{"MCD Research":4},tagCap:{"MCD Research":1}}),
+    rule("b400","15 400-level BIOL credits",15,"BIOL",{min:400}),
+    rule("res","15 upper-division BIOL credits at UW",15,"BIOL",{min:300,uwOnly:true}),
+  ]});
 
 const ECON_SRC = GENCAT+"Economics-135.html", ECON_400 = {"ECON 400-level":"ECON:400-495,498"};
 const econNote = `Internship and independent study credits don't count. Make sure your ECON total stays at 50 or more.`;
@@ -766,22 +795,22 @@ major("bioc-bs", "Biochemistry (BS)", "as", BIOC_SRC, {
 const MICRO_MED = "IMMUN:441;MICROM:442,443,445,460", MICRO_DIV = "MICROM:412;ENV H:409;FISH:406";
 major("micro", "Microbiology (BS)", "as", GENCAT+"Microbiology-216.html", {
   lists:{"Micro Dist":MICRO_MED+";"+MICRO_DIV+";MICROM:411,431;GENOME:361,371",
-    "Micro Elective":"BIOEN:454,467,498;G H:401,402,410,454;BIOL:401,419,455,466,481;CEE:462,482;CHEM E:467;ENV H:440,441,442,444,447,451,452;EPI:320,527;ESRM:404,422;FISH:404;GENOME:372,373,414;MICROM:482,495,496,499,555;NUTR:446;OCEAN:330,431,530,572;PABIO:551,552"},
+    "Micro Elective":"BIOEN:454,467,498;G H:401,402,410,454;BIOL:401,419,455,466,481;CEE:462,482;CHEM E:467;ENV H:440,441,442,444,447,451,452;EPI:320,527;ESRM:404,422;FISH:404;GENOME:372,373,414;MICROM:461,482,495,496,499,555;NUTR:446;OCEAN:330,431,530,572;PABIO:551,552"},
   note:`Not checked: the 2.50 GPA in the admission courses (BIOL 200 needs 2.3), the 2.25 major GPA, the 1.8 minimum grade in MICROM and IMMUN courses, and numerical-grade rules. Transfer residency counts required or approved elective MICROM and IMMUN courses taken at UW. Electives follow the department's <a href="https://microbiology.washington.edu/undergraduate-program/major-course-requirements" target="_blank" rel="noopener">degree packet</a>; a course not on it needs a petition. The catalog lists MICROM 413 as core, but the packet lists only 402, 410 and 450, so confirm with the adviser.`,
   reqs:[
     all("intro","Intro biology","BIOL 180,BIOL 200,BIOL 220"),
     all("gchem","General chemistry","CHEM 142,CHEM 152,CHEM 162;CHEM 143,CHEM 153;CHEM 145,CHEM 155,CHEM 165"),
-    all("ochem","Organic chemistry","CHEM 223|CHEM 237|CHEM 335"),
+    all("ochem","Organic chemistry","CHEM 223|CHEM 237|CHEM 257|CHEM 335"),
     all("core","Core","MICROM 402,MICROM 410,MICROM 413,MICROM 450"),
     crd("dist","28 credits of distribution courses and electives",28,["Micro Dist","Micro Elective"],{additional:false}),
     pick("med","Medical Microbiology: 2 courses",2,MICRO_MED,{additional:false,rule:true}),
     pick("div","Diversity and Ecology: 2 courses",2,MICRO_DIV,{additional:false,rule:true}),
     {...all("gene","Genetics: MICROM 411, or MICROM 431 with GENOME 361 or 371","MICROM 411;MICROM 431,GENOME 361|GENOME 371"),rule:true},
-    pick("lab","2 lab courses: MICROM 411, 431 or 443",2,"MICROM:411,431,443",{additional:false,rule:true}),
+    pick("lab","2 lab courses: MICROM 411, 431, 443 or 461",2,"MICROM:411,431,443,461",{additional:false,rule:true}),
     all("phys","Physics","PHYS 114,PHYS 115;PHYS 121,PHYS 122;PHYS 141,PHYS 142"),
     all("quant","Calculus and statistics","MATH 124|MATH 134|Q SCI 291,BIOST 310|Q SCI 381|STAT 220|STAT 311"),
     all("bioc","Biochemistry","BIOC 405,BIOC 406;BIOC 440,BIOC 441,BIOC 442"),
-    rule("res","20 UW microbiology credits (transfer residency)",20,[],{uwOnly:true,codes:[...parseList(MICRO_MED+";MICROM:402,410,411,412,413,431,450,482,495,496,499,555")]}),
+    rule("res","20 UW microbiology credits (transfer residency)",20,[],{uwOnly:true,codes:[...parseList(MICRO_MED+";MICROM:402,410,411,412,413,431,450,461,482,495,496,499,555")]}),
   ]});
 
 const MATH_SRC = GENCAT+"Mathematics-206.html";
@@ -1110,6 +1139,7 @@ function evalReq(r,courses,taken){
     let hit=r.all?courses.slice():courses.filter(c=>(c.tags||[]).some(t=>(r.tags||[]).includes(t))||codes.includes(norm(c.code))||(r.dept&&r.dept.includes(deptOf(c.code))));
     if(r.uwOnly) hit=hit.filter(c=>c.origin ? c.origin==="uw" : !PRIOR.has(c.id));
     if(r.min) hit=hit.filter(c=>level(c.code)>=r.min);
+    if(r.tagMin) hit=hit.filter(c=>Object.entries(r.tagMin).every(([t,n])=>!(c.tags||[]).includes(t)||(+c.credits||0)>=n)); // a tag that needs a minimum credit count, e.g. approved research as a lab
     if(r.max) hit=hit.filter(c=>level(c.code)<=r.max);
     if(r.additional&&taken) hit=hit.filter(c=>!taken.has(c.id));
     const used=r.upperOnly?hit.filter(c=>level(c.code)>=300):hit;
@@ -1121,6 +1151,7 @@ function evalReq(r,courses,taken){
       const have=st.done+st.now+st.plan; return {have,need:r.need,met:have>=r.need,st,extra:Object.values(per).some(s=>s.applied>r.capPerTag)?"Includes DARS-applied credit above the standard area cap.":""};
     }
     if(r.type==="count"){
+      if(r.tagCap) for(const [t,n] of Object.entries(r.tagCap)){ let k=0; const keep=used.filter(c=>!(c.tags||[]).includes(t)||++k<=n); used.length=0; used.push(...keep); } // at most n courses carrying this tag count, e.g. one research project as a lab
       if(r.distinct){ // one course per field: a field is its department unless the map says otherwise
         const seen=new Set(), one=used.filter(c=>{const d=deptOf(c.code),k=r.distinct[d+" "+level(c.code)]||r.distinct[d]||d;return !seen.has(k)&&seen.add(k)});
         used.length=0; used.push(...one);

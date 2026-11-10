@@ -279,7 +279,7 @@ const { MAJORS, COLLEGES, planReqs, canonCode, evalAll, isDoubleDegree } = new F
 // Every code a major names must exist in the catalog, so a typo can't slip in. Ranges like COM:201-299 cover numbers that don't exist, so only single numbers are checked.
 const catalog = new Set(list.map(c => c.code));
 // On a department's published list but not in the course catalog, checked by hand against the catalog pages. Kept so students who took them still get credit.
-const NOT_IN_CATALOG = new Set("CHEM 399,CHEM 410,ENGL 391,ENGL 411,ESRM 457,AMATH 424,ANTH 497,ATMOS 460,BIOEN 447,BIOL 305,BIOL 325,BIOL 333,BIOL 409,BIOL 415,BIOL 419,BIOL 422,BIOL 437,BIOL 455,BIOL 472,CEE 402,CEE 403,CEE 495,CHEM 144,COM 325,COM 332,COM 426,COM 434,COM 463,CSE 466,CSE 467,CSE 471,E E 235,E E 341,E E 401,E E 414,E E 485,ESS 211,ESS 213,ESS 403,ESS 413,ESS 415,ESS 424,ESS 437,ESS 458,ESS 464,ESS 466,ESS 471,GEOG 349,LSJ 425,M E 406,M E 442,NEAR E 285,PGH 301,PHIL 408,PHYS 315,PHYS 424,PHYS 425,PHYS 426,PHYS 460,POL S 285,POL S 473,PSYCH 494,SCAND 402,CHEM 335,FISH 404,GENOME 414,NUTR 446".split(","));
+const NOT_IN_CATALOG = new Set("CHEM 399,CHEM 410,ENGL 391,ENGL 411,ESRM 457,AMATH 424,ANTH 497,ATMOS 460,BIOEN 447,BIOL 305,BIOL 325,BIOL 333,BIOL 409,BIOL 415,BIOL 419,BIOL 422,BIOL 437,BIOL 455,BIOL 472,CEE 402,CEE 403,CEE 495,CHEM 144,COM 325,COM 332,COM 426,COM 434,COM 463,CSE 466,CSE 467,CSE 471,E E 235,E E 341,E E 401,E E 414,E E 485,ESS 211,ESS 213,ESS 403,ESS 413,ESS 415,ESS 424,ESS 437,ESS 458,ESS 464,ESS 466,ESS 471,GEOG 349,LSJ 425,M E 406,M E 442,NEAR E 285,PGH 301,PHIL 408,PHYS 315,PHYS 424,PHYS 425,PHYS 426,PHYS 460,POL S 285,POL S 473,PSYCH 494,SCAND 402,CHEM 335,FISH 404,GENOME 414,NUTR 446,FISH 330,ENVIR 330,FHL 445".split(","));
 const RANGE_CODE = /^(INFO 35\d|COM 2\d\d|ACCTG [34]\d\d|MGMT 40\d|POL S 20\d)$/;
 const missing = new Map();
 const flag = (code, id) => { if (!catalog.has(code) && !NOT_IN_CATALOG.has(code)) missing.set(code, id); };
@@ -412,4 +412,30 @@ console.log("evalAll: additional requirements don't double-count");
   const split = "Catalog Year:\nAU 26\nSP26\nGENERAL CHEM II\n5\nAP\nSP26\nGENERAL CHEM II\n2\nAP\n>S\nSP26\nGENERAL CHEM II\n3\nAP\n>S\nSP26\nMECHANICS\n1\nAP\n>S\nSP26\nMECHANICS\n3\nAP\n>S\n";
   assert.deepEqual(parseDars(split).courses.map(c => c.code + "|" + c.credits), ["CHEM 152|5", "MECHANICS|1", "MECHANICS|3"], "fragments of a course listed in full are dropped; ones with no full row are kept");
   console.log("parser: >S split rows OK");
+}
+
+// Biology: Molecular, Cellular & Developmental: surplus natural history earns elective credit, Marine Botany counts as a lab, and approved research (4+ credits, tagged by the student) stands in for the MCD lab.
+{
+  const m = MAJORS["biol-mcd"];
+  const mk = (code, credits, extra = []) => ({ id: code, code, credits, status: "done", origin: "uw", tags: [...m.tagsFor(code), ...extra] });
+  const run = courses => { const out = evalAll(planReqs(["biol-mcd"]).filter(r => r.group === "biol-mcd"), courses); return id => out.get([...out.keys()].find(r => r.id === "biol-mcd." + id)); };
+  let r = run([mk("BIOL 280", 4), mk("BIOL 311", 5)]);
+  assert.ok(r("nh").met && r("adv").have === 5, "one natural-history course is claimed, the surplus one counts toward the 31 advanced credits");
+  for (const code of ["BIOL 445", "FHL 445"]) {
+    assert.ok(m.tagsFor(code).includes("MCD Any Lab") && m.tagsFor(code).includes("MCD NatHist"), code + " is a natural-history lab");
+    assert.equal(run([mk(code, 5)])("labs").have, 1, code + " counts toward the two labs");
+  }
+  assert.ok(run([mk("BIOL 499", 4, ["MCD Research"])])("mlab").met, "approved 4-credit research satisfies the MCD lab");
+  assert.ok(!run([mk("BIOL 499", 3, ["MCD Research"])])("mlab").met, "3 research credits are not enough");
+  assert.equal(run([mk("BIOL 499", 3, ["MCD Research"])])("labs").have, 0, "3 research credits do not count as a lab either");
+  assert.ok(!run([mk("BIOL 499", 4)])("mlab").met, "untagged research does not count");
+  r = run([mk("BIOL 499", 4, ["MCD Research"]), mk("MICROM 499", 4, ["MCD Research"])]);
+  assert.equal(r("labs").have, 1, "two research projects substitute for only one lab");
+  assert.ok(!r("labs").met, "two research projects do not satisfy both labs");
+  r = run([mk("BIOL 499", 4, ["MCD Research"]), mk("BIOL 402", 4)]);
+  assert.ok(r("labs").met && r("mlab").met, "one research project plus one taught lab satisfies both labs");
+  r = run([mk("BIOL 499", 4, ["MCD Research"])]);
+  assert.ok(r("mlab").met && r("labs").have === 1 && r("adv").have === 4, "approved research counts as the MCD lab, one lab and 4 advanced credits together");
+  assert.equal(run([mk("BIOL 499", 3, ["MCD Research"])])("adv").have, 0, "research under 4 credits earns no advanced credit");
+  console.log("biol-mcd: surplus natural history, Marine Botany labs and research substitution OK");
 }
