@@ -1851,7 +1851,7 @@ function openEditor(cid,key,prefill){
       c.tags=singleAreaTags([...ov.querySelectorAll("[data-t][aria-pressed=true]")].map(b=>b.dataset.t));
       // Editing the course or its gen-ed assignment replaces the imported allocation with the user's choice.
       if(existing&&(c.code!==existing.code||c.credits!==existing.credits||c.status!==existing.status||
-        JSON.stringify(c.tags.filter(t=>GEN_TAGS.includes(t)))!==JSON.stringify((existing.tags||[]).filter(t=>GEN_TAGS.includes(t))))){
+        JSON.stringify(c.tags.filter(t=>GEN_TAGS.includes(t)).sort())!==JSON.stringify((existing.tags||[]).filter(t=>GEN_TAGS.includes(t)).sort()))){
         delete c.darsGen; delete c.darsAreaCredits; delete existing.darsGen; delete existing.darsAreaCredits;
       }
       const to=document.getElementById("e-q").value;
