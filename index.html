@@ -392,7 +392,9 @@ function parseDars(text){
     const sub = l.match(/^\d+ \)\s*(.*)$/);
     if(sub){
       slot = DARS_SLOT_CODES[sub[1].trim().toUpperCase()]||(/^Calculus with Analytical Geometry/i.test(sub[1])?"sequence":null);
-      subTags = (DARS_SUB_TAGS.find(([re])=>re.test(sub[1]))||[,[]])[1];
+      // Only the heading counts: Public Health's selectives description ends "...social justice and writing." and is not a writing requirement.
+      const head = sub[1].split(/:|\.(?:\s|$)/)[0];
+      subTags = (DARS_SUB_TAGS.find(([re])=>re.test(head))||[,[]])[1];
       continue;
     }
     const qm = l.match(QRE);
@@ -1080,7 +1082,7 @@ const phBase = [
   crd("sbs","15 credits of social and behavioral sciences breadth, 3+ prefixes",15,"PH Breadth",{spread:3}),
 ];
 const phGH = [ // G H 305, 401 and 402 count toward the 20 elective credits, 15 of them in G H
-  {...all("gh","G H 305, 401 and 402","G H 305,G H 401,G H 402"),rule:true},
+  {...all("gh","G H 305, 401 (3 cr) and 402 (3 cr)","G H 305,G H 401,G H 402"),rule:true,minCr:{"G H 401":3,"G H 402":3}},
   rule("ghcr","15 credits of 300- and 400-level G H",15,"G H",{min:300,max:499}),
   crd("elec","20 credits of global health electives",20,"PH Elective",{min:300}),
 ];
@@ -1222,7 +1224,9 @@ function evalReq(r,courses,taken){
   }
   if(r.type==="courses"){
     const opts=(r.options||[r.sets]).map(sets=>{
-      const items=sets.map(set=>{const c=courses.find(c=>set.map(norm).includes(norm(c.code)));return {label:set.join(" / "),status:c?c.status:null,course:c||null};});
+      // minCr: a course that must be taken for at least this many credits, e.g. G H 401 "(3cr)"; its 1-credit offering doesn't count
+      const minOf=c=>Object.entries(r.minCr||{}).find(([k])=>norm(k)===norm(c.code))?.[1]||0;
+      const items=sets.map(set=>{const c=courses.find(c=>set.map(norm).includes(norm(c.code))&&(+c.credits||0)>=minOf(c));return {label:set.join(" / "),status:c?c.status:null,course:c||null};});
       const have=items.filter(i=>i.status).length; return {have,need:items.length,met:have===items.length,items};
     });
     const best=opts.find(o=>o.met) || opts.reduce((a,b)=>b.have/b.need>a.have/a.need?b:a);

@@ -21,6 +21,11 @@ assert.deepEqual(dual.tags,['SSc','NSc','DIV'],'evaluation does not mutate saved
 result=audit(['psych-ba'],[{...dual,tags:['NSc','SSc','DIV']}]);
 assert.equal(result('nsc').have,5,'selected area is honored');
 assert.equal(result('ssc').have,0);
+// DARS asks for "G H 305, 401 (3cr) and 402 (3cr)": the 1-credit offering of G H 401 or 402 does not count.
+const gh=(c401,c402)=>audit(['ph-bs-gh'],[c('G H 305',3),c('G H 401',c401),c('G H 402',c402)])('ph-bs-gh.gh');
+assert.equal(gh(1,3).met,false,'G H 401 at 1 credit is not the required course');
+assert.equal(gh(3,1).met,false,'G H 402 at 1 credit is not the required course');
+assert.equal(gh(3,3).met,true);
 const first=c('CSE 333',4,['CS Core']), repeat=c('CSE333',4,['CS Core'],{status:'plan'});
 result=audit(['cs'],[repeat,first]);
 assert.equal(result('total').have,4);

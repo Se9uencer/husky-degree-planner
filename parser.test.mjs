@@ -166,6 +166,17 @@ assert.deepEqual(fosterTags("B CMU 301"), ["W"], "Part A writing");
 assert.deepEqual(fosterTags("HIST 200"), ["W"], "Part B writing");
 assert.deepEqual(fosterTags("FIN 350"), [], "major courses carry no gen-ed tag");
 
+// Public Health's BA Selectives description ends "...social justice and writing." That is a list of topics, not a writing requirement.
+const phSelectives = parseDars(`DEPARTMENTAL REQUIREMENTS
+7 ) Bachelor of Arts (BA) Selectives: Courses identified to address competency areas in advocacy, law, social justice and writing. Courses that meet the Selectives requirement cannot also be used for breadth.
+SP29
+ECON 200
+INTRO MICROECON
+5
+PL
+`);
+assert.deepEqual(phSelectives.courses.find(c => c.code === "ECON 200").tags, [], "writing in a long description does not tag W");
+
 // Engineering writing sub-requirements, ECE's whole-sequence calculus row, and AP statistics. Made-up rows.
 const eceAudit = parseDars(`ENGINEERING GENERAL EDUCATION REQUIREMENTS
 Written Communication

@@ -41,7 +41,7 @@ About 8 plans cover all 71 programs. Start with the large majors with complicate
 
 | Order | Family | Programs | Status |
 |---|---|---|---|
-| 1 | Public Health | `ph-bs-nutr`, `ph-ba`, `ph-ba-gh`, `ph-ba-ep`, `ph-bs`, `ph-bs-gh` | `ph-bs-nutr` done |
+| 1 | Public Health | `ph-bs-nutr`, `ph-ba`, `ph-ba-gh`, `ph-ba-ep`, `ph-bs`, `ph-bs-gh` | All six done (November 10, 2026) |
 | 2 | Computing | `cs`, `info`, `info-bhi`, `info-ds`, `acms-ds`, `acms-dm`, `acms-me`, `acms-sc`, `stat-app`, `stat-math`, `stat-ds` | |
 | 3 | Business | `bus`, `bus-acct`, `bus-abp`, `bus-entre`, `bus-fin`, `bus-hr`, `bus-is`, `bus-mktg`, `bus-ops` | |
 | 4 | Biology | `biol-ba`, `biol-bs`, `biol-mcd`, `bioc-ba`, `bioc-bs`, `micro` | |
@@ -51,6 +51,15 @@ About 8 plans cover all 71 programs. Start with the large majors with complicate
 | 8 | Math and Earth sciences | `math-ba`, `math-bs`, `math-phil`, `math-teach`, `ess-geo`, `ocean-ba`, `ocean-bs` | |
 
 The Public Health plan from November 10 was SPH 380, 381, 389, 391, 392, 480, 481, 493; EPI 320; NUTR 200, 302, 310, 405, 406, 412; BIOL 180, 200, 220; CHEM 237, 238; BIOC 405; ANTH 302. To cover the other five programs, add G H 101, 305, 401, 402 and one more G H elective; HSERV 100, 204, 343, 344, 345; SPH 495; and two BA selectives.
+
+### Public Health, the other five programs
+
+The second run used 32 made-up courses in 2028-29 (the course list above, plus BIOST 310, GEOG 180, PSYCH 101, SOC 110, ECON 200, MGMT 200 and G H 306), audited for all six programs, then a reduced plan (SPH 392, HSERV 343 and HSERV 100 removed, G H 401 at 1 credit) for three of them. Edge cases that held: GEOG 180 in place of G H 101 (DARS matches it too), SPH 495 at 1 and 3 credits, a course on two lists (ANTH 302 in breadth or electives), and a G H total one credit short. It found two bugs:
+
+1. **A description read as a requirement.** The BA Selectives description ends "...social justice and writing.", and the parser tagged every course under it as Writing (W). That gave the GH and E&P BAs 20 to 24 W credits where DARS had none. Sub-requirement tags now match the label's heading only.
+2. **A 3-credit minimum.** DARS wants "G H 305, 401 (3cr) and 402 (3cr)", and G H 401 and 402 can be taken for 1 credit. The planner counted a 1-credit G H 401. Requirements can now carry `minCr`.
+
+Two differences are not bugs. DARS stops listing electives once 20 credits are filled, so its elective credits are lower than the planner's total; both call the requirement met. A planned course that duplicates a 0-credit AP row (PSYCH 101) counts in DARS but not in the planner; real plans rarely have that. DARS lists G H 101 only for admission, while the planner also requires it for the GH BA; its source wasn't rechecked, so it was left alone.
 
 ## Fixtures and the check script
 
