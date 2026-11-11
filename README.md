@@ -13,6 +13,7 @@ Pick your major, paste in your DARS audit, add the courses you plan to take, and
 | Business | Business Administration (general and 8 majors) |
 | Engineering | Mechanical (general, Biomechanics, Mechatronics), Electrical & Computer, Civil, Bioengineering (general, Data Science, Nanoscience) |
 | Environment | Earth & Space Sciences: Geology, Oceanography (BA, BS) |
+| Public Health | Public Health-Global Health (BA, BS, Global Health BA and BS, Education & Promotion, Nutritional Sciences) |
 
 That's 64 programs, and a plan can hold up to two. [MAJORS.md](MAJORS.md) lists every program in DARS and which ones are supported. Following [UW's rules](https://advising.uw.edu/degree-overview/majors/double-degree-and-double-major/), majors in different colleges need each college's general education, and majors with different degree names (a BA and a BS, for example) are a double degree, which needs 225 credits with 90 at UW.
 

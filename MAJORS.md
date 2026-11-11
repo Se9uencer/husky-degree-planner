@@ -1,6 +1,6 @@
 # UW majors in DARS
 
-Every undergraduate program in the MyPlan "Audit a UW Degree Program (DARS)" dropdown for the Seattle campus, copied as written on November 3, 2026. A checked box means the planner supports it, and every checked program has been compared against a real DARS audit (the last 40 on November 4, 2026, and Geology and Oceanography on November 9, 2026). The audits came from one student whose courses barely touch most of these majors, so the comparison covers each requirement's structure, its course lists where DARS prints them, and the progress on intro courses. Microbiology was also compared against a supplied DARS audit on November 9, 2026: credit totals, applied general education, chemistry, physics, and incomplete requirements were checked. Its unfilled course lists still rely on the General Catalog and department packet because the copied audit omits many linked course numbers. Biology: Mlcr, Cell, Dvp was compared against a supplied DARS audit on November 9, 2026: credit totals, general education, chemistry, physics, mathematics, and the structure of the remaining requirements were checked. The copied audit omits its course numbers, so the course lists follow the department's October 2025 handout. The tests check that the number of checked boxes matches the number of programs in the app.
+Every undergraduate program in the MyPlan "Audit a UW Degree Program (DARS)" dropdown for the Seattle campus, copied as written on November 3, 2026. A checked box means the planner supports it, and every checked program has been compared against a real DARS audit (the last 40 on November 4, 2026, and Geology and Oceanography on November 9, 2026). The audits came from one student whose courses barely touch most of these majors, so the comparison covers each requirement's structure, its course lists where DARS prints them, and the progress on intro courses. Microbiology was also compared against a supplied DARS audit on November 9, 2026: credit totals, applied general education, chemistry, physics, and incomplete requirements were checked. Its unfilled course lists still rely on the General Catalog and department packet because the copied audit omits many linked course numbers. Biology: Mlcr, Cell, Dvp was compared against a supplied DARS audit on November 9, 2026: credit totals, general education, chemistry, physics, mathematics, and the structure of the remaining requirements were checked. The copied audit omits its course numbers, so the course lists follow the department's October 2025 handout. All six Public Health - Global Health programs were compared against DARS audits on November 10, 2026 (catalog year WI 27): general education, credit totals, breadth, selectives and the science series were checked, and the selective and elective lists come from those audits. The tests check that the number of checked boxes matches the number of programs in the app.
 
 - [ ] ACMS: Biological and Life Sciences (Not admitting)
 - [x] ACMS: Data Science and Statistics
@@ -224,12 +224,12 @@ Every undergraduate program in the MyPlan "Audit a UW Degree Program (DARS)" dro
 - [x] Political Science: Political Economy
 - [x] Psychology (BA)
 - [x] Psychology (BS)
-- [ ] Public Health - Global Health (BA)
-- [ ] Public Health - Global Health (BS)
-- [ ] Public Health - Global Health: Educ & Promotion
-- [ ] Public Health - Global Health: Global Health (BA)
-- [ ] Public Health - Global Health: Global Health (BS)
-- [ ] Public Health - Global Health: Nutr. Science (BS)
+- [x] Public Health - Global Health (BA)
+- [x] Public Health - Global Health (BS)
+- [x] Public Health - Global Health: Educ & Promotion
+- [x] Public Health - Global Health: Global Health (BA)
+- [x] Public Health - Global Health: Global Health (BS)
+- [x] Public Health - Global Health: Nutr. Science (BS)
 - [ ] Public Service and Policy
 - [ ] Real Estate
 - [ ] Romance Linguistics

@@ -367,7 +367,7 @@ function parseDars(text){
       return [m[1].replace(" ",""), ...(c?[c[1],c[2]]:[m[2]]), m[3], m[4], ...(m[5]?[m[5]]:[])]; });
   const out = {courses:[], catalogYear:null, earned:null, startYear:null, hasGenEd:false, areaCredits:{}};
   const QRE = /^(AU|WI|SP|SU)(\d{2})$/, NUM = /^-?\d+(\.\d+)?$/, CODE = /^[A-Z][A-Z& ]{0,8} ?\d{3}[A-Z]?$/;
-  let tags = [], subTags = [], seenTotal = false, slot = null;
+  let tags = [], subTags = [], seenTotal = false, slot = null, extraArea = false;
   const byKey = new Map();
   for(let i=0;i<lines.length;i++){
     const l = lines[i];
@@ -384,8 +384,10 @@ function parseDars(text){
     if(/minimum of 180 academic credits/i.test(l)) seenTotal = true;
     const em = l.match(/^Earned:\s*([\d.]+) credits/i);
     if(em && seenTotal && out.earned===null) out.earned = parseFloat(em[1]);
+    // Public Health audits put surplus area credit in its own section after Natural Sciences. planFromDars gives each of its courses its catalog area, or this last area when the catalog has none.
+    if(/^Additional coursework in any of the three Areas of Inquiry/i.test(l)){ extraArea = ["A&H","SSc","NSc"].includes(tags[0]) ? tags[0] : "NSc"; tags = []; subTags = []; slot = null; continue; }
     const sec = DARS_SECTIONS.find(([re])=>re.test(l));
-    if(sec){ tags = sec[1]; subTags = []; slot = null; continue; }
+    if(sec){ tags = sec[1]; subTags = []; slot = null; extraArea = false; continue; }
     if(/^Calculus: MATH 124-126/i.test(l)){ slot = "sequence"; continue; } // the CS audit doesn't number this one
     const sub = l.match(/^\d+ \)\s*(.*)$/);
     if(sub){
@@ -412,6 +414,7 @@ function parseDars(text){
     if(!c){ c={qtr, q:["AU","WI","SP","SU"].indexOf(qm[1]), yy:+qm[2], code, title, credits, grade, tags:[]}; byKey.set(key,c); out.courses.push(c); }
     if(/^>S$/i.test(lines[j+2]||"")) c.split=true; // DARS marks a part of a course's credits applied to another requirement with ">S"
     [...tags,...subTags].forEach(t=>{ if(!c.tags.includes(t)) c.tags.push(t); });
+    if(extraArea) c.extraArea = extraArea;
     if(slot && c.code==="TRANSFER COURSE"){
       // ponytail: when ECE lists the whole sequence together, assume the transfer fills the gap in it. A student with two transfers in one sequence still lands in order.
       const code = slot==="sequence" ? CALC_SEQUENCE.find(m=>!out.courses.some(x=>x.code===m)) : slot;
@@ -490,6 +493,7 @@ const COLLEGES = {
   biz:{name:"Foster School of Business", w:8, wLabel:"Additional writing (2 courses)", wCodes:["B CMU 301","ENGL 281","ENGL 381"], ah:20, ssc:20, nsc:19},
   info:{name:"Information School", w:10, ah:20, ssc:20, nsc:20},
   env:{name:"College of the Environment", w:10, ah:10, ssc:20, nsc:20, aoi:60, out:10}, // out: SSc and NSc credits that must come from outside the major
+  sph:{name:"School of Public Health", w:10, ah:10, ssc:10, nsc:20, aoi:65},
 };
 const MAJORS = {};
 function major(id, name, college, src, def){
@@ -1058,20 +1062,64 @@ major("ocean-bs", "Oceanography (BS)", "env", OCEAN_SRC, {prefix:"OCEAN", lists:
   crd("ocean","9 credits of 300- or 400-level OCEAN",9,"OCEAN 300+"),
   crd("ud","15 credits of upper-division science, math or engineering",15,"Upper-div Science")]});
 
+// Public Health-Global Health: General Catalog and the department's Autumn 2024 one-pager, matched to DARS audits (catalog year WI 27) on November 10, 2026.
+// The selective and elective lists are the ones DARS prints.
+const PH_SRC = GENCAT+"SchoolofPublicHealth-715.html";
+const PH_LISTS = {"PH Breadth":"AFRAM:100-499;AAS:100-499;AES:100-499;AIS:100-499;ANTH:100-499;CHSTU:100-499;GEOG:100-499;POL S:100-499;PSYCH:100-499;SOC:100-499",
+  "PH Elective":"AES:450;ANTH:302,303,308,311,322,324,361,373,374,375,376,377,405,409,411,420,453,468,474,475,476,477,483,484,490;B H:311,409,440,456,474;BIME:300,435;BIO A:300,350,351,355,382,387,420,423,450,465,468,473,476,482,483;BIOL:380;BIOST:302,311,405,425;CHID:332,433,434;CHSTU:320,354;ENV H:305,310,311,320,405,406,417,418,431,439,440,441,442,443,444,445,446,447,448,451,452,453,460,461,462,465,472,473,485;ENTRE:445;EPI:325,360,494;G H:305,306,307,308,345,375,401,402,415,446,456,458,459,482;GEOG:331,371,373,380,381,470,480;GWSS:315,357,374,487;HSTAFM:453;HSTCMP:410;HSERV:343,344,345,346,476,479;JSIS A:431;LSJ:376;IECMH:432;NURS:407,412;NUTR:302,303,310,400,402,405,406,411,412,415,420,441,446;PHG:301,303,401;PSYCH:322,420,451;SOC:331,430"};
+const PH_SEL = "AAS:101,206,210;ACCTG:215,219,225;AES:150,151;AFRAM:101,150;AIS:102,201,202,270;CHID:222,260,280;CHSTU:101,200,254,260;COM:200,201,202,220,233,234,270,289,320;DIS ST:230;ECON:200,201,300,301;EDC&I:351,352;EDPSY:302,406;ENVIR:211;GWSS:244,255,283;HSERV:204;INFO:100,101,200;LING:234;LSJ:200;MGMT:200;MELC:201,229,232,243,244,261,271,285,315,316,335,357,358;PUBPOL:201,403;PHIL:207,242;SOC WF:200,215;ETHICS:207,495";
+const phNote = `Selectives and electives follow the lists DARS prints; your adviser can approve others, which you tag yourself. Not checked: the 2.00 major GPA, the 1.7 minimums in the core, SPH 389 and service learning, the 2.0 in SPH 493, and the 5-credit cap per breadth course.`;
+const phBase = [
+  all("core","Integrated core","SPH 380,SPH 381,SPH 480,SPH 481"),
+  all("stat","Statistics","BIOST 310|QMETH 201|STAT 220|STAT 221|CSSS 221|SOC 221|STAT 290|STAT 311|Q SCI 381"),
+  all("epi","Epidemiology: EPI 320","EPI 320"),
+  all("racism","Structural racism: SPH 389","SPH 389"),
+  all("svc","Service learning: SPH 391 and 392, or SPH 396","SPH 391,SPH 392;SPH 396"),
+  all("nsci","Natural science: one biology and one chemistry","BIOL 118|BIOL 180,CHEM 120|CHEM 142|CHEM 145;MICROM 301,MICROM 302,CHEM 120|CHEM 142|CHEM 145"),
+  all("port","Portfolio: SPH 493","SPH 493"),
+  crd("sbs","15 credits of social and behavioral sciences breadth, 3+ prefixes",15,"PH Breadth",{spread:3}),
+];
+const phGH = [ // G H 305, 401 and 402 count toward the 20 elective credits, 15 of them in G H
+  {...all("gh","G H 305, 401 and 402","G H 305,G H 401,G H 402"),rule:true},
+  rule("ghcr","15 credits of 300- and 400-level G H",15,"G H",{min:300,max:499}),
+  crd("elec","20 credits of global health electives",20,"PH Elective",{min:300}),
+];
+const phBA = sel => [...phBase, crd("sel","20 credits of BA selectives",20,"PH Selective"), ...sel];
+const phBS = label => [...phBase, all("bsseq","Biology and chemistry series","BIOL 180,BIOL 200,BIOL 220,CHEM 142,CHEM 152,CHEM 162"), crd("bsmore",label,10,"BS Selective")];
+const PH_BS = {...PH_LISTS, "BS Selective":"BIOC:405,406;CHEM:223,224,237,238,239,241,242;PHYS:114-119,121,122,123;MATH:124,125,126"};
+const PH_BS_LABEL = "10 more credits of organic chemistry, biochemistry, physics or calculus";
+const PH_ELEC = crd("elec","20 credits of public health electives",20,"PH Elective",{min:300});
+major("ph-ba", "Public Health-Global Health (BA)", "sph", PH_SRC, {lists:{...PH_LISTS,"PH Selective":PH_SEL}, note:phNote, reqs:phBA([PH_ELEC])});
+major("ph-ba-gh", "Public Health-Global Health: Global Health (BA)", "sph", PH_SRC, {lists:{...PH_LISTS,"PH Selective":PH_SEL}, note:phNote, reqs:[all("intro","Intro: G H 101","G H 101|GEOG 180|JSIS B 180"), ...phBA(phGH)]});
+major("ph-ba-ep", "Public Health-Global Health: Education & Promotion (BA)", "sph", PH_SRC, {lists:{...PH_LISTS,"PH Selective":"HSERV:100;"+PH_SEL}, note:phNote, reqs:[...phBA([]),
+  {...all("hserv","Selectives include HSERV 100 and 204","HSERV 100,HSERV 204"),rule:true},
+  {...all("ereq","Electives include HSERV 343, 344, 345 and SPH 495 internship","HSERV 343,HSERV 344,HSERV 345,SPH 495"),rule:true},
+  crd("elec","20 credits of public health electives",20,"PH Elective",{min:300,codes:["SPH 495"]})]});
+major("ph-bs", "Public Health-Global Health (BS)", "sph", PH_SRC, {lists:PH_BS, note:phNote, reqs:[...phBS(PH_BS_LABEL), PH_ELEC]});
+major("ph-bs-gh", "Public Health-Global Health: Global Health (BS)", "sph", PH_SRC, {lists:PH_BS, note:phNote, reqs:[...phBS(PH_BS_LABEL), ...phGH]});
+major("ph-bs-nutr", "Public Health-Global Health: Nutritional Sciences (BS)", "sph", PH_SRC, {
+  lists:{...PH_LISTS,"PH Elective":"NUTR:300-499;"+PH_LISTS["PH Elective"],"BS Selective":"BIOC:405,406;CHEM:223,224,237,238,239,241,242","Nutr Core":"NUTR:310,405,406,411,420,446","Nutr Elective":"NUTR:302,303,400,412,465"},
+  note:phNote+` NUTR 400 counts for at most 2 credits, which the planner doesn't check.`,
+  reqs:[...phBS("10 more credits of organic chemistry or biochemistry"),
+    all("intro","Intro: NUTR 200","NUTR 200"),
+    crd("n9","9 credits from NUTR 310, 405, 406, 411, 420 or 446",9,"Nutr Core"),
+    crd("n6","6 credits from NUTR 302, 303, 400, 412 or 465",6,"Nutr Elective"),
+    crd("n5","5 more credits of 300- or 400-level NUTR or approved electives",5,["Nutr Core","Nutr Elective","PH Elective"],{min:300})]});
+
 /* The requirement list for a set of majors. General education follows the first major's college. */
 function genReqs(m){
   const g = {...COLLEGES[m.college], ...m.gen}, r = [
     {id:"total",group:"gen",label:"Total credits",type:"total",need:g.total||180},
     {id:"res",group:"gen",label:"Credits taken at UW (residency)",type:"credits",all:true,uwOnly:true,tags:[],need:45},
     {id:"comp",group:"gen",label:"English composition (C), 2.0+",type:"credits",tags:["C"],need:5},
-    g.w && {id:"w",group:"gen",label:g.wLabel||(["as","env"].includes(m.college)?"Writing (W) or more composition":"Writing (W)"),type:"credits",tags:["W"],...(g.wCodes?{codes:g.wCodes}:{}),need:g.w},
+    g.w && {id:"w",group:"gen",label:g.wLabel||(["as","env","sph"].includes(m.college)?"Writing (W) or more composition":"Writing (W)"),type:"credits",tags:["W"],...(g.wCodes?{codes:g.wCodes}:{}),need:g.w},
     {id:"div",group:"gen",label:"Diversity (DIV)",type:"credits",tags:["DIV"],need:5},
     {id:"ah",group:"gen",label:"Arts & Humanities (A&H)",type:"credits",tags:["A&H"],need:g.ah},
     {id:"ssc",group:"gen",label:"Social Sciences (SSc)",type:"credits",tags:["SSc"],need:g.ssc},
     {id:"nsc",group:"gen",label:g.nscTags?"Natural Sciences: math and approved science":"Natural Sciences (NSc)",type:"credits",tags:g.nscTags||["NSc"],...(g.nscCodes?{codes:g.nscCodes}:{}),need:g.nsc},
     m.college==="as" && {id:"aoi",group:"gen",label:"Areas of Inquiry total, max 35 per area",type:"credits",tags:["A&H","SSc","NSc"],need:g.aoi,capPerTag:35},
     m.college==="eng" && {id:"aoi",group:"gen",label:"A&H and SSc total",type:"credits",tags:["A&H","SSc"],need:g.aoi},
-    m.college==="env" && {id:"aoi",group:"gen",label:"Areas of Inquiry total",type:"credits",tags:["A&H","SSc","NSc"],need:g.aoi},
+    ["env","sph"].includes(m.college) && {id:"aoi",group:"gen",label:"Areas of Inquiry total",type:"credits",tags:["A&H","SSc","NSc"],need:g.aoi},
     g.out && {id:"sscOut",group:"gen",label:"SSc outside the major",type:"credits",tags:["SSc"],need:g.out,outside:[m.id],notDept:[m.prefix]},
     g.out && {id:"nscOut",group:"gen",label:"NSc outside the major",type:"credits",tags:["NSc"],need:g.out,outside:[m.id],notDept:[m.prefix]},
   ];
@@ -1092,7 +1140,7 @@ function genGroups(ids){
   return ids.map(id => MAJORS[id]).filter(m => !seen.has(m.college) && seen.add(m.college)).map((m, i) => ({group: i ? "gen-"+m.college : "gen", college: m.college, major: m}));
 }
 // Majors with different degree names are a double degree. Arts & Sciences degrees are BA or BS, and other colleges name the degree after the major.
-const degreeName = m => ["as","env"].includes(m.college) ? (m.name.match(/\((BA|BS)\)$/)||[])[1] : m.id.split("-")[0];
+const degreeName = m => ["as","env","sph"].includes(m.college) ? (m.name.match(/\((BA|BS)\)$/)||[])[1] : m.id.split("-")[0];
 const isDoubleDegree = ids => new Set(ids.map(id => degreeName(MAJORS[id]))).size > 1;
 function planReqs(ids){
   const gen = genGroups(ids).flatMap(({group, major:m}, i) => genReqs(m).filter(r => !i || !["total","res"].includes(r.id)).map(r => i ? {...r, id:group+"."+r.id, group} : r));
@@ -1163,9 +1211,13 @@ function evalReq(r,courses,taken){
     const weight=c=>String(r.group||"").startsWith("gen")&&r.tags?.some(t=>AOI_TAGS.includes(t))
       ? areaCredit(c,(c.tags||[]).find(t=>r.tags.includes(t))) : (+c.credits||0);
     used.forEach(c=>st[c.status]+=weight(c));
-    let sum=0; const claims=used.filter(c=>{ if(sum>=r.need) return false; sum+=(+c.credits||0); return true; });
+    // spread: the credits must cover that many prefixes, so one course per new prefix is claimed first, and later requirements skip exactly those courses
+    if(r.spread){ const seen=new Set(), first=used.filter(c=>!seen.has(deptOf(c.code))&&seen.add(deptOf(c.code))); used.splice(0,used.length,...first,...used.filter(c=>!first.includes(c))); }
+    let sum=0; const depts=new Set(), claims=used.filter(c=>{ const d=deptOf(c.code), newDept=r.spread&&!depts.has(d)&&depts.size<r.spread;
+      if(sum>=r.need&&!newDept) return false; sum+=(+c.credits||0); depts.add(d); return true; });
     const have=st.done+st.now+st.plan, n300=used.filter(c=>level(c.code)>=300).length;
-    return {have,need:r.need,met:have>=r.need&&(!r.need300||n300>=r.need300),st,extra:r.need300?`${n300}/${r.need300} at 300-level`:"",claims};
+    return {have,need:r.need,met:have>=r.need&&(!r.need300||n300>=r.need300)&&(!r.spread||depts.size>=r.spread),st,
+      extra:r.need300?`${n300}/${r.need300} at 300-level`:r.spread?`${Math.min(depts.size,r.spread)}/${r.spread} prefixes`:"",claims};
   }
   if(r.type==="courses"){
     const opts=(r.options||[r.sets]).map(sets=>{
@@ -1221,7 +1273,18 @@ function resolveShortTitle(list, short){
   return tie ? null : best;
 }
 // Full audits retain their applied gen-ed designations. For manual/legacy rows, the catalog fills missing designations and an existing area wins.
+// DARS put this course in the any-area section: it counts fully in its catalog area, or the last area DARS listed until the code is known.
+// Runs at import and again when repairPlans resolves a title-only row, replacing the fallback area it added.
+function applyExtraArea(c, byCode){
+  if(!c.extraArea) return;
+  const AOI = ["A&H","SSc","NSc"], hit = byCode?.get(String(c.code).toUpperCase().replace(/ /g,""));
+  const area = (hit?.tags||[]).find(t => AOI.includes(t)) || c.extraArea;
+  if(c.extraAreaTag && c.extraAreaTag !== area){ c.tags = c.tags.filter(t => t !== c.extraAreaTag); delete c.extraAreaTag; }
+  if(!c.tags.includes(area)){ c.tags.push(area); c.extraAreaTag = area; }
+  if(c.darsAreaCredits) delete c.darsAreaCredits[area];
+}
 function addCatalogGen(c, byCode){
+  applyExtraArea(c, byCode);
   if(c.darsGen) return; // a full audit's applied gen-ed designations take precedence over catalog eligibility
   const hit = byCode.get(String(c.code).toUpperCase().replace(/ /g,"")); if(!hit) return;
   const AOI = ["A&H","SSc","NSc"], hasArea = c.tags.some(t => AOI.includes(t));
@@ -1464,6 +1527,7 @@ function planFromDars(parsed, startYear, id="cs", byCode){
         areaLeft[tag][status]-=applied;
       }
     }
+    if(c.extraArea){ course.extraArea=c.extraArea; applyExtraArea(course,byCode); }
     const ay = fullYear(c.yy)-(c.q===0?0:1);     // academic year that quarter belongs to
     const y = Math.min(ay-startYear,11);         // plans hold 12 years at most
     course.origin=/^(AP|IB|TR)$/.test(c.grade)||y<0?"external":"uw"; // anything before the first UW autumn (Running Start, summer transfer) is not UW credit
