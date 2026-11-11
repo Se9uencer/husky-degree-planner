@@ -341,7 +341,7 @@ const DARS_TITLE_CODES = {
   "AP STATISTICS":"STAT 290","MECHANICS|4":"PHYS 114","MECHANICS|5":"PHYS 121","HEAT FLUIDS E&M":"PHYS 115","HEAT & ELCTROMAG LAB":"PHYS 118","GEN LAB MODERN PHYS":"PHYS 119" // "|credits" tells apart courses with the same DARS title
 };
 const DARS_SECTIONS = [
-  [/^(\d+\. )?English Composition/i,["C"]],[/^Writing across the curriculum/i,["W"]],[/^Diversity Course/i,["DIV"]],
+  [/^(\d+\. )?English Composition/i,["C"]],[/^Writing across the curriculum/i,["W"]],[/^Diversity( Course\b.*)?$/i,["DIV"]],
   [/^Arts and Humanities\b/i,["A&H"]],[/^Social Sciences\b/i,["SSc"]],[/^Natural Sciences\b/i,["NSc"]], // Foster writes "Social Sciences 20 credits, including..."
   [/^\d+\. /,[]], // Foster's "2. Writing, Parts A and B"; its sub-requirements carry the tag
   [/^Computer Science Requirement: Natural Science/i,["CS Sci"]],
@@ -350,7 +350,7 @@ const DARS_SECTIONS = [
   [/Courses from the CSE Electives list/i,["CSE Elective"]],
   [/^(Reasoning|Foreign Language|AREAS OF INQUIRY|DEPARTMENTAL REQUIREMENTS|OTHER COURSES|General Electives)/i,[]],
   [/^Computer Science Requirement:/i,[]],
-  [/^(?!NOTE\b)[A-Z&]{2,}(?: [A-Z&]{2,})+/,[]] // any other all-caps header starts a new section, so the last section's tag doesn't carry over; course rows never reach this check
+  [/^(?!NOTE\b|THE (SUB-)?REQUIREMENT\b|A COURSE IS\b)[A-Z&]{2,}(?: [A-Z&]{2,})+/,[]] // status sentences ("THE SUB-REQUIREMENT HAS BEEN SATISFIED.") stay in their section; any other all-caps header starts a new section, so the last section's tag doesn't carry over; course rows never reach this check
 ];
 // DARS shows transfer credit as "TRANSFER COURSE", and the sub-requirement it fills is the only sign of which course it is.
 const DARS_SLOT_CODES = {"FIRST-QUARTER CALCULUS":"MATH 124","SECOND-QUARTER CALCULUS":"MATH 125","THIRD-QUARTER CALCULUS":"MATH 126"};
@@ -1102,9 +1102,10 @@ major("ph-bs-nutr", "Public Health-Global Health: Nutritional Sciences (BS)", "s
   note:phNote+` NUTR 400 counts for at most 2 credits, which the planner doesn't check.`,
   reqs:[...phBS("10 more credits of organic chemistry or biochemistry"),
     all("intro","Intro: NUTR 200","NUTR 200"),
-    crd("n9","9 credits from NUTR 310, 405, 406, 411, 420 or 446",9,"Nutr Core"),
-    crd("n6","6 credits from NUTR 302, 303, 400, 412 or 465",6,"Nutr Elective"),
-    crd("n5","5 more credits of 300- or 400-level NUTR or approved electives",5,["Nutr Core","Nutr Elective","PH Elective"],{min:300})]});
+    // DARS splits a course's credits across these (NUTR 406 as 2 + 1), so the minimums are rules inside one 20-credit total rather than separate buckets
+    crd("n9","9 credits from NUTR 310, 405, 406, 411, 420 or 446",9,"Nutr Core",{rule:true}),
+    crd("n6","6 credits from NUTR 302, 303, 400, 412 or 465",6,"Nutr Elective",{rule:true}),
+    crd("elec","20 credits of nutrition electives, including those",20,["Nutr Core","Nutr Elective","PH Elective"],{min:300})]});
 
 /* The requirement list for a set of majors. General education follows the first major's college. */
 function genReqs(m){

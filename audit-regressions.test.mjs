@@ -268,6 +268,7 @@ console.log('sync equality regressions: object-key order ignored; nested values 
 const parseTagOrder=new Function(block('PARSER')+';return parseDars;')();
 const orderedAudit=parseTagOrder('GENERAL EDUCATION REQUIREMENTS\nDiversity Course\nSP26\nSOC 101\n4\nAP\nSocial Sciences\nEarned: 2 credits\nSP26\nSOC 101\n4\nAP\n');
 assert.deepEqual(orderedAudit.courses[0].tags,['DIV','SSc']);
+assert.deepEqual(parseTagOrder('GENERAL EDUCATION REQUIREMENTS\nDiversity\nPL+\nTHE SUB-REQUIREMENT WOULD BE SATISFIED IF THE IN-PROGRESS AND PLANNED COURSES WERE COMPLETED.\nAU28\nSPH 389\n5\nPL\n').courses[0].tags,['DIV'],'plan audits title the section just "Diversity", and its status line is not a new section');
 const importedForEdit=c('SOC 101',4,orderedAudit.courses[0].tags,{origin:'external',darsGen:true,darsAreaCredits:{SSc:2}});
 editorPlan.quarters['0-0'].push(importedForEdit);
 for(const [id,value] of Object.entries({'e-code':'SOC 101','e-cr':'4','e-title':'Updated note','e-st':'done','e-origin':'external','e-q':'0-0'})) elements.get(id).value=value;
