@@ -50,4 +50,9 @@ assert.equal(app.evalAll(blankReqs,blankCourses).get(blankReqs.find(r=>r.id==='a
 const cr=(code,credits,origin='uw')=>({id:code+origin,code,credits,origin,status:'done',tags:[]});
 const residency=blankReqs.find(r=>r.id==='micro.res');
 assert.equal(app.evalAll(blankReqs,[cr('MICROM 410',3),cr('MICROM 450',3),cr('IMMUN 441',4),cr('MICROM 499',10),cr('MICROM 301',5),cr('MICROM 443',3,'external')]).get(residency).have,20,'only approved UW microbiology courses count');
+// Public Health audits list surplus area credit in a separate section; it adds to the area total instead of replacing it.
+const sph=app.parseDars(`Catalog Year:\nWI 27\nGENERAL EDUCATION REQUIREMENTS\nNatural Sciences\nEarned: 10 credits\n`+row('CHEM 142',5)+row('CHEM 152',5)+
+  `Additional coursework in any of the three Areas of Inquiry.\nEarned: 9 credits\n`+row('CSE 121',4)+row('MATH 125',5)+`OTHER COURSES\n`);
+const sphPlan=app.planFromDars(sph,2026,'ph-bs',byCode), sphOut=app.evalAll(sphPlan.reqs,app.coursesUpTo(sphPlan,null));
+assert.equal(sphOut.get(sphPlan.reqs.find(r=>r.id==='aoi')).have,19,'additional area credit counts toward the area total');
 console.log('Microbiology DARS: credits, residency, gen-ed allocations, major progress, reload and future planning OK');

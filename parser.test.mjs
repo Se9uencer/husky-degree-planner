@@ -279,7 +279,7 @@ const { MAJORS, COLLEGES, planReqs, canonCode, evalAll, isDoubleDegree } = new F
 // Every code a major names must exist in the catalog, so a typo can't slip in. Ranges like COM:201-299 cover numbers that don't exist, so only single numbers are checked.
 const catalog = new Set(list.map(c => c.code));
 // On a department's published list but not in the course catalog, checked by hand against the catalog pages. Kept so students who took them still get credit.
-const NOT_IN_CATALOG = new Set("CHEM 399,CHEM 410,ENGL 391,ENGL 411,ESRM 457,AMATH 424,ANTH 497,ATMOS 460,BIOEN 447,BIOL 305,BIOL 325,BIOL 333,BIOL 409,BIOL 415,BIOL 419,BIOL 422,BIOL 437,BIOL 455,BIOL 472,CEE 402,CEE 403,CEE 495,CHEM 144,COM 325,COM 332,COM 426,COM 434,COM 463,CSE 466,CSE 467,CSE 471,E E 235,E E 341,E E 401,E E 414,E E 485,ESS 211,ESS 213,ESS 403,ESS 413,ESS 415,ESS 424,ESS 437,ESS 458,ESS 464,ESS 466,ESS 471,GEOG 349,LSJ 425,M E 406,M E 442,NEAR E 285,PGH 301,PHIL 408,PHYS 315,PHYS 424,PHYS 425,PHYS 426,PHYS 460,POL S 285,POL S 473,PSYCH 494,SCAND 402,CHEM 335,FISH 404,GENOME 414,NUTR 446,FISH 330,ENVIR 330,FHL 445".split(","));
+const NOT_IN_CATALOG = new Set("CHEM 399,CHEM 410,ENGL 391,ENGL 411,ESRM 457,AMATH 424,ANTH 497,ATMOS 460,BIOEN 447,BIOL 305,BIOL 325,BIOL 333,BIOL 409,BIOL 415,BIOL 419,BIOL 422,BIOL 437,BIOL 455,BIOL 472,CEE 402,CEE 403,CEE 495,CHEM 144,COM 325,COM 332,COM 426,COM 434,COM 463,CSE 466,CSE 467,CSE 471,E E 235,E E 341,E E 401,E E 414,E E 485,ESS 211,ESS 213,ESS 403,ESS 413,ESS 415,ESS 424,ESS 437,ESS 458,ESS 464,ESS 466,ESS 471,GEOG 349,LSJ 425,M E 406,M E 442,NEAR E 285,PGH 301,PHIL 408,PHYS 315,PHYS 424,PHYS 425,PHYS 426,PHYS 460,POL S 285,POL S 473,PSYCH 494,SCAND 402,CHEM 335,FISH 404,GENOME 414,NUTR 446,FISH 330,ENVIR 330,FHL 445,ANTH 374,BIO A 468,BIOL 380,COM 201,EPI 325,EPI 494,G H 308,GEOG 371,GWSS 283,INFO 100,INFO 101,MELC 315".split(","));
 const RANGE_CODE = /^(INFO 35\d|COM 2\d\d|ACCTG [34]\d\d|MGMT 40\d|POL S 20\d)$/;
 const missing = new Map();
 const flag = (code, id) => { if (!catalog.has(code) && !NOT_IN_CATALOG.has(code)) missing.set(code, id); };
@@ -360,6 +360,13 @@ assert.equal(dept("tot").have, 5, "department total counts only that department"
 assert.equal(dept("soc").have, 2);
 const pols = results("pols-sec", [course("POL S 349", 5, "POL S 210+", "Intl Security")]);
 assert.equal(pols("up").have, 1); assert.equal(pols("elec").have, 5, "option credits may overlap the major");
+const ph = results("ph-bs-gh", [course("G H 101", 5), ...["G H 305","G H 401","G H 402"].map(c => course(c, 3, "PH Elective")), course("G H 410", 5, "PH Elective"),
+  course("PSYCH 101", 5, "PH Breadth"), course("PSYCH 202", 5, "PH Breadth"), course("SOC 300", 5, "PH Breadth", "PH Elective")]);
+assert.ok(ph("gh").met, "Global Health takes G H 305, 401 and 402");
+assert.equal(ph("elec").have, 14, "those courses still count toward electives, but breadth courses don't");
+assert.equal(ph("ghcr").have, 14); assert.equal(ph("sbs").have, 15);
+assert.equal(ph("sbs3").have, 2, "breadth needs three different prefixes");
+assert.ok(MAJORS["ph-ba"].tagsFor("CHSTU 101").includes("PH Breadth"));
 const ceReqs = planReqs(["ce"]), ceNsc = ceReqs.find(r => r.id === "nsc");
 const ceE = evalAll(ceReqs, [course("MATH 124", 5, "NSc"), course("CHEM 142", 5, "NSc", "CE Sci"), course("CSE 121", 4, "NSc"), course("PHYS 114", 4, "NSc")]);
 assert.equal(ceE.get(ceNsc).have, 10, "Computer Engineering NSc counts math and approved science, not CSE 121 or PHYS 114");
