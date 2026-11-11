@@ -1273,7 +1273,18 @@ function resolveShortTitle(list, short){
   return tie ? null : best;
 }
 // Full audits retain their applied gen-ed designations. For manual/legacy rows, the catalog fills missing designations and an existing area wins.
+// DARS put this course in the any-area section: it counts fully in its catalog area, or the last area DARS listed until the code is known.
+// Runs at import and again when repairPlans resolves a title-only row, replacing the fallback area it added.
+function applyExtraArea(c, byCode){
+  if(!c.extraArea) return;
+  const AOI = ["A&H","SSc","NSc"], hit = byCode?.get(String(c.code).toUpperCase().replace(/ /g,""));
+  const area = (hit?.tags||[]).find(t => AOI.includes(t)) || c.extraArea;
+  if(c.extraAreaTag && c.extraAreaTag !== area){ c.tags = c.tags.filter(t => t !== c.extraAreaTag); delete c.extraAreaTag; }
+  if(!c.tags.includes(area)){ c.tags.push(area); c.extraAreaTag = area; }
+  if(c.darsAreaCredits) delete c.darsAreaCredits[area];
+}
 function addCatalogGen(c, byCode){
+  applyExtraArea(c, byCode);
   if(c.darsGen) return; // a full audit's applied gen-ed designations take precedence over catalog eligibility
   const hit = byCode.get(String(c.code).toUpperCase().replace(/ /g,"")); if(!hit) return;
   const AOI = ["A&H","SSc","NSc"], hasArea = c.tags.some(t => AOI.includes(t));
@@ -1516,11 +1527,7 @@ function planFromDars(parsed, startYear, id="cs", byCode){
         areaLeft[tag][status]-=applied;
       }
     }
-    if(c.extraArea){ // from the any-area section: full credit in its own area, not the last section's
-      const area=(byCode?.get(canonCode(c.code).replace(/ /g,""))?.tags||[]).find(t=>["A&H","SSc","NSc"].includes(t))||c.extraArea;
-      if(!course.tags.includes(area)) course.tags.push(area);
-      if(course.darsAreaCredits) delete course.darsAreaCredits[area];
-    }
+    if(c.extraArea){ course.extraArea=c.extraArea; applyExtraArea(course,byCode); }
     const ay = fullYear(c.yy)-(c.q===0?0:1);     // academic year that quarter belongs to
     const y = Math.min(ay-startYear,11);         // plans hold 12 years at most
     course.origin=/^(AP|IB|TR)$/.test(c.grade)||y<0?"external":"uw"; // anything before the first UW autumn (Running Start, summer transfer) is not UW credit
