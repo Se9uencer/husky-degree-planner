@@ -104,16 +104,40 @@ h1{font-family:var(--f-display);font-weight:400;font-size:var(--fs-page);line-he
 .menu button{border:0;background:none;text-align:left;padding:var(--sp-8) var(--sp-12);border-radius:var(--r-sm);transition:background-color var(--dur)}
 .menu button:hover{background:var(--accent-soft)}
 
-.welcome{position:relative;overflow:hidden;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:clamp(var(--sp-32),6vw,64px);display:flex;flex-direction:column;gap:var(--sp-20);box-shadow:var(--shadow)}
-.welcome::after{content:"";position:absolute;right:-140px;top:-160px;width:480px;height:480px;border-radius:50%;pointer-events:none;
-  background:radial-gradient(circle at 35% 35%, color-mix(in srgb,var(--gold-line) 38%,transparent), transparent 58%), radial-gradient(circle at 65% 70%, color-mix(in srgb,#4b2e83 26%,transparent), transparent 62%);filter:blur(8px)}
-.welcome > *{position:relative;z-index:1}
-.welcome h2{font-family:var(--f-display);font-weight:400;font-size:clamp(38px,6vw,64px);line-height:1;letter-spacing:-.02em;margin:0;max-width:15ch;text-wrap:balance}
-.welcome h2 em{color:var(--accent)}
+.welcome{padding:clamp(32px,5vw,64px) clamp(8px,2.5vw,32px) var(--sp-24);display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:40px 56px;align-items:center}
+.welcome-copy{display:flex;flex-direction:column;gap:var(--sp-24);min-width:0}
+.welcome .eyebrow{font-size:var(--fs-xs);letter-spacing:.16em;text-transform:uppercase;font-weight:600;color:var(--accent)}
+.welcome h2{font-family:var(--f-display);font-weight:400;font-size:clamp(64px,7.5vw,104px);line-height:.94;letter-spacing:-.025em;margin:0;text-wrap:balance}
+.welcome h2 span{display:block;color:var(--accent)}
 .welcome p{margin:0;max-width:58ch;color:var(--muted);font-size:var(--fs-lg);text-wrap:pretty}
-.welcome .acts{display:flex;flex-wrap:wrap;gap:var(--sp-12);margin-top:var(--sp-4)}
-.welcome .acts .btn{min-height:var(--h-lg);padding:0 var(--sp-20);font-size:var(--fs-base);border-radius:var(--r-md)}
-.welcome .note{font-size:var(--fs-md)}
+.welcome .subtitle{font-family:var(--f-display);font-size:clamp(28px,2.8vw,36px);line-height:1.15;letter-spacing:-.01em;color:var(--ink);max-width:28ch}
+.welcome .acts{display:flex;flex-wrap:wrap;gap:var(--sp-8)}
+.welcome .acts .btn{min-height:var(--h-lg);padding:0 var(--sp-16);font-size:var(--fs-base);border-radius:var(--r-md)}
+.welcome .note{font-size:var(--fs-sm)}
+.welcome-help{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-24);border-top:1px solid var(--line);padding-top:var(--sp-24)}
+.plan-preview{margin:0;min-width:0;position:relative;padding:32px 20px;background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:28px}
+.preview-sheet{background:var(--raised);border:1px solid var(--line-strong);border-radius:var(--r-md);box-shadow:0 18px 40px -24px rgb(30 10 60 / .35);overflow:hidden;transform:rotate(-2deg)}
+.preview-top{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-12);padding:var(--sp-20);border-bottom:1px solid var(--line)}
+.preview-top strong{display:block;font-family:var(--f-display);font-weight:400;font-size:28px;line-height:1.1}
+.preview-top small{display:block;color:var(--muted);font-size:var(--fs-xs);margin-top:var(--sp-4)}
+.preview-icon{width:36px;height:36px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);border-radius:50%;font-size:20px}
+.preview-grid{padding:var(--sp-20);display:grid;grid-template-columns:38px repeat(3,minmax(0,1fr));gap:var(--sp-12) var(--sp-8);align-items:center;font-size:var(--fs-xs)}
+.preview-season{color:var(--muted);text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:.06em}
+.preview-year{color:var(--muted);line-height:1.3}
+.preview-quarter{display:flex;flex-direction:column;gap:5px;padding:var(--sp-8);border:1px solid var(--line);border-radius:var(--r-xs);min-height:68px;background:var(--surface)}
+.preview-quarter b{font-size:10px;font-weight:500;color:var(--accent);white-space:nowrap}
+.preview-quarter i{display:block;height:5px;border-radius:2px;background:var(--line);width:80%}
+.preview-quarter i:last-child{width:55%}
+.preview-quarter.done{background:var(--ok-soft);border-color:color-mix(in srgb,var(--ok) 25%,var(--line))}
+.preview-quarter.done b{color:var(--ok)}
+.preview-quarter.done i{background:color-mix(in srgb,var(--ok) 22%,transparent)}
+.preview-quarter.finish{background:var(--gold-soft);border-color:var(--gold-line)}
+.preview-quarter.finish b{color:var(--gold)}
+.preview-bottom{padding:var(--sp-16) var(--sp-20);border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:var(--sp-8);align-items:center;background:var(--gold-soft);font-size:var(--fs-sm);color:var(--gold)}
+.preview-bottom strong{font-family:var(--f-display);font-size:24px;font-weight:400}
+.plan-preview figcaption{text-align:center;font-size:var(--fs-xs);color:var(--muted);margin-top:var(--sp-20)}
+@media(max-width:1000px){.welcome{gap:32px;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.plan-preview{padding:24px 12px}.preview-grid{padding:12px;gap:10px 6px}.preview-quarter{padding:6px}.preview-quarter b{font-size:9px}}
+@media(max-width:760px){.welcome{grid-template-columns:minmax(0,1fr)}.welcome h2{font-size:clamp(64px,12vw,88px)}.plan-preview{max-width:520px;width:100%;justify-self:center;padding:28px 20px}.preview-quarter b{font-size:10px}.welcome-help{grid-template-columns:minmax(0,1fr);gap:var(--sp-12)}}
 
 .proj{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:clamp(var(--sp-20),3vw,var(--sp-32));display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,2fr);gap:clamp(var(--sp-20),3vw,var(--sp-32));box-shadow:var(--shadow)}
 .proj > div:first-child{padding-right:clamp(0px,2vw,var(--sp-32));border-right:1px solid var(--line)}
@@ -303,16 +327,48 @@ footer{font-size:var(--fs-sm);color:var(--muted);max-width:80ch;padding-top:var(
   <div id="confirm"></div>
   <div id="toast"></div>
   <section class="welcome" id="welcome" hidden>
-    <h2>Plan your UW degree, <em>quarter by quarter.</em></h2>
-    <p>Start from your DARS audit so your AP, transfer and current courses are already in place. Then add the courses you plan to take, and the planner shows the first quarter where you meet every requirement.</p>
+    <div class="welcome-copy">
+    <p class="eyebrow">Built for University of Washington</p>
+    <h2>Your degree,<span>made simple.</span></h2>
+    <p class="subtitle">A better plan for your next four years.</p>
+    <p>Bring in your DARS audit, map out your quarters, and see how your courses add up to graduation.</p>
     <div><label class="lbl" for="wmajor">Your major</label><select id="wmajor" class="majorsel"></select></div>
     <div class="acts">
       <button class="btn primary" data-start="dars">Import from DARS</button>
       <button class="btn" data-start="example">Open an example</button>
       <button class="btn" id="tutorialbtn">See how it works</button>
     </div>
+    </div>
+    <figure class="plan-preview" aria-label="Illustrative four-year plan with completed and future quarters">
+      <div class="preview-sheet">
+        <div class="preview-top"><div><strong>The next four years</strong><small>One quarter at a time.</small></div><span class="preview-icon" aria-hidden="true">↗</span></div>
+        <div class="preview-grid" aria-hidden="true">
+          <span></span><span class="preview-season">Autumn</span><span class="preview-season">Winter</span><span class="preview-season">Spring</span>
+          <span class="preview-year">Year<br>01</span>
+          <div class="preview-quarter done"><b>CSE 121</b><i></i><i></i></div>
+          <div class="preview-quarter done"><b>CSE 122</b><i></i><i></i></div>
+          <div class="preview-quarter done"><b>CSE 123</b><i></i><i></i></div>
+          <span class="preview-year">Year<br>02</span>
+          <div class="preview-quarter"><b>Electives</b><i></i><i></i></div>
+          <div class="preview-quarter"><b>Major courses</b><i></i><i></i></div>
+          <div class="preview-quarter"><b>Gen eds</b><i></i><i></i></div>
+          <span class="preview-year">Year<br>03</span>
+          <div class="preview-quarter"><b>Major courses</b><i></i><i></i></div>
+          <div class="preview-quarter"><b>Gen eds</b><i></i><i></i></div>
+          <div class="preview-quarter"><b>Electives</b><i></i><i></i></div>
+          <span class="preview-year">Year<br>04</span>
+          <div class="preview-quarter"><b>Gen eds</b><i></i><i></i></div>
+          <div class="preview-quarter"><b>Electives</b><i></i><i></i></div>
+          <div class="preview-quarter finish"><b>Finish line</b><i></i><i></i></div>
+        </div>
+        <div class="preview-bottom"><span>A path to graduation</span><strong>Spring, year four ↗</strong></div>
+      </div>
+      <figcaption>An example of what you can map out. Your path is your own.</figcaption>
+    </figure>
+    <div class="welcome-help">
     <p class="note">Where's DARS? In <a href="https://myplan.uw.edu/audit/" target="_blank" rel="noopener">MyPlan</a>, click <b>Degree Audit (DARS)</b>, run or refresh your audit, then copy the whole audit page.</p>
     <p class="note">Sign in to save — nothing is kept if you close the tab or refresh without an account. Use Export to back up your plans or move them to another device.</p>
+    </div>
   </section>
   <div id="planner">
     <section class="proj" id="proj"></section>
@@ -2038,6 +2094,14 @@ function openTutorial(id="cs"){
     document.getElementById("t-import").onclick=()=>{ close(); openDars(id); };
   });
 }
+// The optional browser extension (extension/) posts the audit text it read from MyPlan; same path as pasting it.
+window.addEventListener("message",e=>{
+  const d=e.data;
+  if(e.source!==window||e.origin!==location.origin||!d||d.type!=="husky-dars-audit"||typeof d.text!=="string") return;
+  openDars();
+  const ta=document.getElementById("d-text");
+  if(ta){ ta.value=d.text; ta.dispatchEvent(new Event("input")); track("dars_from_extension"); }
+});
 function openDars(id="cs"){
   dialog(`<h3 id="dlgt">Import from DARS</h3>
     <div><label class="lbl" for="d-major">Your major</label><select id="d-major" class="w-full">${majorOptions(id)}</select></div>
