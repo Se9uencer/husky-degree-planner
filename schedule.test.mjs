@@ -53,10 +53,10 @@ const data = {
 };
 let r = bestSchedules(["MATH 125", "CSE 121"], data, prefs);
 assert.deepEqual(slns(r), [[2], [20, 22]], "late math forces the B lecture, which pairs only with its own open quiz");
-assert.deepEqual(r.best[0].picks[1].alts, [], "a quiz from another lecture is never offered");
+assert.deepEqual(r.best[0].picks[1].alts, [[], []], "a quiz from another lecture is never offered");
 r = bestSchedules(["CSE 121"], data, prefs);
 assert.deepEqual(slns(r), [[10, 11]], "same-time quizzes collapse into one option");
-assert.deepEqual(r.best[0].picks[0].alts.map(s => s[0]), [12], "the twin quiz is kept as a backup");
+assert.deepEqual(r.best[0].picks[0].alts[1].map(s => s[0]), [12], "the twin quiz is kept as a backup");
 r = bestSchedules(["MATH 125"], data, { ...prefs, start: 0 });
 assert.equal(r.best.length, 2, "both math lectures rank when nothing is early");
 r = bestSchedules(["MATH 125", "CSE 121", "PHYS 999"], { "MATH 125": data["MATH 125"], "CSE 121": ["X", [S(30, "A", [["MWF", 630, 680]])]] }, prefs);
@@ -66,5 +66,22 @@ r = bestSchedules(["A 1", "B 1"], { "A 1": ["", [S(40, "A", [["TTh", 600, 680]])
 assert.deepEqual(r.best, [], "an unavoidable conflict returns no schedule");
 r = bestSchedules(["A 1"], { "A 1": ["", [S(50, "A", [["MWF", 600, 650]], "Closed"), S(51, "B", [["MWF", 600, 650]], "", ">")]] }, { ...prefs, open: false });
 assert.deepEqual(slns(r), [[50]], "with open-only off, a closed section beats an add-code one");
+
+// Review fixes: the type column, not the ID, tells primaries from components; every component type is required.
+const T = (sln, id, type, meetings, status = "Open") => [sln, id, type, meetings, status, 0, 30, "", "", ""];
+const phys = ["", [T(60, "A", "5", [["MWF", 630, 680]]), T(61, "AA", "QZ", [["T", 570, 620]]), T(62, "AB", "QZ", [["Th", 570, 620]]),
+                   T(63, "AM", "LB", [["T", 600, 710]]), T(64, "AN", "LB", [["W", 750, 860]])]];
+r = bestSchedules(["PHYS 1"], { "PHYS 1": phys }, { ...prefs, start: 0 }, 10);
+assert.ok(r.best.every(b => b.picks[0].parts.map(s => s[2]).join() === "5,QZ,LB"), "lecture + tutorial + lab, never one secondary alone");
+assert.equal(r.best.length, 3, "AA clashes with the Tuesday lab AM, so that pair is dropped");
+r = bestSchedules(["ENGL 1"], { "ENGL 1": ["", [T(70, "A", "5", [["MWF", 630, 680]]), T(71, "A1", "5", [["MWF", 750, 800]])]] }, prefs, 10);
+assert.deepEqual(r.best.map(b => b.picks[0].parts.map(s => s[0])), [[70], [71]], "A1 with credits is its own section, not part of A");
+r = bestSchedules(["BIOL 1"], { "BIOL 1": ["", [T(80, "A", "5", [["MWF", 630, 680]]), T(81, "A1", "LB", [["T", 750, 860]])]] }, prefs);
+assert.deepEqual(slns(r), [[80, 81]], "A1 typed LB is A's lab");
+r = bestSchedules(["X 1"], { "X 1": ["", [T(90, "A", "5", [["MWF", 630, 680]], "Closed")]] }, prefs);
+assert.deepEqual([r.full, r.best], [["X 1"], []], "open-only drops closed sections and says which course has none left");
+r = bestSchedules(["X 1"], { "X 1": ["", [T(91, "A", "5", [["MWF", 630, 680]]), T(92, "AA", "QZ", [["T", 630, 680]], "Closed"), T(93, "AB", "QZ", [["T", 480, 530]])]] }, prefs);
+assert.deepEqual(slns(r), [[91, 93]], "an open 8:00 quiz beats a closed 10:30 one when open-only is on");
+assert.deepEqual(bestSchedules(["X 1"], { "X 1": ["", [T(90, "A", "5", [["MWF", 630, 680]], "Closed")]] }, { ...prefs, open: false }).best.length, 1, "open-only off keeps closed sections");
 
 console.log("section optimizer: all checks passed");

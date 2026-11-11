@@ -1991,24 +1991,34 @@ function openFind(key,preset){
 // Section optimizer: picks conflict-free sections for one quarter from schedule/<QTR>.json (built by scripts/build-schedule.mjs).
 // section = [sln, id, type, meetings, status, enrolled, limit, restr, other, notes]; meeting = [days, startMin, endMin]
 const blocksOf = s => s[3].flatMap(([days,st,en]) => (days.match(/Th|Su|M|T|W|F|S/g)||[]).map(d => [d,st,en]));
-// A lecture "A" goes with one of its own secondary sections "AA", "AB"... Secondaries that meet at the same time with the same
-// status and restrictions are interchangeable, so one stands in and the others are kept as backups.
-function sectionOptions(sections){
-  const lead = sections.filter(s => s[1].length === 1);
-  if (!lead.length) return sections.map(s => ({parts:[s], alts:[]}));
-  return lead.flatMap(l => {
-    const sec = sections.filter(s => s[1].length > 1 && s[1][0] === l[1]);
-    if (!sec.length) return [{parts:[l], alts:[]}];
-    const by = new Map();
-    for (const s of sec) { const k = JSON.stringify([s[3], s[4], s[7]]); if (by.has(k)) by.get(k).alts.push(s); else by.set(k, {parts:[l, s], alts:[]}); }
-    return [...by.values()];
+// A primary section (its type column shows credits) comes with one section of each component type listed under it:
+// PHYS 121 A needs one QZ tutorial and one LB lab. Same-time components with the same status and restrictions are
+// interchangeable, so one stands in and the rest are kept as backups (alts[j] backs up parts[j]).
+const COMPONENT = /^[A-Z]{2}$/; // QZ quiz, LB lab, SM seminar, ST studio; primaries show credits ("5", "1-5", "VAR")
+const clash = (a, b) => a.some(([d,s,e]) => b.some(([d2,s2,e2]) => d === d2 && s < e2 && s2 < e));
+function sectionOptions(sections, open){
+  const groups = [];
+  for (const s of sections) {
+    if (!COMPONENT.test(s[2]) || !groups.length) { groups.push({lead:s, types:new Map()}); continue; }
+    const t = groups.at(-1).types; if (!t.has(s[2])) t.set(s[2], []); t.get(s[2]).push(s);
+  }
+  const ok = s => !open || s[4] !== "Closed";
+  return groups.filter(g => ok(g.lead)).flatMap(({lead, types}) => {
+    let opts = [{parts:[lead], alts:[[]], blocks:blocksOf(lead)}];
+    for (const list of types.values()) {
+      const choices = new Map();
+      for (const s of list.filter(ok)) { const k = JSON.stringify([s[3], s[4], s[7]]); if (choices.has(k)) choices.get(k).alts.push(s); else choices.set(k, {s, alts:[], blocks:blocksOf(s)}); }
+      opts = opts.flatMap(o => [...choices.values()].filter(c => !clash(o.blocks, c.blocks))
+        .map(c => ({parts:[...o.parts, c.s], alts:[...o.alts, c.alts], blocks:[...o.blocks, ...c.blocks]})));
+    }
+    return opts;
   });
 }
 // Lower cost is better. ponytail: hand-picked weights; make them sliders if people disagree with the ranking.
 function optionCost(o, prefs){
   let c = 0;
   for (const s of o.parts) {
-    if (prefs.open && s[4] === "Closed") c += 1000;
+    if (s[4] === "Closed") c += 500; // only reachable with open-only off; you'd need a seat to open up
     if (prefs.noAddCode && s[7].includes(">")) c += 1000;
     if (s[7].includes("Restr")) c += 200; // often limited to a major or program the student may not be in
   }
@@ -2027,8 +2037,10 @@ function layoutCost(blocks){
 }
 function bestSchedules(codes, courses, prefs, limit = 3){
   const missing = codes.filter(c => !courses[c]);
-  const items = codes.filter(c => courses[c]).map(code => ({code, opts: sectionOptions(courses[code][1])
-    .map(o => { o.blocks = o.parts.flatMap(blocksOf); o.cost = optionCost(o, prefs); return o; }).sort((a,b) => a.cost-b.cost)}));
+  const items = codes.filter(c => courses[c]).map(code => ({code, opts: sectionOptions(courses[code][1], prefs.open)
+    .map(o => { o.cost = optionCost(o, prefs); return o; }).sort((a,b) => a.cost-b.cost)}));
+  const full = items.filter(it => !it.opts.length).map(it => it.code); // nothing left once closed sections are dropped
+  if (full.length) return {missing, full, best: []};
   items.sort((a,b) => a.opts.length - b.opts.length);
   const best = [], pick = [], taken = [];
   let steps = 0;
@@ -2043,12 +2055,12 @@ function bestSchedules(codes, courses, prefs, limit = 3){
     }
     for (const o of items[i].opts) {
       if (++steps > 300000) return; // ponytail: cap for very large loads; results stay conflict-free but may not be the very best
-      if (o.blocks.some(([d,s,e]) => taken.some(([d2,s2,e2]) => d === d2 && s < e2 && s2 < e))) continue;
+      if (clash(o.blocks, taken)) continue;
       pick.push(o); taken.push(...o.blocks); go(i+1, cost + o.cost); taken.length -= o.blocks.length; pick.pop();
     }
   };
   go(0, 0);
-  return {missing, best};
+  return {missing, full, best};
 }
 /*SCHED-END*/
 const qCode = (p,key) => { const [y,q] = key.split("-").map(Number); return ["AUT","WIN","SPR","SUM"][q] + (p.startYear + y + (q===0?0:1)); };
@@ -2087,12 +2099,13 @@ function openSections(key){
     let data = null;
     const draw = () => {
       if (!data) return;
-      const {missing, best} = bestSchedules(codes, data.courses, prefs);
+      const {missing, full, best} = bestSchedules(codes, data.courses, prefs);
       const offered = codes.filter(c => !missing.includes(c));
       // On a clash, name the courses whose removal lets the rest fit.
-      const fixers = !best.length && offered.length > 1 ? offered.filter(c => bestSchedules(offered.filter(x => x !== c), data.courses, prefs, 1).best.length) : [];
+      const fixers = !best.length && !full.length && offered.length > 1 ? offered.filter(c => bestSchedules(offered.filter(x => x !== c), data.courses, prefs, 1).best.length) : [];
       status.innerHTML = (missing.length ? `Not offered in ${esc(qLabel(p,key))}: ${missing.map(esc).join(", ")}. ` : "")
         + (!offered.length ? "None of this quarter's courses are on the time schedule."
+          : full.length ? `No open sections left in ${full.map(esc).join(", ")}. Turn off Open sections only to see closed ones too.`
           : !best.length ? (fixers.length ? `These courses can't all fit without a time conflict. Moving ${fixers.map(esc).join(" or ")} to another quarter would fix it.` : "These courses can't all fit without a time conflict. Move a course to another quarter and try again.")
           : `Seats as of ${esc(data.built)}. They change fast, so check MyPlan before you register. Instructors and rooms aren't public.`);
       res.innerHTML = best.map((b,i) => {
@@ -2105,7 +2118,7 @@ function openSections(key){
             ${o.parts.map((s,j) => `<div class="secline"><span class="mono">${esc(s[1])} · ${s[0]}</span> <span>${esc(meetText(s))}</span>
               <span class="muted">${s[5]}/${s[6]}</span>${secFlags(s,prefs).map(([c,t]) => `<span class="tag ${c}">${esc(t)}</span>`).join("")}
               ${s[9] ? `<div class="secnote" title="${esc(s[9])}">${esc(s[9].length > 140 ? s[9].slice(0,140) + "…" : s[9])}</div>` : ""}
-              ${j && o.alts.length ? `<div class="secnote">Same time: ${o.alts.map(a => esc(a[1]) + " · " + a[0]).join(", ")}</div>` : ""}</div>`).join("")}</div>`).join("")}
+              ${o.alts[j].length ? `<div class="secnote">Same time: ${o.alts[j].map(a => esc(a[1]) + " · " + a[0]).join(", ")}</div>` : ""}</div>`).join("")}</div>`).join("")}
         </section>`;
       }).join("");
       res.querySelectorAll("[data-copy]").forEach(b => b.onclick = () => navigator.clipboard.writeText(b.dataset.copy).then(() => toast("SLNs copied. Paste them into MyPlan registration."), () => toast("Couldn't copy. Select the numbers by hand.")));
