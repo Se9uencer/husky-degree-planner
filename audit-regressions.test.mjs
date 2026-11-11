@@ -290,3 +290,33 @@ buttons.find(b=>b.dataset.t==='NSc').onclick();
 elements.get('e-save').onclick();
 assert.ok(!importedForEdit.darsGen&&!importedForEdit.darsAreaCredits,'a real area change still clears the old allocation');
 console.log('DARS editor regressions: title-only saves preserve allocations regardless of tag order');
+
+// A gen-ed fragment may be followed by the full course in a major section.
+const splitScience=parseTagOrder('GENERAL EDUCATION REQUIREMENTS\nNatural Sciences\nEarned: 3 credits\nSP26\nPHYS 116\nWAVE OPTICS ATOMS\n3\nAP\n>S\nDEPARTMENTAL REQUIREMENTS\nComputer Science Requirement: Natural Science\nSP26\nPHYS 116\nWAVE OPTICS ATOMS\n4\nAP\n');
+assert.equal(splitScience.courses.length,1,'the fragment does not duplicate full course credit');
+assert.ok(splitScience.courses[0].tags.includes('NSc'),'dropping a fragment preserves its gen-ed designation on the full course');
+
+// Three low-credit electives are not the nine elective credits required by Statistics.
+for(const id of ['stat-app','stat-math','stat-ds']){
+  const elective=cr=>audit([id],[c('CSE 373',4,['Stat Computing']),c('STAT 498',cr,['Stat Elective']),c('STAT 425',3,['Stat Elective']),c('MATH 318',4,['Stat Elective'])])(id+'.elec');
+  assert.equal(elective(1).met,false,id+': three electives totaling eight credits are one credit short');
+  assert.equal(elective(2).met,true,id+': three electives totaling nine credits are enough');
+}
+assert.equal(audit(['stat-app'],[c('ECON 300',5,['Stat Interdisc']),c('ECON 301',5,['Stat Interdisc'])])('stat-app.inter').met,false,'Applied Statistics needs three approved application courses as well as nine credits');
+const lowCreditChoices=[c('STAT 498',1,['Test elective']),c('STAT 425',3,['Test elective']),c('MATH 318',4,['Test elective']),c('MATH 407',4,['Test elective'])];
+const mixedMinimums=[{id:'first',group:'test',type:'count',tags:['Test elective'],need:3,minCredits:9},{id:'rest',group:'test',type:'credits',tags:['Test elective'],need:1,additional:true}];
+const minimumResults=evalAll(mixedMinimums,lowCreditChoices);
+assert.equal(minimumResults.get(mixedMinimums[1]).have,0,'a course needed to reach the credit minimum cannot be reused by the next requirement');
+
+const acmsDarsMajors=new Function(block('CSETAGS')+block('MAJORS')+';return MAJORS')();
+const acmsDsElectives=[c('STAT 290',5),...['STAT 311','CSE 373'].map(code=>c(code,code==='STAT 311'?5:4,acmsDarsMajors['acms-ds'].tagsFor(code)))];
+assert.equal(audit(['acms-ds'],acmsDsElectives)('acms-ds.elec').met,true,'ACMS Data Science: STAT 311 earns elective credit when STAT 290 fills introductory statistics');
+assert.ok(!acmsDarsMajors['acms-me'].tagsFor('AMATH 481').includes('ACMS Elective'),'Mathematical Economics does not accept every upper-level AMATH course');
+assert.ok(acmsDarsMajors['acms-sc'].tagsFor('CHEM 152').includes('ACMS Elective'),'Scientific Computing accepts unused CHEM 152 as an elective');
+assert.ok(!acmsDarsMajors['acms-dm'].tagsFor('AMATH 481').includes('ACMS Elective'),'Discrete Math electives follow its own approved list');
+
+const acmsGrouped=codes=>audit(['acms-ds'],codes.map(code=>c(code,4,acmsDarsMajors['acms-ds'].tagsFor(code))));
+assert.equal(acmsGrouped(['AMATH 481','AMATH 482'])('acms-ds.comp').met,false,'AMATH 481 and 482 are alternatives in one scientific-computing group');
+assert.equal(acmsGrouped(['AMATH 481','MATH 464'])('acms-ds.comp').met,true,'courses from two scientific-computing groups count');
+assert.equal(acmsGrouped(['STAT 403','STAT 425'])('acms-ds.stat2').met,false,'resampling and nonparametric statistics occupy one statistics group');
+assert.equal(acmsGrouped(['STAT 403','CSE 412'])('acms-ds.stat2').met,true,'statistics plus visualization occupies two groups');
