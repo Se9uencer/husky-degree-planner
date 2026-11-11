@@ -53,6 +53,8 @@ To check the DARS parser, major data and audit logic after changing them, run `n
 
 **Find courses** searches `catalog.json`, built from the public [UW course catalog](https://www.washington.edu/students/crscat/) (code, title, credits and gen-ed areas only). Refresh it once a year with `node scripts/build-catalog.mjs`.
 
+`schedule/<QUARTER>.json` holds every section from the public [UW Time Schedule](https://www.washington.edu/students/timeschd/pub/): SLN, days and times, open or closed, enrollment, restriction flags, modality codes and section notes. The public pages leave out building and instructor. Build a quarter with `node scripts/build-schedule.mjs WIN2027`, and check the parser and optimizer with `node schedule.test.mjs`. Any quarter listed in `schedule/index.json` gets a **Pick sections** button, which ranks conflict-free section combinations by start time, open seats, add codes, gaps and days on campus.
+
 ## Updating requirements
 
 Majors live between the `MAJORS-START` and `MAJORS-END` markers in `index.html`. Each `major(...)` entry lists its college, its catalog page, its course lists, and its requirements, and the comment at the top of the block explains the format. To add a major, add an entry and run the tests, which check every course code against `catalog.json`. A department's list can name a course that isn't in the catalog, so those go in `NOT_IN_CATALOG` in the test file after you've checked them by hand.
