@@ -376,7 +376,7 @@ function parseDars(text){
       const earned=l.match(/Earned:\s*([\d.]+) credits/i), progress=l.match(/In-progress:\s*([\d.]+) credits/i);
       if(earned||progress){
         const totals=out.areaCredits[tags[0]]||(out.areaCredits[tags[0]]={done:0,now:0});
-        if(earned) totals.done=(extraArea?totals.done:0)+ +earned[1]; if(progress) totals.now=(extraArea?totals.now:0)+ +progress[1];
+        if(earned) totals.done=+earned[1]; if(progress) totals.now=+progress[1];
       }
     }
     if(/^Catalog Year:?$/i.test(l) && lines[i+1]) { const m=lines[i+1].match(/(AU|WI|SP|SU)\s?(\d{2})/); if(m) out.catalogYear=m[1]+" "+m[2]; }
@@ -384,8 +384,8 @@ function parseDars(text){
     if(/minimum of 180 academic credits/i.test(l)) seenTotal = true;
     const em = l.match(/^Earned:\s*([\d.]+) credits/i);
     if(em && seenTotal && out.earned===null) out.earned = parseFloat(em[1]);
-    // Public Health audits put surplus area credit in its own section after Natural Sciences. Its courses keep the last area, and its credits add to that area's totals.
-    if(/^Additional coursework in any of the three Areas of Inquiry/i.test(l)){ extraArea = true; continue; }
+    // Public Health audits put surplus area credit in its own section after Natural Sciences. planFromDars gives each of its courses its catalog area, or this last area when the catalog has none.
+    if(/^Additional coursework in any of the three Areas of Inquiry/i.test(l)){ extraArea = ["A&H","SSc","NSc"].includes(tags[0]) ? tags[0] : "NSc"; tags = []; subTags = []; slot = null; continue; }
     const sec = DARS_SECTIONS.find(([re])=>re.test(l));
     if(sec){ tags = sec[1]; subTags = []; slot = null; extraArea = false; continue; }
     if(/^Calculus: MATH 124-126/i.test(l)){ slot = "sequence"; continue; } // the CS audit doesn't number this one
@@ -414,6 +414,7 @@ function parseDars(text){
     if(!c){ c={qtr, q:["AU","WI","SP","SU"].indexOf(qm[1]), yy:+qm[2], code, title, credits, grade, tags:[]}; byKey.set(key,c); out.courses.push(c); }
     if(/^>S$/i.test(lines[j+2]||"")) c.split=true; // DARS marks a part of a course's credits applied to another requirement with ">S"
     [...tags,...subTags].forEach(t=>{ if(!c.tags.includes(t)) c.tags.push(t); });
+    if(extraArea) c.extraArea = extraArea;
     if(slot && c.code==="TRANSFER COURSE"){
       // ponytail: when ECE lists the whole sequence together, assume the transfer fills the gap in it. A student with two transfers in one sequence still lands in order.
       const code = slot==="sequence" ? CALC_SEQUENCE.find(m=>!out.courses.some(x=>x.code===m)) : slot;
@@ -1076,8 +1077,7 @@ const phBase = [
   all("svc","Service learning: SPH 391 and 392, or SPH 396","SPH 391,SPH 392;SPH 396"),
   all("nsci","Natural science: one biology and one chemistry","BIOL 118|BIOL 180,CHEM 120|CHEM 142|CHEM 145;MICROM 301,MICROM 302,CHEM 120|CHEM 142|CHEM 145"),
   all("port","Portfolio: SPH 493","SPH 493"),
-  crd("sbs","15 credits of social and behavioral sciences breadth",15,"PH Breadth"),
-  {k:"sbs3",label:"Breadth from 3 different prefixes",type:"count",tags:["PH Breadth"],need:3,rule:true,distinct:{}},
+  crd("sbs","15 credits of social and behavioral sciences breadth, 3+ prefixes",15,"PH Breadth",{spread:3}),
 ];
 const phGH = [ // G H 305, 401 and 402 count toward the 20 elective credits, 15 of them in G H
   {...all("gh","G H 305, 401 and 402","G H 305,G H 401,G H 402"),rule:true},
@@ -1086,14 +1086,15 @@ const phGH = [ // G H 305, 401 and 402 count toward the 20 elective credits, 15 
 ];
 const phBA = sel => [...phBase, crd("sel","20 credits of BA selectives",20,"PH Selective"), ...sel];
 const phBS = label => [...phBase, all("bsseq","Biology and chemistry series","BIOL 180,BIOL 200,BIOL 220,CHEM 142,CHEM 152,CHEM 162"), crd("bsmore",label,10,"BS Selective")];
-const PH_BS = {...PH_LISTS, "BS Selective":"BIOC:405,406;CHEM:237,238,239,241,242;PHYS:114-119,121,122,123;MATH:124,125,126"};
+const PH_BS = {...PH_LISTS, "BS Selective":"BIOC:405,406;CHEM:223,224,237,238,239,241,242;PHYS:114-119,121,122,123;MATH:124,125,126"};
 const PH_BS_LABEL = "10 more credits of organic chemistry, biochemistry, physics or calculus";
 const PH_ELEC = crd("elec","20 credits of public health electives",20,"PH Elective",{min:300});
 major("ph-ba", "Public Health-Global Health (BA)", "sph", PH_SRC, {lists:{...PH_LISTS,"PH Selective":PH_SEL}, note:phNote, reqs:phBA([PH_ELEC])});
 major("ph-ba-gh", "Public Health-Global Health: Global Health (BA)", "sph", PH_SRC, {lists:{...PH_LISTS,"PH Selective":PH_SEL}, note:phNote, reqs:[all("intro","Intro: G H 101","G H 101|GEOG 180|JSIS B 180"), ...phBA(phGH)]});
 major("ph-ba-ep", "Public Health-Global Health: Education & Promotion (BA)", "sph", PH_SRC, {lists:{...PH_LISTS,"PH Selective":"HSERV:100;"+PH_SEL}, note:phNote, reqs:[...phBA([]),
   {...all("hserv","Selectives include HSERV 100 and 204","HSERV 100,HSERV 204"),rule:true},
-  all("elec","Electives: HSERV 343, 344, 345 and SPH 495 internship","HSERV 343,HSERV 344,HSERV 345,SPH 495")]});
+  {...all("ereq","Electives include HSERV 343, 344, 345 and SPH 495 internship","HSERV 343,HSERV 344,HSERV 345,SPH 495"),rule:true},
+  crd("elec","20 credits of public health electives",20,"PH Elective",{min:300,codes:["SPH 495"]})]});
 major("ph-bs", "Public Health-Global Health (BS)", "sph", PH_SRC, {lists:PH_BS, note:phNote, reqs:[...phBS(PH_BS_LABEL), PH_ELEC]});
 major("ph-bs-gh", "Public Health-Global Health: Global Health (BS)", "sph", PH_SRC, {lists:PH_BS, note:phNote, reqs:[...phBS(PH_BS_LABEL), ...phGH]});
 major("ph-bs-nutr", "Public Health-Global Health: Nutritional Sciences (BS)", "sph", PH_SRC, {
@@ -1210,9 +1211,13 @@ function evalReq(r,courses,taken){
     const weight=c=>String(r.group||"").startsWith("gen")&&r.tags?.some(t=>AOI_TAGS.includes(t))
       ? areaCredit(c,(c.tags||[]).find(t=>r.tags.includes(t))) : (+c.credits||0);
     used.forEach(c=>st[c.status]+=weight(c));
-    let sum=0; const claims=used.filter(c=>{ if(sum>=r.need) return false; sum+=(+c.credits||0); return true; });
+    // spread: the credits must cover that many prefixes, so one course per new prefix is claimed first, and later requirements skip exactly those courses
+    if(r.spread){ const seen=new Set(), first=used.filter(c=>!seen.has(deptOf(c.code))&&seen.add(deptOf(c.code))); used.splice(0,used.length,...first,...used.filter(c=>!first.includes(c))); }
+    let sum=0; const depts=new Set(), claims=used.filter(c=>{ const d=deptOf(c.code), newDept=r.spread&&!depts.has(d)&&depts.size<r.spread;
+      if(sum>=r.need&&!newDept) return false; sum+=(+c.credits||0); depts.add(d); return true; });
     const have=st.done+st.now+st.plan, n300=used.filter(c=>level(c.code)>=300).length;
-    return {have,need:r.need,met:have>=r.need&&(!r.need300||n300>=r.need300),st,extra:r.need300?`${n300}/${r.need300} at 300-level`:"",claims};
+    return {have,need:r.need,met:have>=r.need&&(!r.need300||n300>=r.need300)&&(!r.spread||depts.size>=r.spread),st,
+      extra:r.need300?`${n300}/${r.need300} at 300-level`:r.spread?`${Math.min(depts.size,r.spread)}/${r.spread} prefixes`:"",claims};
   }
   if(r.type==="courses"){
     const opts=(r.options||[r.sets]).map(sets=>{
@@ -1510,6 +1515,11 @@ function planFromDars(parsed, startYear, id="cs", byCode){
         (course.darsAreaCredits||(course.darsAreaCredits={}))[tag]=applied;
         areaLeft[tag][status]-=applied;
       }
+    }
+    if(c.extraArea){ // from the any-area section: full credit in its own area, not the last section's
+      const area=(byCode?.get(canonCode(c.code).replace(/ /g,""))?.tags||[]).find(t=>["A&H","SSc","NSc"].includes(t))||c.extraArea;
+      if(!course.tags.includes(area)) course.tags.push(area);
+      if(course.darsAreaCredits) delete course.darsAreaCredits[area];
     }
     const ay = fullYear(c.yy)-(c.q===0?0:1);     // academic year that quarter belongs to
     const y = Math.min(ay-startYear,11);         // plans hold 12 years at most

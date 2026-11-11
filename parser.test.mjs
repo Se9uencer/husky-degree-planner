@@ -365,7 +365,16 @@ const ph = results("ph-bs-gh", [course("G H 101", 5), ...["G H 305","G H 401","G
 assert.ok(ph("gh").met, "Global Health takes G H 305, 401 and 402");
 assert.equal(ph("elec").have, 14, "those courses still count toward electives, but breadth courses don't");
 assert.equal(ph("ghcr").have, 14); assert.equal(ph("sbs").have, 15);
-assert.equal(ph("sbs3").have, 2, "breadth needs three different prefixes");
+assert.ok(!ph("sbs").met, "breadth needs three different prefixes"); assert.equal(ph("sbs").extra, "2/3 prefixes");
+const phBreadth = results("ph-ba", [course("PSYCH 101", 5, "PH Breadth"), course("PSYCH 202", 5, "PH Breadth"), course("SOC 110", 5, "PH Breadth"), course("ANTH 302", 5, "PH Breadth", "PH Elective")]);
+assert.ok(phBreadth("sbs").met, "the third prefix is claimed for breadth");
+assert.equal(phBreadth("elec").have, 0, "so it can't also be an elective");
+const phEP = results("ph-ba-ep", [...["HSERV 343","HSERV 344","HSERV 345"].map(c => course(c, 5, "PH Elective")), course("SPH 495", 1)]);
+assert.ok(phEP("ereq").met); assert.equal(phEP("elec").have, 16); assert.ok(!phEP("elec").met, "a short internship leaves electives under 20 credits");
+for (const id of ["ph-bs", "ph-bs-gh"]) {
+  const bs = results(id, [course("CHEM 223", 4, ...MAJORS[id].tagsFor("CHEM 223")), course("CHEM 224", 4, ...MAJORS[id].tagsFor("CHEM 224")), course("BIOC 405", 3, ...MAJORS[id].tagsFor("BIOC 405"))]);
+  assert.equal(bs("bsmore").have, 11, id + ": CHEM 223 and 224 count as BS selectives");
+}
 assert.ok(MAJORS["ph-ba"].tagsFor("CHSTU 101").includes("PH Breadth"));
 const ceReqs = planReqs(["ce"]), ceNsc = ceReqs.find(r => r.id === "nsc");
 const ceE = evalAll(ceReqs, [course("MATH 124", 5, "NSc"), course("CHEM 142", 5, "NSc", "CE Sci"), course("CSE 121", 4, "NSc"), course("PHYS 114", 4, "NSc")]);
