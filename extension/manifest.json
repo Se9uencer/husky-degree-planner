@@ -3,9 +3,32 @@
   "name": "Husky Degree Planner: MyPlan import",
   "version": "0.1.0",
   "description": "Adds a button to your MyPlan degree audit that sends it to Husky Degree Planner. Nothing leaves your browser.",
-  "permissions": ["storage"],
+  "permissions": [
+    "storage"
+  ],
   "content_scripts": [
-    { "matches": ["https://myplan.uw.edu/audit/*"], "js": ["myplan.js"] },
-    { "matches": ["https://husky-degree-planner.vercel.app/*", "http://localhost/*"], "js": ["planner.js"] }
-  ]
+    {
+      "matches": [
+        "https://myplan.uw.edu/audit/*"
+      ],
+      "js": [
+        "myplan.js"
+      ]
+    },
+    {
+      "matches": [
+        "https://husky-degree-planner.vercel.app/*",
+        "http://localhost/*"
+      ],
+      "js": [
+        "planner.js"
+      ]
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "homepage_url": "https://husky-degree-planner.vercel.app"
 }

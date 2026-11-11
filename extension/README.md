@@ -4,4 +4,4 @@ Adds a **Send audit to Husky Planner** button on `myplan.uw.edu/audit/`. It read
 
 Try it: `chrome://extensions` → Developer mode → **Load unpacked** → pick this folder. For a local planner, change `PLANNER` in `myplan.js` to your local address (for example `http://localhost:8000/`).
 
-Not done: Chrome Web Store listing, icons, Firefox/Safari, and asking UW whether they are fine with it.
+Release steps and store listing text: see STORE.md. Privacy policy: PRIVACY.md. Still open: Firefox/Safari, and asking UW whether they are fine with it.
