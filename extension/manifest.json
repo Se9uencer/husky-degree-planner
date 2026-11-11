@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Husky Degree Planner: MyPlan import",
+  "version": "0.1.0",
+  "description": "Adds a button to your MyPlan degree audit that sends it to Husky Degree Planner. Nothing leaves your browser.",
+  "permissions": ["storage"],
+  "content_scripts": [
+    { "matches": ["https://myplan.uw.edu/audit/*"], "js": ["myplan.js"] },
+    { "matches": ["https://husky-degree-planner.vercel.app/*", "http://localhost/*"], "js": ["planner.js"] }
+  ]
+}
