@@ -371,6 +371,8 @@ assert.ok(phBreadth("sbs").met, "the third prefix is claimed for breadth");
 assert.equal(phBreadth("elec").have, 0, "so it can't also be an elective");
 const phEP = results("ph-ba-ep", [...["HSERV 343","HSERV 344","HSERV 345"].map(c => course(c, 5, "PH Elective")), course("SPH 495", 1)]);
 assert.ok(phEP("ereq").met); assert.equal(phEP("elec").have, 16); assert.ok(!phEP("elec").met, "a short internship leaves electives under 20 credits");
+const nutr = results("ph-bs-nutr", [["NUTR 310",4],["NUTR 405",3],["NUTR 406",3],["NUTR 302",5],["NUTR 412",5]].map(([c, cr]) => course(c, cr, ...MAJORS["ph-bs-nutr"].tagsFor(c))));
+assert.ok(nutr("n9").met && nutr("n6").met && nutr("elec").met, "20 NUTR credits meet 9 + 6 + 5, as DARS splits them");
 for (const id of ["ph-bs", "ph-bs-gh"]) {
   const bs = results(id, [course("CHEM 223", 4, ...MAJORS[id].tagsFor("CHEM 223")), course("CHEM 224", 4, ...MAJORS[id].tagsFor("CHEM 224")), course("BIOC 405", 3, ...MAJORS[id].tagsFor("BIOC 405"))]);
   assert.equal(bs("bsmore").have, 11, id + ": CHEM 223 and 224 count as BS selectives");
