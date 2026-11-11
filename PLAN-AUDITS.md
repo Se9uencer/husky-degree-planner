@@ -61,6 +61,21 @@ The second run used 32 made-up courses in 2028-29 (the course list above, plus B
 
 Two differences are not bugs. DARS stops listing electives once 20 credits are filled, so its elective credits are lower than the planner's total; both call the requirement met. A planned course that duplicates a 0-credit AP row (PSYCH 101) counts in DARS but not in the planner; real plans rarely have that. DARS lists G H 101 only for admission, while the planner also requires it for the GH BA; its source wasn't rechecked, so it was left alone.
 
+## Picking up: what the next agent needs
+
+**Next:** family 2 (Computing). Build its course list from `cs`, `info`, `info-bhi`, `info-ds`, `acms-*` and `stat-*` in `index.html`, then follow "How to run one family". One branch and PR per family, from `main`.
+
+**Mechanics that worked in the Public Health run** (MyPlan's markup can change; recheck if something fails):
+- **State:** 2028-29 was empty and is empty again. Check the plan view (`myplan.uw.edu/plan/#/print`) before and after; real quarters were Autumn 2026 (16 credits) and Winter 2027 (14).
+- **Adding courses:** open the quarter's *Add to Plan* by script, wait about 1 second, then use real clicks to focus the code field, type, and press *Add to plan* (dialog buttons sit at fixed spots on a 1200x697 viewport). Wait about 6 seconds per save, and confirm the saved list in the plan view.
+- **Variable-credit courses** (G H 401, SPH 495) prompt for a credit amount at every audit run. Set the selects by script, then really click *Submit*. A stale cached audit appears first; press *Refresh Audit* and check its "Date Prepared" time.
+- **Switching programs:** *Choose Different Program*, set `#programSelector` by script, really click *Audit Your Plan*, then wait 25 to 30 seconds. `main.innerText` is the audit text.
+- **Moving text to localhost:** put the audit JSON in `window.name`, navigate the same tab to `http://localhost:8743/`, and read it there. Download it as JSON from that page into `~/Downloads`, then split it into `audits/plan-<id>.txt` (git-ignored).
+- **Comparing:** the planner's script is one closure, so fetch `/index.html`, append `window.__x={parseDars,planFromDars,evalAll,planReqs,coursesUpTo,loadCatalog,addCatalogGen,titleOnly,resolveShortTitle,addAutoTags,allCourses}` before its final `})();`, and `eval` it. Then run the same steps as the Import dialog and print each requirement's met state next to DARS's `PL`, `PL+`, `PL-` or `NO`. Saved audits can be fetched from `/audits/` on the dev server.
+- **Deleting:** *More actions* on the first card, *Delete*, confirm, then *Done* (all real clicks, about 12 seconds each). The first card's menu opens upward; take a screenshot before batching, and leave about 1 second after each click.
+
+**Still open:** `scripts/check-dars.mjs` (see below) isn't written, and the saved Public Health audits (`audits/`, 6 full plus 3 edge) exist only on the first author's machine. Re-import any real audits if the shared parser or evaluator changes.
+
 ## Fixtures and the check script
 
 Each saved plan audit becomes a test case, so the next catalog year can be checked with one command instead of repeating the MyPlan work.
