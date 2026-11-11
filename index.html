@@ -196,6 +196,16 @@ h1{font-family:var(--f-display);font-weight:400;font-size:var(--fs-page);line-he
   transition:opacity var(--dur),color var(--dur),border-color var(--dur),background-color var(--dur)}
 .q:hover .add,.add:focus-visible{opacity:1}
 .add:hover{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.secbtn{width:100%;color:var(--accent)}
+.tag.bad{background:var(--bad-soft);color:var(--bad)} .tag.warn{background:var(--warn-soft);color:var(--warn)}
+.secres{display:flex;flex-direction:column;gap:var(--sp-12)}
+.secopt{border:1px solid var(--line);border-radius:var(--r-sm);padding:var(--sp-12);display:flex;flex-direction:column;gap:var(--sp-8)}
+.secopt-h{display:flex;flex-wrap:wrap;align-items:center;gap:var(--sp-8)}
+.secopt-h .push{margin-left:auto}
+.seccourse{display:flex;flex-direction:column;gap:var(--sp-4);padding-top:var(--sp-8);border-top:1px solid var(--line)}
+.seccourse .code{font-family:var(--f-mono);font-weight:500}
+.secline{display:flex;flex-wrap:wrap;align-items:center;gap:var(--sp-4) var(--sp-8);font-size:var(--fs-md)}
+.secnote{flex-basis:100%;font-size:var(--fs-sm);color:var(--muted);overflow-wrap:anywhere}
 .prior .qgrid{--cols:1}
 .prior .q{min-height:0}
 .prior .list{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:var(--sp-8)}
@@ -1750,12 +1760,14 @@ function renderYears(p){
         <div class="qh"><strong>${qLabel(p,k)}${nk===k?` <span class="nowtag">· Now</span>`:""}</strong>${list.length?`<span class="load ${ld}"><span class="mono">${fmt(cr)}</span> · ${ldt}</span>`:""}</div>
         ${g===k?`<div class="gradflag">Graduate here</div>`:""}
         ${list.map(c=>courseHTML(c,k,!kept.has(c))).join("")}
-        <button class="add" data-add="${k}">+ Add course</button></div>`;
+        <button class="add" data-add="${k}">+ Add course</button>
+        ${schedQs.has(qCode(p,k))&&quarterCodes(list).length?`<button class="btn small secbtn" data-sec="${k}">Pick sections</button>`:""}</div>`;
     }
     html+=`</div></div>`;
   }
   const el=document.getElementById("years"); el.innerHTML=html;
   el.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>openFind(b.dataset.add));
+  el.querySelectorAll("[data-sec]").forEach(b=>b.onclick=()=>openSections(b.dataset.sec));
   el.querySelectorAll(".course").forEach(b=>{
     b.onclick=()=>openEditor(b.dataset.c,b.dataset.k);
     b.ondragstart=e=>{e.dataTransfer.setData("text/plain",b.dataset.c+"|"+b.dataset.k);e.dataTransfer.effectAllowed="move"};
@@ -1972,6 +1984,149 @@ function openFind(key,preset){
     document.getElementById("f-manual").onclick=()=>{ const v=q.value.trim(); close();
       openEditor(null,dest,/^[A-Za-z][A-Za-z& ]*\s?\d{3}/.test(v)?{code:canonCode(v),tags:autoTags(p.majors,v)}:undefined); };
     setTimeout(()=>q.focus(),0);
+  });
+}
+
+/*SCHED-START*/
+// Section optimizer: picks conflict-free sections for one quarter from schedule/<QTR>.json (built by scripts/build-schedule.mjs).
+// section = [sln, id, type, meetings, status, enrolled, limit, restr, other, notes]; meeting = [days, startMin, endMin]
+const blocksOf = s => s[3].flatMap(([days,st,en]) => (days.match(/Th|Su|M|T|W|F|S/g)||[]).map(d => [d,st,en]));
+// A primary section (its type column shows credits) comes with one section of each component type listed under it:
+// PHYS 121 A needs one QZ tutorial and one LB lab. Same-time components with the same status and restrictions are
+// interchangeable, so one stands in and the rest are kept as backups (alts[j] backs up parts[j]).
+const COMPONENT = /^[A-Z]{2}$/; // QZ quiz, LB lab, SM seminar, ST studio; primaries show credits ("5", "1-5", "VAR")
+const clash = (a, b) => a.some(([d,s,e]) => b.some(([d2,s2,e2]) => d === d2 && s < e2 && s2 < e));
+function sectionOptions(sections, open){
+  const groups = [];
+  for (const s of sections) {
+    if (!COMPONENT.test(s[2]) || !groups.length) { groups.push({lead:s, types:new Map()}); continue; }
+    const t = groups.at(-1).types; if (!t.has(s[2])) t.set(s[2], []); t.get(s[2]).push(s);
+  }
+  const ok = s => !open || s[4] !== "Closed";
+  return groups.filter(g => ok(g.lead)).flatMap(({lead, types}) => {
+    let opts = [{parts:[lead], alts:[[]], blocks:blocksOf(lead)}];
+    for (const list of types.values()) {
+      const choices = new Map();
+      for (const s of list.filter(ok)) { const k = JSON.stringify([s[3], s[4], s[7]]); if (choices.has(k)) choices.get(k).alts.push(s); else choices.set(k, {s, alts:[], blocks:blocksOf(s)}); }
+      opts = opts.flatMap(o => [...choices.values()].filter(c => !clash(o.blocks, c.blocks))
+        .map(c => ({parts:[...o.parts, c.s], alts:[...o.alts, c.alts], blocks:[...o.blocks, ...c.blocks]})));
+    }
+    return opts;
+  });
+}
+// Lower cost is better. ponytail: hand-picked weights; make them sliders if people disagree with the ranking.
+function optionCost(o, prefs){
+  let c = 0;
+  for (const s of o.parts) {
+    if (s[4] === "Closed") c += 500; // only reachable with open-only off; you'd need a seat to open up
+    if (prefs.noAddCode && s[7].includes(">")) c += 1000;
+    if (s[7].includes("Restr")) c += 200; // often limited to a major or program the student may not be in
+  }
+  for (const [,st] of o.blocks) if (st < prefs.start) c += 100 + (prefs.start - st); // per day it meets early
+  return c;
+}
+function layoutCost(blocks){
+  const days = {};
+  for (const [d,s,e] of blocks) (days[d] ||= []).push([s,e]);
+  let c = 0;
+  for (const list of Object.values(days)) {
+    list.sort((a,b) => a[0]-b[0]); c += 20; // each day on campus
+    for (let i = 1; i < list.length; i++) c += Math.max(0, list[i][0] - list[i-1][1] - 10) / 2; // waiting between classes, past a 10-minute walk
+  }
+  return c;
+}
+function bestSchedules(codes, courses, prefs, limit = 3){
+  const missing = codes.filter(c => !courses[c]);
+  const items = codes.filter(c => courses[c]).map(code => ({code, opts: sectionOptions(courses[code][1], prefs.open)
+    .map(o => { o.cost = optionCost(o, prefs); return o; }).sort((a,b) => a.cost-b.cost)}));
+  const full = items.filter(it => !it.opts.length).map(it => it.code); // nothing left once closed sections are dropped
+  if (full.length) return {missing, full, best: []};
+  items.sort((a,b) => a.opts.length - b.opts.length);
+  const best = [], pick = [], taken = [];
+  let steps = 0;
+  const go = (i, cost) => {
+    if (best.length === limit && cost >= best[limit-1].cost) return; // costs only grow, so this branch can't beat the list
+    if (i === items.length) {
+      const total = cost + layoutCost(taken);
+      if (best.length === limit && total >= best[limit-1].cost) return;
+      best.push({cost: total, picks: pick.map((o,j) => ({code: items[j].code, ...o})).sort((a,b) => codes.indexOf(a.code) - codes.indexOf(b.code))});
+      best.sort((a,b) => a.cost-b.cost); best.length = Math.min(best.length, limit);
+      return;
+    }
+    for (const o of items[i].opts) {
+      if (++steps > 300000) return; // ponytail: cap for very large loads; results stay conflict-free but may not be the very best
+      if (clash(o.blocks, taken)) continue;
+      pick.push(o); taken.push(...o.blocks); go(i+1, cost + o.cost); taken.length -= o.blocks.length; pick.pop();
+    }
+  };
+  go(0, 0);
+  return {missing, full, best};
+}
+/*SCHED-END*/
+const qCode = (p,key) => { const [y,q] = key.split("-").map(Number); return ["AUT","WIN","SPR","SUM"][q] + (p.startYear + y + (q===0?0:1)); };
+let schedQs = new Set(); const schedCache = {};
+fetch("schedule/index.json").then(r => r.ok ? r.json() : []).then(l => { schedQs = new Set(l); if (plan()) render(); }).catch(() => {});
+const loadSchedule = q => schedCache[q] ||= fetch(`schedule/${q}.json`).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).catch(e => { delete schedCache[q]; throw e; });
+const quarterCodes = list => [...new Set(list.filter(c => /\d{3}/.test(c.code||"")).map(c => canonCode(c.code)))];
+const clock = m => { const h = m/60|0, mm = m%60; return ((h+11)%12+1) + (mm ? ":" + String(mm).padStart(2,"0") : "") + (h<12 ? "am" : "pm"); };
+const meetText = s => s[3].length ? s[3].map(([d,a,b]) => `${d} ${clock(a)}–${clock(b)}`).join(", ") : "Time to be arranged";
+const MODE = {A:"Online", O:"Online", B:"Hybrid"};
+function secFlags(s, prefs){
+  const f = [];
+  if (s[4] === "Closed") f.push(["bad","Closed"]);
+  if (s[7].includes(">")) f.push(["warn","Add code"]);
+  if (s[7].includes("Restr")) f.push(["","Restricted"]);
+  if (s[7].includes("IS")) f.push(["","Independent study"]);
+  for (const k of s[8].split(" ")) if (MODE[k]) f.push(["",MODE[k]]);
+  if (s[3].some(m => m[1] < prefs.start)) f.push(["warn","Starts " + clock(Math.min(...s[3].map(m => m[1])))]);
+  return f;
+}
+function openSections(key){
+  const p = plan(), q = qCode(p,key), codes = quarterCodes(listOf(p,key));
+  const prefs = {start:570, open:true, noAddCode:true};
+  const starts = [[0,"Any time"],[510,"8:30am"],[570,"9:30am"],[630,"10:30am"],[690,"11:30am"]];
+  dialog(`<h3 id="dlgt">Pick sections <span class="muted sub">· ${esc(qLabel(p,key))}</span></h3>
+    <div class="row">
+      <div><label class="lbl" for="s-start">No classes before</label><select id="s-start">${starts.map(([v,l]) => `<option value="${v}" ${v===prefs.start?"selected":""}>${l}</option>`).join("")}</select></div>
+      <div><label class="lbl" for="s-open">Open sections only</label><input type="checkbox" class="switch" id="s-open" checked></div>
+      <div><label class="lbl" for="s-add">Avoid add codes</label><input type="checkbox" class="switch" id="s-add" checked></div>
+    </div>
+    <p class="note" id="s-status" role="status">Loading the ${esc(qLabel(p,key))} time schedule…</p>
+    <div id="s-res" class="secres"></div>`,
+  (ov,close) => {
+    ov.querySelector(".dlg").classList.add("wide");
+    const status = document.getElementById("s-status"), res = document.getElementById("s-res");
+    let data = null;
+    const draw = () => {
+      if (!data) return;
+      const {missing, full, best} = bestSchedules(codes, data.courses, prefs);
+      const offered = codes.filter(c => !missing.includes(c));
+      // On a clash, name the courses whose removal lets the rest fit.
+      const fixers = !best.length && !full.length && offered.length > 1 ? offered.filter(c => bestSchedules(offered.filter(x => x !== c), data.courses, prefs, 1).best.length) : [];
+      status.innerHTML = (missing.length ? `Not offered in ${esc(qLabel(p,key))}: ${missing.map(esc).join(", ")}. ` : "")
+        + (!offered.length ? "None of this quarter's courses are on the time schedule."
+          : full.length ? `No open sections left in ${full.map(esc).join(", ")}. Turn off Open sections only to see closed ones too.`
+          : !best.length ? (fixers.length ? `These courses can't all fit without a time conflict. Moving ${fixers.map(esc).join(" or ")} to another quarter would fix it.` : "These courses can't all fit without a time conflict. Move a course to another quarter and try again.")
+          : `Seats as of ${esc(data.built)}. They change fast, so check MyPlan before you register. Instructors and rooms aren't public.`);
+      res.innerHTML = best.map((b,i) => {
+        const blocks = b.picks.flatMap(o => o.blocks), days = [...new Set(blocks.map(x => x[0]))], first = blocks.length ? Math.min(...blocks.map(x => x[1])) : null;
+        const slns = b.picks.flatMap(o => o.parts.map(s => s[0]));
+        return `<section class="secopt"><div class="secopt-h"><strong>Option ${i+1}</strong>
+            <span class="muted">${days.length ? `${days.length} day${days.length>1?"s":""} on campus · first class ${clock(first)}` : "No scheduled meetings"}</span>
+            <button class="btn small push" data-copy="${slns.join(" ")}">Copy SLNs</button></div>
+          ${b.picks.map(o => `<div class="seccourse"><span class="code">${esc(o.code)}</span>
+            ${o.parts.map((s,j) => `<div class="secline"><span class="mono">${esc(s[1])} · ${s[0]}</span> <span>${esc(meetText(s))}</span>
+              <span class="muted">${s[5]}/${s[6]}</span>${secFlags(s,prefs).map(([c,t]) => `<span class="tag ${c}">${esc(t)}</span>`).join("")}
+              ${s[9] ? `<div class="secnote" title="${esc(s[9])}">${esc(s[9].length > 140 ? s[9].slice(0,140) + "…" : s[9])}</div>` : ""}
+              ${o.alts[j].length ? `<div class="secnote">Same time: ${o.alts[j].map(a => esc(a[1]) + " · " + a[0]).join(", ")}</div>` : ""}</div>`).join("")}</div>`).join("")}
+        </section>`;
+      }).join("");
+      res.querySelectorAll("[data-copy]").forEach(b => b.onclick = () => navigator.clipboard.writeText(b.dataset.copy).then(() => toast("SLNs copied. Paste them into MyPlan registration."), () => toast("Couldn't copy. Select the numbers by hand.")));
+    };
+    document.getElementById("s-start").onchange = e => { prefs.start = +e.target.value; draw(); };
+    document.getElementById("s-open").onchange = e => { prefs.open = e.target.checked; draw(); };
+    document.getElementById("s-add").onchange = e => { prefs.noAddCode = e.target.checked; draw(); };
+    loadSchedule(q).then(d => { data = d; draw(); track("sections", {quarter:q, courses:codes.length}); }, () => { status.textContent = "Couldn't load the time schedule. Check your connection and try again."; });
   });
 }
 
