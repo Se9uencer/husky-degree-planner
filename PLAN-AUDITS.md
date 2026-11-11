@@ -41,7 +41,7 @@ About 8 plans cover all 71 programs. Start with the large majors with complicate
 
 | Order | Family | Programs | Status |
 |---|---|---|---|
-| 1 | Public Health | `ph-bs-nutr`, `ph-ba`, `ph-ba-gh`, `ph-ba-ep`, `ph-bs`, `ph-bs-gh` | `ph-bs-nutr` done |
+| 1 | Public Health | `ph-bs-nutr`, `ph-ba`, `ph-ba-gh`, `ph-ba-ep`, `ph-bs`, `ph-bs-gh` | All six done (November 10, 2026) |
 | 2 | Computing | `cs`, `info`, `info-bhi`, `info-ds`, `acms-ds`, `acms-dm`, `acms-me`, `acms-sc`, `stat-app`, `stat-math`, `stat-ds` | |
 | 3 | Business | `bus`, `bus-acct`, `bus-abp`, `bus-entre`, `bus-fin`, `bus-hr`, `bus-is`, `bus-mktg`, `bus-ops` | |
 | 4 | Biology | `biol-ba`, `biol-bs`, `biol-mcd`, `bioc-ba`, `bioc-bs`, `micro` | |
@@ -51,6 +51,30 @@ About 8 plans cover all 71 programs. Start with the large majors with complicate
 | 8 | Math and Earth sciences | `math-ba`, `math-bs`, `math-phil`, `math-teach`, `ess-geo`, `ocean-ba`, `ocean-bs` | |
 
 The Public Health plan from November 10 was SPH 380, 381, 389, 391, 392, 480, 481, 493; EPI 320; NUTR 200, 302, 310, 405, 406, 412; BIOL 180, 200, 220; CHEM 237, 238; BIOC 405; ANTH 302. To cover the other five programs, add G H 101, 305, 401, 402 and one more G H elective; HSERV 100, 204, 343, 344, 345; SPH 495; and two BA selectives.
+
+### Public Health, the other five programs
+
+The second run used 32 made-up courses in 2028-29 (the course list above, plus BIOST 310, GEOG 180, PSYCH 101, SOC 110, ECON 200, MGMT 200 and G H 306), audited for all six programs, then a reduced plan (SPH 392, HSERV 343 and HSERV 100 removed, G H 401 at 1 credit) for three of them. Edge cases that held: GEOG 180 in place of G H 101 (DARS matches it too), SPH 495 at 1 and 3 credits, a course on two lists (ANTH 302 in breadth or electives), and a G H total one credit short. It found two bugs:
+
+1. **A description read as a requirement.** The BA Selectives description ends "...social justice and writing.", and the parser tagged every course under it as Writing (W). That gave the GH and E&P BAs 20 to 24 W credits where DARS had none. Sub-requirement tags now match the label's heading only.
+2. **A 3-credit minimum.** DARS wants "G H 305, 401 (3cr) and 402 (3cr)", and G H 401 and 402 can be taken for 1 credit. The planner counted a 1-credit G H 401. Requirements can now carry `minCr`.
+
+Two differences are not bugs. DARS stops listing electives once 20 credits are filled, so its elective credits are lower than the planner's total; both call the requirement met. A planned course that duplicates a 0-credit AP row (PSYCH 101) counts in DARS but not in the planner; real plans rarely have that. DARS lists G H 101 only for admission, while the planner also requires it for the GH BA; its source wasn't rechecked, so it was left alone.
+
+## Picking up: what the next agent needs
+
+**Next:** family 2 (Computing). Build its course list from `cs`, `info`, `info-bhi`, `info-ds`, `acms-*` and `stat-*` in `index.html`, then follow "How to run one family". One branch and PR per family, from `main`.
+
+**Mechanics that worked in the Public Health run** (MyPlan's markup can change; recheck if something fails):
+- **State:** 2028-29 was empty and is empty again. Check the plan view (`myplan.uw.edu/plan/#/print`) before and after; real quarters were Autumn 2026 (16 credits) and Winter 2027 (14).
+- **Adding courses:** open the quarter's *Add to Plan* by script, wait about 1 second, then use real clicks to focus the code field, type, and press *Add to plan* (dialog buttons sit at fixed spots on a 1200x697 viewport). Wait about 6 seconds per save, and confirm the saved list in the plan view.
+- **Variable-credit courses** (G H 401, SPH 495) prompt for a credit amount at every audit run. Set the selects by script, then really click *Submit*. A stale cached audit appears first; press *Refresh Audit* and check its "Date Prepared" time.
+- **Switching programs:** *Choose Different Program*, set `#programSelector` by script, really click *Audit Your Plan*, then wait 25 to 30 seconds. `main.innerText` is the audit text.
+- **Moving text to localhost:** put the audit JSON in `window.name`, navigate the same tab to `http://localhost:8743/`, and read it there. Download it as JSON from that page into `~/Downloads`, then split it into `audits/plan-<id>.txt` (git-ignored).
+- **Comparing:** the planner's script is one closure, so fetch `/index.html`, append `window.__x={parseDars,planFromDars,evalAll,planReqs,coursesUpTo,loadCatalog,addCatalogGen,titleOnly,resolveShortTitle,addAutoTags,allCourses}` before its final `})();`, and `eval` it. Then run the same steps as the Import dialog and print each requirement's met state next to DARS's `PL`, `PL+`, `PL-` or `NO`. Saved audits can be fetched from `/audits/` on the dev server.
+- **Deleting:** *More actions* on the first card, *Delete*, confirm, then *Done* (all real clicks, about 12 seconds each). The first card's menu opens upward; take a screenshot before batching, and leave about 1 second after each click.
+
+**Still open:** `scripts/check-dars.mjs` (see below) isn't written, and the saved Public Health audits (`audits/`, 6 full plus 3 edge) exist only on the first author's machine. Re-import any real audits if the shared parser or evaluator changes.
 
 ## Fixtures and the check script
 
