@@ -42,7 +42,7 @@ About 8 plans cover all 71 programs. Start with the large majors with complicate
 | Order | Family | Programs | Status |
 |---|---|---|---|
 | 1 | Public Health | `ph-bs-nutr`, `ph-ba`, `ph-ba-gh`, `ph-ba-ep`, `ph-bs`, `ph-bs-gh` | All six done (November 10, 2026) |
-| 2 | Computing | `cs`, `info`, `info-bhi`, `info-ds`, `acms-ds`, `acms-dm`, `acms-me`, `acms-sc`, `stat-app`, `stat-math`, `stat-ds` | |
+| 2 | Computing | `cs`, `info`, `info-bhi`, `info-ds`, `acms-ds`, `acms-dm`, `acms-me`, `acms-sc`, `stat-app`, `stat-math`, `stat-ds` | All eleven tested, full and reduced plans (November 10, 2026); Applied Statistics adviser approval remains unmet |
 | 3 | Business | `bus`, `bus-acct`, `bus-abp`, `bus-entre`, `bus-fin`, `bus-hr`, `bus-is`, `bus-mktg`, `bus-ops` | |
 | 4 | Biology | `biol-ba`, `biol-bs`, `biol-mcd`, `bioc-ba`, `bioc-bs`, `micro` | |
 | 5 | Economics, Political Science, Philosophy | `econ-ba`, `econ-ba-intl`, `econ-bs`, `econ-bs-ds`, `econ-bs-fin`, `econ-bs-strat`, `pols`, `pols-sec`, `pols-econ`, `phil`, `phil-eth` | |
@@ -61,9 +61,28 @@ The second run used 32 made-up courses in 2028-29 (the course list above, plus B
 
 Two differences are not bugs. DARS stops listing electives once 20 credits are filled, so its elective credits are lower than the planner's total; both call the requirement met. A planned course that duplicates a 0-credit AP row (PSYCH 101) counts in DARS but not in the planner; real plans rarely have that. DARS lists G H 101 only for admission, while the planner also requires it for the GH BA; its source wasn't rechecked, so it was left alone.
 
+### Computing, all eleven programs
+
+Tested on November 10, 2026, using ChatGPT's Chrome controls. MyPlan limits each quarter to **eight planned items**, so one year cannot hold this entire family. Four successive course sets used only 2028-29: CS; Informatics and its two options; ACMS Data Science plus all three Statistics options; and the other three ACMS options. There are **24 Computing fixtures** in the ignored `audits/` directory: a full and reduced audit for each program, plus ACMS Data Science's grouped-alternative case and Mathematical Economics' eight-credit elective case. All preparation times were checked; cached reports were not used as new results.
+
+Every program was imported through the local planner's actual Import from DARS dialog. All 33 saved fixtures (including the nine Public Health audits) were also re-imported through the same parser, conversion, catalog, title-repair and evaluation pipeline after shared changes. Public Health results stayed unchanged. A final comparison checked 341 tracked requirement and gen-ed results across the 24 Computing fixtures with zero differences. All three `*.test.mjs` files pass. The Computing changes branch from PR #22 because that PR was still open when this run started.
+
+Found and fixed:
+
+1. **Lost gen-ed credit on a split course.** DARS puts three credits of PHYS 116 under Natural Sciences and the whole four-credit course under the CS major. Dropping the fragment also dropped its NSc tag, leaving 33 rather than 36 NSc credits and an incorrect Areas of Inquiry total. Tags now survive on the whole course, while the audit's applied-credit budget preserves the partial allocation.
+2. **Statistics needs both course and credit minimums.** Three electives totaling eight credits (STAT 498 at one credit, STAT 425 at three, MATH 318 at four) were marked complete. DARS says one more credit is needed in all three Statistics options. Their elective requirements now check both three courses and nine credits. Applied Statistics' adviser-approved application requirement also checks three courses as well as nine credits; two five-credit courses are insufficient. The evaluator reserves every course needed to meet both minima.
+3. **ACMS electives were much too broad.** A blanket upper-level AMATH/CSE/MATH/STAT list incorrectly gave Mathematical Economics 68 elective credits where DARS applied eight and required one more. Replaced it with the option-specific post-Spring-2024 lists, including unused option courses. The corrected Discrete Math full plan has 16 elective credits; Mathematical Economics has eight before adding ECON 301 and 13 afterward. Scientific Computing now accepts unused CHEM 152, and Data Science accepts STAT 311 when AP STAT 290 fills introductory statistics. Sources: [Data Science](https://acms.washington.edu/data-sciences-and-statistics-0), [Discrete Math](https://acms.washington.edu/discrete-math-and-algorithms-0), [Mathematical Economics](https://acms.washington.edu/mathematical-economics-and-quantitative-finance-0), [Scientific Computing](https://acms.washington.edu/scientific-computing-and-numerical-algorithms-0). The department also has older, similarly named pages without the `-0` suffix; use the links under the post-Spring-2024 heading on its program-requirements page.
+4. **Alternatives counted as separate groups in ACMS Data Science.** AMATH 481 and 482 fill one scientific-computing group, not two. STAT 403 and 425 (including their cross-listed prefixes) fill one statistics group, not two. A live plan containing both pairs produced unmet DARS subrequirements that the planner incorrectly checked off. These now count distinct groups.
+
+Other edge cases: CSE 301 at one credit; CSE 123 satisfying both Statistics programming slots; INFO 492 capstone; surplus INFO 442/443 after CSE 373 fills the core slot; INFO 351 and INFO 330 as ACMS/Statistics alternatives; MATH 395 for STAT 395; MATH 381 for AMATH 383; and the MATH 408/409 sequence. Reduced plans tested missing core courses, a missing capstone, a missing society course, each Informatics option one course short, Statistics at eight elective credits, Discrete Math at 8/10 breadth courses and 12/15 elective credits, and the ACMS grouping cases.
+
+Expected differences: DARS stops assigning electives once a requirement is filled, so the planner can show more eligible credits with the same met state. The 180-credit degree-total cap is also expected. ACMS admission checks require completed courses, so planned courses do not satisfy admission even when they satisfy degree requirements. Applied Statistics' application-area courses need actual adviser approval; that requirement was deliberately left unmet. GPA, reasoning and foreign-language checks remain outside the planner's modeled requirements.
+
+Cleanup verified at 7:33 PM on November 10, 2026: all four quarters of 2028-29 are empty again. The print view contains only the original real courses: Autumn 2026 has 16 credits and Winter 2027 has 14; every other quarter is empty. All made-up courses were deleted.
+
 ## Picking up: what the next agent needs
 
-**Next:** family 2 (Computing). Build its course list from `cs`, `info`, `info-bhi`, `info-ds`, `acms-*` and `stat-*` in `index.html`, then follow "How to run one family". One branch and PR per family, from `main`.
+**Next:** family 3 (Business). Build its course list from `bus` and the `bus-*` options in `index.html`, then follow "How to run one family". One branch and PR per family, from `main` once preceding fixes have merged.
 
 **Mechanics that worked in the Public Health run** (MyPlan's markup can change; recheck if something fails):
 - **State:** 2028-29 was empty and is empty again. Check the plan view (`myplan.uw.edu/plan/#/print`) before and after; real quarters were Autumn 2026 (16 credits) and Winter 2027 (14).
@@ -74,7 +93,7 @@ Two differences are not bugs. DARS stops listing electives once 20 credits are f
 - **Comparing:** the planner's script is one closure, so fetch `/index.html`, append `window.__x={parseDars,planFromDars,evalAll,planReqs,coursesUpTo,loadCatalog,addCatalogGen,titleOnly,resolveShortTitle,addAutoTags,allCourses}` before its final `})();`, and `eval` it. Then run the same steps as the Import dialog and print each requirement's met state next to DARS's `PL`, `PL+`, `PL-` or `NO`. Saved audits can be fetched from `/audits/` on the dev server.
 - **Deleting:** *More actions* on the first card, *Delete*, confirm, then *Done* (all real clicks, about 12 seconds each). The first card's menu opens upward; take a screenshot before batching, and leave about 1 second after each click.
 
-**Still open:** `scripts/check-dars.mjs` (see below) isn't written, and the saved Public Health audits (`audits/`, 6 full plus 3 edge) exist only on the first author's machine. Re-import any real audits if the shared parser or evaluator changes.
+**Still open:** `scripts/check-dars.mjs` (see below) is not written. This machine has nine Public Health fixtures plus 24 Computing fixtures in `audits/`; they must remain ignored. Re-import saved audits if the shared parser or evaluator changes. MyPlan allows eight planned items per quarter, so larger families need successive course sets. Wait for each add dialog to initialize before filling it; an early fill can be reset. Real clicks work for save, credit-prompt submission and deletion confirmation, followed by about six seconds and verification (occasionally a little longer).
 
 ## Fixtures and the check script
 

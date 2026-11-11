@@ -426,7 +426,11 @@ function parseDars(text){
   }
   // A ">S" row is a fragment of a course DARS lists in full elsewhere (CHEM 152 as 5, 2 and 3 credits). Drop it when the full row is there.
   // ponytail: matched by quarter and title; a course that appears only as fragments keeps them.
-  const whole = new Set(out.courses.filter(c=>!c.split).map(c=>c.qtr+"|"+(c.title||c.code)));
+  const whole = new Map(out.courses.filter(c=>!c.split).map(c=>[c.qtr+"|"+(c.title||c.code),c]));
+  for(const c of out.courses.filter(c=>c.split)){
+    const full=whole.get(c.qtr+"|"+(c.title||c.code));
+    if(full) c.tags.forEach(t=>{ if(!full.tags.includes(t)) full.tags.push(t); });
+  }
   out.courses = out.courses.filter(c=>!c.split||!whole.has(c.qtr+"|"+(c.title||c.code)));
   if(out.catalogYear){ const m=out.catalogYear.match(/(AU|WI|SP|SU) (\d{2})/); out.startYear = fullYear(+m[2])-(m[1]==="AU"?0:1); }
   const uw = out.courses.filter(c=>!/^(AP|TR|IB|CR)$/.test(c.grade)&&!/TRANSFER/i.test(c.code+" "+c.title)); // the earliest UW-graded course wins when it predates the catalog year; transfer rows are not UW quarters
@@ -560,26 +564,33 @@ const acmsBase = [
   all("math","Math","MATH 124,MATH 125,MATH 126,MATH 207|AMATH 351,MATH 208;MATH 134,MATH 135,MATH 136"),
   all("base","Linear algebra and programming","AMATH 352,CSE 123|CSE 143"),
 ];
-const ACMS_SRC = GENCAT+"AppliedandComputationalMathSciences-994.html", ACMS_ELEC = "AMATH:300-498;CSE:300-498;MATH:300-498;STAT:300-310,312-498";
-const acmsNote = `Upper-level AMATH, CSE, MATH and STAT courses count as electives here, except STAT 311. Check your choices against the <a href="https://acms.washington.edu/program-requirements-and-information" target="_blank" rel="noopener">ACMS approved list</a>.`;
-major("acms-ds", "ACMS: Data Science & Statistics (BS)", "as", ACMS_SRC, {lists:{"ACMS Elective":ACMS_ELEC}, note:acmsNote, reqs:[...acmsBase,
+const ACMS_SRC = GENCAT+"AppliedandComputationalMathSciences-994.html";
+// Option-specific lists for students admitted from Spring 2024 onward, checked against DARS plan audits.
+const ACMS_DS_ELEC = "AMATH:301,383,481,482,483;CSE:163,373,412,414,415,417,472;MATH:300,318,327,381,394,395,396,407,408,409,424,425,426,464,465,491,492;STAT:290,302,303,311,316,391,394,395,396,403,425,427,428,441,451,491,492;INFO:330,351;SOC:225;CFRM:421;IND E:316;BIOST:425;Q SCI:403;PHYS:417";
+const ACMS_DM_BREADTH = "MATH:318,381,394,395,396,407,409,461,462;AMATH:383;STAT:394,395,396;CSE:412,413,414,415";
+const ACMS_DM_ELEC = "MATH:327,408,464,465,491,492;STAT:491,492;CSE:374,410";
+const ACMS_ME_ELEC = "CSE:163;MATH:300,318,327,394,395,396,407,408,409,424,425,426,491,492,493;STAT:390,394,395,396,491,492,493;CFRM:405,410,415,420,425;ECON:200,201,300,301,400,401,404,410,421,422,424,426,432,472,481,482,483,484,485,486,487,488";
+const ACMS_SC_ELEC = "AMATH:301,353,383,401,402,403,422,423,481,482,483;CSE:163,373,410,412,417;MATH:381,394,395,407,408,409,427,428,461,462,464,465,491,492;STAT:390,394,395,403,491,492;PHYS:121,141,122,123,417,434;CHEM:142,152;BIOL:180";
+const acmsNote = option => `Electives follow the <a href="https://acms.washington.edu/${option}-0" target="_blank" rel="noopener">option's approved list for students admitted from Spring 2024</a>. Unused option courses can count as electives. Adviser-approved substitutions need a tag added by hand.`;
+major("acms-ds", "ACMS: Data Science & Statistics (BS)", "as", ACMS_SRC, {lists:{"ACMS Elective":ACMS_DS_ELEC},
+  note:acmsNote("data-sciences-and-statistics"), reqs:[...acmsBase,
   all("core","Option core","MATH 394|STAT 394,STAT 290|STAT 311,STAT 302|AMATH 301,CSE 163"),
   all("data","Data science","STAT 303|SOC 225|INFO 351,CSE 414|INFO 330,STAT 435|CFRM 421"),
-  pick("comp","Scientific computing: 2 of AMATH 481/482, MATH 407, MATH 464",2,"AMATH:481,482;MATH:407,464"),
+  pick("comp","Scientific computing: 2 groups from AMATH 481/482, MATH 407, MATH 464",2,"AMATH:481,482;MATH:407,464",{distinct:{"AMATH 481":"computing","AMATH 482":"computing","MATH 407":"optimization","MATH 464":"analysis"}}),
   all("stat","Statistics core","STAT 391"),
-  pick("stat2","2 of STAT 425/403, STAT 451/CSE 412, STAT 316",2,"STAT:425,403,451,316;BIOST:425;Q SCI:403;CSE:412;IND E:316"),
+  pick("stat2","2 groups from STAT 425/403, STAT 451/CSE 412, STAT 316",2,"STAT:425,403,451,316;BIOST:425;Q SCI:403;CSE:412;IND E:316",{distinct:{"STAT 425":"nonparametric","STAT 403":"nonparametric","BIOST 425":"nonparametric","Q SCI 403":"nonparametric","STAT 451":"visualization","CSE 412":"visualization","STAT 316":"design","IND E 316":"design"}}),
   crd("elec","9 credits of electives",9,"ACMS Elective")]});
 major("acms-dm", "ACMS: Discrete Math & Algorithms (BS)", "as", ACMS_SRC, {
-  lists:{"ACMS Breadth":"MATH:318,381,394,395,396,407,409,461,462;AMATH:383;STAT:394,395,396;CSE:412,413,414,415", "ACMS Elective":ACMS_ELEC}, note:acmsNote, reqs:[...acmsBase,
+  lists:{"ACMS Breadth":ACMS_DM_BREADTH, "ACMS Elective":ACMS_DM_ELEC}, note:acmsNote("discrete-math-and-algorithms"), reqs:[...acmsBase,
   all("core","Option core","MATH 300,CSE 373,CSE 417"),
   cnt("breadth","10 courses from the option breadth list",10,"ACMS Breadth"),
   crd("elec","15 credits of electives",15,["ACMS Elective","ACMS Breadth"])]});
 major("acms-me", "ACMS: Math Economics & Quant Finance (BS)", "as", ACMS_SRC, {
-  lists:{"ACMS Elective":ACMS_ELEC+";CFRM:405,410,415,420,425;ECON:301,400,401,404,421,422,424,426,435,472,482,483,485,486"}, note:acmsNote, reqs:[...acmsBase,
+  lists:{"ACMS Elective":ACMS_ME_ELEC}, note:acmsNote("mathematical-economics-and-quantitative-finance"), reqs:[...acmsBase,
   all("core","Option core","CSE 163,ECON 200,ECON 201,ECON 300,MATH 300,MATH 318,MATH 327,MATH 394|STAT 394,STAT 395|MATH 395,MATH 407,STAT 390|CFRM 410"),
   all("seq","One sequence","MATH 408,MATH 409;MATH 491|STAT 491,MATH 492|STAT 492|MATH 493|STAT 493;ECON 482,ECON 483|ECON 484"),
   crd("elec","9 credits of electives",9,"ACMS Elective")]});
-major("acms-sc", "ACMS: Scientific Computing (BS)", "as", ACMS_SRC, {lists:{"ACMS Elective":ACMS_ELEC}, note:acmsNote, reqs:[...acmsBase,
+major("acms-sc", "ACMS: Scientific Computing (BS)", "as", ACMS_SRC, {lists:{"ACMS Elective":ACMS_SC_ELEC}, note:acmsNote("scientific-computing-and-numerical-algorithms"), reqs:[...acmsBase,
   all("core","Option core","STAT 390|MATH 394|STAT 394,AMATH 383|MATH 381,PHYS 121|PHYS 141,PHYS 122|PHYS 123|CHEM 142|CHEM 152|BIOL 180,CSE 163,AMATH 301,MATH 464,MATH 465,AMATH 481,AMATH 482,AMATH 483"),
   crd("elec","10 credits of electives",10,"ACMS Elective")]});
 
@@ -592,15 +603,15 @@ const STAT_SRC = GENCAT+"Statistics-294.html", STAT_LIST_DARS = {"Stat Elective"
 const statNote = `Elective tags follow the <a href="https://stat.uw.edu/academics/undergraduate/statistics-bs/major" target="_blank" rel="noopener">Statistics list for students enrolled in 2024 or later</a>.`;
 major("stat-app", "Statistics: Applied (BS)", "as", STAT_SRC, {lists:{...STAT_LIST_DARS,"Stat Interdisc":""},
   note:statNote+" Tag your three interdisciplinary courses as Stat Interdisc after your adviser approves them.", reqs:[...statBase,
-  crd("inter","3 interdisciplinary courses, 9 credits",9,"Stat Interdisc"),
-  cnt("elec","3 electives",3,"Stat Elective")]});
+  crd("inter","3 interdisciplinary courses, 9 credits",9,"Stat Interdisc",{minCourses:3}),
+  cnt("elec","3 electives, 9 credits",3,"Stat Elective",{minCredits:9})]});
 major("stat-math", "Statistics: Mathematical (BS)", "as", STAT_SRC, {lists:STAT_LIST_DARS, note:statNote, reqs:[...statBase,
   all("seq","One math sequence","STAT 395|MATH 395,STAT 491|MATH 491,STAT 492|MATH 492;STAT 395|MATH 395,STAT 491|MATH 491,STAT 493|MATH 493;MATH 300,MATH 327,MATH 424"),
-  cnt("elec","3 electives",3,"Stat Elective")]});
+  cnt("elec","3 electives, 9 credits",3,"Stat Elective",{minCredits:9})]});
 major("stat-ds", "Statistics: Data Science (BS)", "as", STAT_SRC, {lists:{...STAT_LIST,"Stat Computing":"CSE:373;MATH:318,407,408,409;STAT:534"}, note:statNote, reqs:[...statBase,
   all("ds","Visualization and databases","STAT 451|CSE 412|CSE 442|HCDE 411|INFO 474,CSE 344|CSE 414|CSE 444|INFO 330"),
   cnt("cmp","1 computing elective",1,"Stat Computing"),
-  cnt("elec","3 electives",3,["Stat Elective","Stat Computing"])]});
+  cnt("elec","3 electives, 9 credits",3,["Stat Elective","Stat Computing"],{minCredits:9})]});
 
 const PSY_A = "PSYCH:300,302,333,355", PSY_B = "PSYCH:303,305,306,345,357;GWSS:357";
 const psychGroups = [
@@ -1208,19 +1219,22 @@ function evalReq(r,courses,taken){
         used.length=0; used.push(...one);
       }
       used.forEach(c=>st[c.status]+=1);
-      const have=used.length, n400=used.filter(c=>level(c.code)>=400).length;
-      return {have,need:r.need,met:have>=r.need&&(!r.need400||n400>=r.need400),st,extra:r.need400?`${n400}/${r.need400} at 400-level`:"",claims:used.slice(0,r.need)};
+      const have=used.length, n400=used.filter(c=>level(c.code)>=400).length, credits=used.reduce((s,c)=>s+(+c.credits||0),0);
+      let claimed=0, claimedCredits=0;
+      const claims=used.filter(c=>{if(claimed>=r.need&&claimedCredits>=(r.minCredits||0))return false;claimed++;claimedCredits+=(+c.credits||0);return true;});
+      return {have,need:r.need,met:have>=r.need&&(!r.need400||n400>=r.need400)&&(!r.minCredits||credits>=r.minCredits),st,
+        extra:[r.need400?`${n400}/${r.need400} at 400-level`:"",r.minCredits?`${credits}/${r.minCredits} credits`:""].filter(Boolean).join(" · "),claims};
     }
     const weight=c=>String(r.group||"").startsWith("gen")&&r.tags?.some(t=>AOI_TAGS.includes(t))
       ? areaCredit(c,(c.tags||[]).find(t=>r.tags.includes(t))) : (+c.credits||0);
     used.forEach(c=>st[c.status]+=weight(c));
     // spread: the credits must cover that many prefixes, so one course per new prefix is claimed first, and later requirements skip exactly those courses
     if(r.spread){ const seen=new Set(), first=used.filter(c=>!seen.has(deptOf(c.code))&&seen.add(deptOf(c.code))); used.splice(0,used.length,...first,...used.filter(c=>!first.includes(c))); }
-    let sum=0; const depts=new Set(), claims=used.filter(c=>{ const d=deptOf(c.code), newDept=r.spread&&!depts.has(d)&&depts.size<r.spread;
-      if(sum>=r.need&&!newDept) return false; sum+=(+c.credits||0); depts.add(d); return true; });
+    let sum=0, claimed=0; const depts=new Set(), claims=used.filter(c=>{ const d=deptOf(c.code), newDept=r.spread&&!depts.has(d)&&depts.size<r.spread;
+      if(sum>=r.need&&claimed>=(r.minCourses||0)&&!newDept) return false; sum+=(+c.credits||0); claimed++; depts.add(d); return true; });
     const have=st.done+st.now+st.plan, n300=used.filter(c=>level(c.code)>=300).length;
-    return {have,need:r.need,met:have>=r.need&&(!r.need300||n300>=r.need300)&&(!r.spread||depts.size>=r.spread),st,
-      extra:r.need300?`${n300}/${r.need300} at 300-level`:r.spread?`${Math.min(depts.size,r.spread)}/${r.spread} prefixes`:"",claims};
+    return {have,need:r.need,met:have>=r.need&&(!r.need300||n300>=r.need300)&&(!r.spread||depts.size>=r.spread)&&(!r.minCourses||used.length>=r.minCourses),st,
+      extra:r.minCourses?`${used.length}/${r.minCourses} courses`:r.need300?`${n300}/${r.need300} at 300-level`:r.spread?`${Math.min(depts.size,r.spread)}/${r.spread} prefixes`:"",claims};
   }
   if(r.type==="courses"){
     const opts=(r.options||[r.sets]).map(sets=>{
